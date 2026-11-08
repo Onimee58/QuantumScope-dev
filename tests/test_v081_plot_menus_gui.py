@@ -1,6 +1,7 @@
 """v0.8.1: chart right-click menus. pyqtgraph's "Plot Options" (FFT, log, derivative, …) crashed on
-scatter plots ('ScatterPlotItem' object has no attribute 'setFftMode'); every chart now hides it and
-keeps View All, the axis options and Export…."""
+scatter plots ('ScatterPlotItem' object has no attribute 'setFftMode'), and its Export dialog opened
+squashed with formats that fail (SVG, Matplotlib). Every chart now offers View All, the axis options,
+Save image…, Copy image and Save data (CSV)…."""
 import os
 import re
 
@@ -39,9 +40,13 @@ def _check(items):
     assert items
     for item in items:
         assert item.getContextMenus(None) is None                      # no "Plot Options" (FFT, log, …)
-        menu = item.getViewBox().menu                                  # but View All and Export… remain
+        assert item.scene().contextMenu == []                          # no generic "Export…" dialog
+        menu = item.getViewBox().menu
         assert item.getViewBox().menuEnabled() and menu is not None
-        assert any('View All' in a.text() for a in menu.actions())
+        texts = [a.text() for a in menu.actions()]
+        for wanted in ('View All', 'Save image…', 'Copy image', 'Save data (CSV)…'):
+            assert wanted in texts, (wanted, texts)
+        assert texts.count('Save image…') == 1                         # added once, even if tidied again
 
 
 def test_quantum_ml_and_vqls_charts(app):
@@ -56,6 +61,27 @@ def test_quantum_ml_and_vqls_charts(app):
     w = CircuitWorkspace()
     w.load_library('vqls', {'problem': 'single', 'layers': 1})
     _check(_plot_items(w.show_vqls_solution()))
+
+
+def test_save_image_copy_image_and_save_data(app, tmp_path):
+    from PySide6.QtGui import QImage
+    from quantumscope.gui import plots
+    from quantumscope.gui import qml_experiments as Q
+    v = Q.VariationalExperiment()
+    v.resize(1000, 700)
+    v.show()
+    v.data.source.setCurrentIndex(v.data.source.findData('moons'))
+    v.steps.setValue(5)
+    v.train()
+    app.processEvents()
+    plots.tidy(v.regions)                                              # tidying twice is harmless
+    for plot in (v.regions, v.curve):                                  # an image with scatter, and lines
+        item = plot.getPlotItem()
+        image = QImage(plots.save_image(item, str(tmp_path / 'chart')))
+        assert image.width() >= 1.9 * item.sceneBoundingRect().width()   # twice the screen resolution
+        assert plots.copy_image(item).width() == image.width()
+        csv = plots.save_data(item, str(tmp_path / 'chart'))
+        assert csv.endswith('.csv') and open(csv).readline().count(',') >= 1
 
 
 def test_physics_charts(app):
