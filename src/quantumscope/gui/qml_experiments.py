@@ -37,6 +37,27 @@ class DataStore(QObject):
 STORE = DataStore()
 
 
+def _scrolling(panel, layout):
+    """A left-hand control panel that scrolls instead of squashing: every control keeps its natural
+    height, and a scrollbar appears when the window is too short (v0.8.2)."""
+    from PySide6.QtWidgets import QFrame, QLayout, QScrollArea
+    for box in panel.findChildren(QComboBox):                      # lists: a sensible width, not their longest entry
+        box.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        box.setMinimumContentsLength(4 if box.property('pair') else 14)   # class pairs sit side by side
+        box.currentTextChanged.connect(box.setToolTip)            # the full name on hover
+        box.setToolTip(box.currentText())
+    layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)   # never smaller than its contents
+    area = QScrollArea()
+    area.setWidget(panel)
+    area.setWidgetResizable(True)
+    area.setFrameShape(QFrame.Shape.NoFrame)
+    area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+    width = panel.maximumWidth()
+    if width < 16777215:                                           # the column's width, plus the scrollbar's
+        area.setFixedWidth(width + area.verticalScrollBar().sizeHint().width() + 2)
+    return area
+
+
 def _source_combo():
     box = QComboBox()
     for key, (title, *_rest) in D.BUILTIN.items():
@@ -165,7 +186,7 @@ class DatasetsExperiment(QWidget):
         super().__init__(parent)
         root = QHBoxLayout(self)
         left = QWidget()
-        left.setMaximumWidth(400)
+        left.setMaximumWidth(420)
         form = QVBoxLayout(left)
         title = QLabel('DATASETS  ·  check and prepare data for a quantum classifier')
         title.setStyleSheet('font-weight:700;')
@@ -197,6 +218,8 @@ class DatasetsExperiment(QWidget):
         recipe = QGroupBox('Preprocessing')
         rv = QFormLayout(recipe)
         self.class_a, self.class_b = QComboBox(), QComboBox()
+        for box in (self.class_a, self.class_b):
+            box.setProperty('pair', True)
         pair = QHBoxLayout()
         pair.addWidget(self.class_a)
         pair.addWidget(QLabel('vs'))
@@ -239,7 +262,7 @@ class DatasetsExperiment(QWidget):
         self.steps.setObjectName('muted')
         form.addWidget(self.steps)
         form.addStretch()
-        root.addWidget(left)
+        root.addWidget(_scrolling(left, form))
         right = QVBoxLayout()
         self.plot = _plot('Prepared training data (first two features)')
         right.addWidget(self.plot, 3)
@@ -359,7 +382,9 @@ class _DataPicker(QGroupBox):
         self.qubits.setValue(2)
         self.qubits.setToolTip('One feature per qubit: the data is reduced to this many features')
         form.addRow('Qubits (= features)', self.qubits)
-        self.class_a, self.class_b = QComboBox(), QComboBox()          # for datasets with more than two classes
+        self.class_a, self.class_b = QComboBox(), QComboBox()
+        for box in (self.class_a, self.class_b):
+            box.setProperty('pair', True)          # for datasets with more than two classes
         self.class_row = QWidget()
         pair = QHBoxLayout(self.class_row)
         pair.setContentsMargins(0, 0, 0, 0)
@@ -554,7 +579,7 @@ class KernelExperiment(QWidget):
         super().__init__(parent)
         root = QHBoxLayout(self)
         left = QWidget()
-        left.setMaximumWidth(380)
+        left.setMaximumWidth(392)
         form = QVBoxLayout(left)
         title = QLabel('QUANTUM KERNEL CLASSIFIER  ·  compare data points as quantum states')
         title.setStyleSheet('font-weight:700;')
@@ -609,7 +634,7 @@ class KernelExperiment(QWidget):
         self.result.setWordWrap(True)
         form.addWidget(self.result)
         form.addStretch()
-        root.addWidget(left)
+        root.addWidget(_scrolling(left, form))
         from PySide6.QtWidgets import QSplitter, QTabWidget
         right = QSplitter(Qt.Orientation.Vertical)                # drag the divider to resize
         right.setChildrenCollapsible(False)
@@ -857,7 +882,7 @@ class VariationalExperiment(QWidget):
         super().__init__(parent)
         root = QHBoxLayout(self)
         left = QWidget()
-        left.setMaximumWidth(380)
+        left.setMaximumWidth(392)
         form = QVBoxLayout(left)
         title = QLabel('VARIATIONAL CLASSIFIER  ·  train a quantum circuit to separate the classes')
         title.setStyleSheet('font-weight:700;')
@@ -905,7 +930,7 @@ class VariationalExperiment(QWidget):
         self.result.setWordWrap(True)
         form.addWidget(self.result)
         form.addStretch()
-        root.addWidget(left)
+        root.addWidget(_scrolling(left, form))
         right = QVBoxLayout()
         self.regions = _plot('Decision regions')
         right.addWidget(self.regions, 3)
