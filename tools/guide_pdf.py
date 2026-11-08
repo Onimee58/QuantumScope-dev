@@ -29,7 +29,7 @@ AUTHOR_LINES = ('Postdoctoral Fellow, Electrical and Computer Engineering',
                 'Southern Methodist University, Dallas, Texas')
 REPOSITORY = 'github.com/Onimee58/QuantumScope'
 MARK = os.path.join(ROOT, 'src', 'quantumscope', 'assets', 'quantumscope-mark.svg')
-NAVY, PANEL, CYAN, MIST, MUTED = '#0b1420', '#13263f', '#5ae6ff', '#e6eef7', '#8fa3ba'
+NAVY, PANEL, CYAN, MIST, MUTED, ACCENT = '#0b1420', '#13263f', '#5ae6ff', '#e6eef7', '#8fa3ba', '#ff9a5a'
 MAX_W, MAX_H = 640, 400                 # largest figure, in document units (96 per inch)
 FOOTER = 26                             # room for the page number at the bottom of each page
 GAP_LIMIT = 0.25                        # a page ending with more than this share empty is a "blank spot"
@@ -311,7 +311,7 @@ def draw_cover(painter, page):
     for x, y in zip(xs, ys):
         fade = 0.25 + 0.75 * (1 - y)
         colour = QColor(CYAN)
-        colour.setAlphaF(min(1.0, 0.18 + 0.65 * fade * rng.uniform(0.6, 1.0)))
+        colour.setAlphaF(min(1.0, 0.10 + 0.40 * fade * rng.uniform(0.6, 1.0)))   # texture behind the drawing
         painter.setBrush(colour)
         r = 0.55 + 0.75 * rng.uniform()
         painter.drawEllipse(QPointF(x * w, 26 + y * (band - 40)), r, r)
@@ -322,6 +322,8 @@ def draw_cover(painter, page):
     fade.setColorAt(0.0, clear)
     fade.setColorAt(1.0, solid)
     painter.fillRect(QRectF(0, band * 0.62, w, band * 0.38 + 8), fade)
+    _draw_circuit(painter, QRectF(40, band * 0.22, w * 0.43, band * 0.56))
+    _draw_bloch(painter, w * 0.735, band * 0.50, min(w, band) * 0.27)
 
     def font(family, size, bold=False):
         """A font `size` points high. The painter already works in points, so the size is given in its
@@ -357,6 +359,131 @@ def draw_cover(painter, page):
     right = QRectF(w / 2, h - 113, w / 2 - left, 54)
     painter.drawText(right, int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop),
                      f'{REPOSITORY}\nOpen source, MIT licence')
+
+
+def _pen(colour, width, alpha=1.0, dashed=False):
+    from PySide6.QtGui import QColor, QPen
+    c = QColor(colour)
+    c.setAlphaF(alpha)
+    pen = QPen(c, width)
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    if dashed:
+        pen.setDashPattern([3, 3])
+    return pen
+
+
+def _draw_circuit(painter, box):
+    """A three-qubit GHZ circuit (H, then two CNOTs, then measurements), in the cover's line style."""
+    from PySide6.QtCore import QPointF
+    from PySide6.QtGui import QColor, QFont, QPainterPath
+    wires = [box.top() + box.height() * f for f in (0.2, 0.5, 0.8)]
+    x0, x1 = box.left(), box.right()
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    label = QFont('Inter')
+    label.setPixelSize(11)
+    painter.setFont(label)
+    for y in wires:                                               # the qubits' wires, starting in |0⟩
+        painter.setPen(_pen(MUTED, 1.0, 0.9))
+        painter.drawText(QPointF(x0, y + 4), '|0⟩')
+        painter.setPen(_pen(MIST, 1.1, 0.75))
+        painter.drawLine(QPointF(x0 + 26, y), QPointF(x1, y))
+    size = 22.0
+    gate = QFont('Inter')
+    gate.setPixelSize(13)
+    gate.setBold(True)
+
+    def h_gate(x, y):
+        painter.setPen(_pen(CYAN, 1.4))
+        painter.setBrush(QColor(NAVY))
+        painter.drawRoundedRect(QRectF(x - size / 2, y - size / 2, size, size), 3, 3)
+        painter.setFont(gate)
+        painter.setPen(_pen(CYAN, 1.0))
+        painter.drawText(QRectF(x - size / 2, y - size / 2, size, size), int(Qt.AlignmentFlag.AlignCenter), 'H')
+
+    def cnot(x, control, target):
+        painter.setPen(_pen(CYAN, 1.4))
+        painter.drawLine(QPointF(x, control), QPointF(x, target + (8 if target > control else -8)))
+        painter.setBrush(QColor(CYAN))
+        painter.drawEllipse(QPointF(x, control), 3.6, 3.6)
+        painter.setBrush(QColor(NAVY))
+        painter.drawEllipse(QPointF(x, target), 8, 8)
+        painter.drawLine(QPointF(x - 8, target), QPointF(x + 8, target))
+        painter.drawLine(QPointF(x, target - 8), QPointF(x, target + 8))
+
+    def meter(x, y):
+        painter.setPen(_pen(MIST, 1.2, 0.9))
+        painter.setBrush(QColor(NAVY))
+        painter.drawRoundedRect(QRectF(x - size / 2, y - size / 2, size, size), 3, 3)
+        arc = QPainterPath()
+        arc.arcMoveTo(QRectF(x - 7, y - 3, 14, 12), 180)
+        arc.arcTo(QRectF(x - 7, y - 3, 14, 12), 180, -180)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(arc)
+        painter.drawLine(QPointF(x, y + 3), QPointF(x + 5, y - 6))
+    span = x1 - (x0 + 26)
+    h_gate(x0 + 26 + span * 0.18, wires[0])
+    cnot(x0 + 26 + span * 0.42, wires[0], wires[1])
+    cnot(x0 + 26 + span * 0.62, wires[1], wires[2])
+    for y in wires:
+        meter(x0 + 26 + span * 0.88, y)
+
+
+def _draw_bloch(painter, cx, cy, r):
+    """A Bloch sphere in a true 3-D projection (the far halves of its circles dashed), with one state
+    vector, the cover's single warm accent."""
+    import math
+    from PySide6.QtCore import QPointF
+    from PySide6.QtGui import QColor, QFont, QPolygonF
+    az, el = math.radians(35), math.radians(18)
+
+    def project(x, y, z):
+        """(screen point, depth): rotate about z by az, tilt by el; depth > 0 faces the reader."""
+        x1, y1 = x * math.cos(az) - y * math.sin(az), x * math.sin(az) + y * math.cos(az)
+        up = z * math.cos(el) - y1 * math.sin(el)
+        depth = y1 * math.cos(el) + z * math.sin(el)
+        return QPointF(cx + r * x1, cy - r * up), depth
+
+    def circle(points, width, alpha):
+        for k in range(len(points) - 1):
+            (a, da), (b, db) = points[k], points[k + 1]
+            back = (da + db) / 2 < 0
+            painter.setPen(_pen(MIST, width, alpha * (0.45 if back else 1.0), dashed=back))
+            painter.drawLine(a, b)
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    painter.setPen(_pen(MIST, 1.4, 0.85))
+    painter.drawEllipse(QPointF(cx, cy), r, r)                    # the outline
+    steps = [2 * math.pi * k / 120 for k in range(121)]
+    circle([project(math.cos(t), math.sin(t), 0) for t in steps], 1.0, 0.7)   # equator
+    circle([project(0, math.cos(t), math.sin(t)) for t in steps], 0.8, 0.45)  # a meridian
+    for end in ((0, 0, 1), (0, 0, -1), (1, 0, 0), (0, 1, 0)):     # axes
+        painter.setPen(_pen(MUTED, 0.8, 0.6, dashed=True))
+        painter.drawLine(QPointF(cx, cy), project(*end)[0])
+    label = QFont('Inter')
+    label.setPixelSize(12)
+    painter.setFont(label)
+    painter.setPen(_pen(MIST, 1.0, 0.9))
+    top, bottom = project(0, 0, 1)[0], project(0, 0, -1)[0]
+    painter.drawText(QPointF(top.x() - 10, top.y() - 8), '|0⟩')
+    painter.drawText(QPointF(bottom.x() - 10, bottom.y() + 18), '|1⟩')
+    theta, phi = math.radians(50), -az + math.radians(12)        # the state vector, nearly in the page plane
+    tip3 = (math.sin(theta) * math.cos(phi), math.sin(theta) * math.sin(phi), math.cos(theta))
+    tip, _ = project(*tip3)
+    foot, _ = project(tip3[0], tip3[1], 0)
+    painter.setPen(_pen(ACCENT, 0.9, 0.7, dashed=True))           # its shadow on the equator plane
+    painter.drawLine(QPointF(cx, cy), foot)
+    painter.drawLine(foot, tip)
+    painter.setPen(_pen(ACCENT, 2.6))
+    painter.drawLine(QPointF(cx, cy), tip)
+    dx, dy = tip.x() - cx, tip.y() - cy
+    length = math.hypot(dx, dy) or 1.0
+    ux, uy = dx / length, dy / length
+    head = QPolygonF([tip, QPointF(tip.x() - 11 * ux + 5 * uy, tip.y() - 11 * uy - 5 * ux),
+                      QPointF(tip.x() - 11 * ux - 5 * uy, tip.y() - 11 * uy + 5 * ux)])
+    painter.setBrush(QColor(ACCENT))
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.drawPolygon(head)
+    painter.setBrush(QColor(MIST))
+    painter.drawEllipse(QPointF(cx, cy), 2.4, 2.4)
 
 
 def _fragments(block):
