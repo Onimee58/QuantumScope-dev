@@ -19,6 +19,10 @@ import urllib.request
 REPOSITORY = 'Onimee58/QuantumScope'
 RELEASES_URL = f'https://api.github.com/repos/{REPOSITORY}/releases?per_page=30'
 TIMEOUT = 15
+RELEASES_PAGE = f'https://github.com/{REPOSITORY}/releases'
+TRANSIENT = (500, 502, 503, 504)          # GitHub's own, temporary trouble: worth trying again
+RETRY_DELAYS = (1.0, 3.0)                 # seconds before the second and third attempts
+SLEEP = time.sleep                        # replaced in tests
 CHUNK = 1 << 16
 
 
@@ -85,20 +89,42 @@ def latest(releases, current, platform=None):
 
 
 def _request(url, opener=None):
+    """Open a GitHub URL. Temporary failures (GitHub's 500/502/503/504, timeouts, dropped connections)
+    are tried up to three times, 1 s and then 3 s apart; a rate limit is not retried."""
     request = urllib.request.Request(url, headers={'Accept': 'application/vnd.github+json',
                                                    'User-Agent': 'QuantumScope-updater'})
-    try:
-        return (opener or urllib.request.urlopen)(request, timeout=TIMEOUT)
-    except urllib.error.HTTPError as exc:
-        if exc.code in (403, 429) and exc.headers.get('X-RateLimit-Remaining') == '0':
-            reset = exc.headers.get('X-RateLimit-Reset')
-            minutes = max(1, round((int(reset) - time.time()) / 60)) if reset and reset.isdigit() else None
-            wait = f' Try again in about {minutes} minute{"s" if minutes != 1 else ""}.' if minutes else ' Try again later.'
-            raise UpdateError('GitHub limits how often a network can check for updates, and that limit has '
-                              'been reached (common on shared university networks).' + wait) from exc
-        raise UpdateError(f'GitHub answered with an error ({exc.code}). Try again later.') from exc
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        raise UpdateError('Could not reach GitHub. Check your internet connection and try again.') from exc
+    attempts = len(RETRY_DELAYS) + 1
+    for attempt in range(attempts):
+        last = attempt == attempts - 1
+        try:
+            return (opener or urllib.request.urlopen)(request, timeout=TIMEOUT)
+        except urllib.error.HTTPError as exc:
+            if exc.code in (403, 429) and exc.headers.get('X-RateLimit-Remaining') == '0':
+                reset = exc.headers.get('X-RateLimit-Reset')
+                minutes = max(1, round((int(reset) - time.time()) / 60)) if reset and reset.isdigit() else None
+                wait = f' Try again in about {minutes} minute{"s" if minutes != 1 else ""}.' if minutes else ' Try again later.'
+                raise UpdateError('GitHub limits how often a network can check for updates, and that limit has '
+                                  'been reached (common on shared university networks).' + wait) from exc
+            if exc.code in TRANSIENT and not last:
+                SLEEP(RETRY_DELAYS[attempt])
+                continue
+            if exc.code in TRANSIENT:
+                raise UpdateError(f'GitHub did not answer properly (error {exc.code}, {_meaning(exc.code)}), even after '
+                                  f'{attempts} tries. This is a temporary problem on GitHub\'s side: try again in a few '
+                                  f'minutes, or download the installer from the release page:\n{RELEASES_PAGE}') from exc
+            raise UpdateError(f'GitHub answered with an error ({exc.code}). Try again later, or download the '
+                              f'installer from the release page:\n{RELEASES_PAGE}') from exc
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            if not last:
+                SLEEP(RETRY_DELAYS[attempt])
+                continue
+            raise UpdateError(f'Could not reach GitHub after {attempts} tries. Check your internet connection and try '
+                              f'again, or download the installer from the release page:\n{RELEASES_PAGE}') from exc
+
+
+def _meaning(code):
+    return {500: 'a server error', 502: 'a bad gateway', 503: 'the service is unavailable',
+            504: 'the server timed out'}.get(code, 'a server error')
 
 
 def check(current, platform=None, opener=None):

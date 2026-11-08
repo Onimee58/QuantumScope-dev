@@ -1,5 +1,7 @@
 """Keep the test suite away from the real user's settings and data folders."""
 import os
+
+import pytest
 import tempfile
 
 _folder = tempfile.mkdtemp(prefix='quantumscope-tests-')
@@ -50,3 +52,10 @@ def pytest_unconfigure(config):
         sys.stdout.flush()
         sys.stderr.flush()
         os._exit(_EXIT_STATUS['status'])
+
+
+@pytest.fixture(autouse=True)
+def _no_updater_waits(monkeypatch):
+    """The updater waits 1 s and 3 s between retries; tests do not need to (v0.8.2)."""
+    from quantumscope import updater
+    monkeypatch.setattr(updater, 'SLEEP', lambda seconds: None)

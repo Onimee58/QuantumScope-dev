@@ -1,11 +1,9 @@
 """The update check, step by step, only when the user asks (Settings → Updates or the ⓘ menu)."""
-import os
 import subprocess
 import tempfile
 import time
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (QApplication, QDialog, QDialogButtonBox, QLabel, QMessageBox, QProgressDialog,
                                QTextBrowser, QVBoxLayout)
 
@@ -15,12 +13,39 @@ PERMISSION = ('QuantumScope will contact github.com to look for a newer release.
               'Nothing about you or your files is sent. Continue?')
 
 
-def _busy(callable_, *args):
-    QGuiApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-    try:
-        return callable_(*args)
-    finally:
-        QGuiApplication.restoreOverrideCursor()
+CANCELLED = object()
+
+
+def _in_background(parent, title, text, work, maximum=0, on_progress=None, wait_after_cancel=False):
+    """Run a network step in a worker thread behind a progress window with Cancel, so the window never
+    freezes while GitHub is slow (v0.8.2). Returns the step's result, or CANCELLED; re-raises its error.
+    wait_after_cancel: let the step finish its own clean-up after Cancel (a download deletes its file)."""
+    from quantumscope.gui.background import Run
+    dialog = QProgressDialog(text, 'Cancel', 0, maximum, parent)
+    dialog.setWindowTitle(title)
+    dialog.setWindowModality(Qt.WindowModality.WindowModal)
+    dialog.setMinimumDuration(0)
+    dialog.setValue(0)
+    run = Run(work, on_progress=(lambda value: on_progress(dialog, value)) if on_progress else None).start()
+    cancelled = False
+    while run.running():
+        if dialog.wasCanceled() and not cancelled:
+            cancelled = True
+            run.cancel()
+            if not wait_after_cancel:
+                break                                          # an answer arriving later is ignored
+        QApplication.processEvents()
+        time.sleep(0.01)
+    dialog.close()
+    if cancelled:
+        if wait_after_cancel:
+            while run.running():
+                QApplication.processEvents()
+                time.sleep(0.01)
+        return CANCELLED
+    if run.error is not None:
+        raise run.error[0]
+    return run.result
 
 
 def _release_dialog(parent, release):
@@ -51,10 +76,13 @@ def check_for_updates(parent, opener=None, platform=None, frozen=None, folder=No
         return 'declined'
     current = updater.parse_version(__version__)
     try:
-        release = _busy(updater.check, current, platform, opener)
+        release = _in_background(parent, 'Check for updates', 'Contacting GitHub…',
+                                 lambda report, cancelled: updater.check(current, platform, opener))
     except updater.UpdateError as exc:
         QMessageBox.warning(parent, 'Check for updates', str(exc))
         return 'error'
+    if release is CANCELLED:
+        return 'cancelled'
     if release is None:
         QMessageBox.information(parent, 'Check for updates', f'QuantumScope {__version__} is the latest version.')
         return 'up to date'
@@ -68,21 +96,25 @@ def check_for_updates(parent, opener=None, platform=None, frozen=None, folder=No
         QMessageBox.information(parent, 'Update QuantumScope', 'This release has no installer for your system. '
                                 f'Download it from the release page:\n{release.page}')
         return 'no installer'
-    progress = QProgressDialog(f'Downloading {release.installer["name"]}…', 'Cancel', 0, 100, parent)
-    progress.setWindowTitle('Update QuantumScope')
-    progress.setMinimumDuration(0)
+    target = folder or tempfile.mkdtemp(prefix='quantumscope-update-')
 
-    def report(done, total):
-        progress.setValue(int(100 * done / total) if total else 0)
-        QApplication.processEvents()
-        return not progress.wasCanceled()
+    def fetch(report, cancelled):                              # the worker: downloads and verifies
+        def each(done, total):
+            report((done, total))
+            return not cancelled()
+        return updater.download(release, target, each, opener)
+
+    def show(dialog, value):
+        done, total = value
+        dialog.setValue(int(100 * done / total) if total else 0)
     try:
-        path = updater.download(release, folder or tempfile.mkdtemp(prefix='quantumscope-update-'), report, opener)
+        path = _in_background(parent, 'Update QuantumScope', f'Downloading {release.installer["name"]}…', fetch,
+                              maximum=100, on_progress=show, wait_after_cancel=True)
     except updater.UpdateError as exc:
-        progress.close()
         QMessageBox.warning(parent, 'Update QuantumScope', str(exc))
         return 'download failed'
-    progress.close()
+    if path is CANCELLED:
+        return 'cancelled'
     kind, command, message = updater.install_plan(path, platform, frozen)
     if QMessageBox.question(parent, 'Install the update',
                             f'The download was verified against the release checksum.\n\n{message}\n\nInstall now?',
