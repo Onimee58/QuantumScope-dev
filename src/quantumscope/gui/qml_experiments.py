@@ -653,6 +653,13 @@ class KernelExperiment(QWidget):
         self.views.addTab(self.heatmap, 'Kernel matrix')
         self.kernel_map = _plot('Kernel map: the data as the kernel sees it', 'kernel component 1', 'kernel component 2')
         self.views.addTab(self.kernel_map, 'Kernel map')
+        from quantumscope.gui.evaluation_panel import EvaluationPanel, SearchPanel
+        self.evaluation = EvaluationPanel(cross_validate=self._cross_validate)
+        self.views.addTab(self.evaluation, 'Evaluation')
+        self.search_panel = SearchPanel(self._start_search, self._use_best)
+        self.views.addTab(self.search_panel, 'Search')
+        self.views.currentChanged.connect(                         # samples matter beside the kernel views only
+            lambda index: self.sample_view.setVisible(self.views.widget(index) in (self.heatmap, self.kernel_map)))
         below.addWidget(self.views, 1)
         self.sample_view = SampleView()
         below.addWidget(self.sample_view)
@@ -816,6 +823,51 @@ class KernelExperiment(QWidget):
         self.sample_view.show_samples([self.sample_entry('train', a), self.sample_entry('train', b)],
                                       f'Kernel value K = {value:.3f}')
 
+    def _cross_validate(self, k, on_progress, on_done):
+        """Cross-validate the trained settings on the training data, sharing one kernel across folds."""
+        from quantumscope.gui.background import Run
+        from quantumscope.ml import evaluation as E
+        r = getattr(self, 'last', None)
+        if r is None:
+            on_done(None, 'train first')
+            return None
+        p, s = r['prepared'], self._settings
+
+        def work(report, cancelled):
+            folds = E.stratified_folds(p.y_train, k, seed=0)
+            Kx = K.kernel(p.X_train, kind=s['kind'], reps=s['reps'], bandwidth=s['bandwidth'])
+            make = (lambda: K.SVM(C=s['strength'])) if s['method'] == 'svm' else (lambda: K.KernelRidge(s['strength']))
+            report((1, 2))
+            return E.cross_validate_kernel(Kx, p.y_train, make, folds)
+        return Run(work, owner=self, on_progress=on_progress, on_done=on_done,
+                   on_error=lambda exc, details: on_done(None, exc)).start()
+
+    def _start_search(self, grid, k, on_progress, on_done):
+        """Search the grid on the current data's training split, in the background."""
+        from quantumscope.gui.background import Run
+        from quantumscope.ml import evaluation as E
+        r = getattr(self, 'last', None)
+        p = r['prepared'] if r is not None else self.data.prepared()
+        if p is None:
+            on_done(None, 'no data')
+            return None
+
+        def work(report, cancelled):
+            return E.search_kernel(p.X_train, p.y_train, grid, k=k, progress=lambda d, t: report((d, t)),
+                                   cancelled=cancelled)
+        return Run(work, owner=self, on_progress=on_progress, on_done=on_done,
+                   on_error=lambda exc, details: on_done(None, exc)).start()
+
+    def _use_best(self, settings):
+        """Set the controls to the search's best settings and train with them."""
+        self.feature_map.setCurrentIndex(self.feature_map.findData(settings['feature_map']))
+        self.reps.setValue(int(settings['reps']))
+        self.bandwidth.setValue(float(settings['bandwidth']))
+        self.method.setCurrentIndex(self.method.findData(settings['method']))
+        self.strength.setValue(float(settings['strength']))
+        self.views.setCurrentWidget(self.evaluation)
+        return self.train()
+
     def _use_loaded(self, model):
         """Match the controls to a loaded model, so they describe it (and Train would rebuild it)."""
         s = model.settings
@@ -868,6 +920,8 @@ class KernelExperiment(QWidget):
         from quantumscope.ml import models as M
         trained = M.from_kernel(r['model'], p, settings, r['train'], r['test'], settings['dataset'])
         self.model_panel.set_model(trained)
+        self._settings = settings
+        self.evaluation.show_results(p.y_test, r['decision_test'], p.classes)
         self.view3d.set_result(r, trained)
         from quantumscope.ml import progress
         progress.trained('kernel', train=r['train'], test=r['test'], map=settings['kind'],
@@ -911,6 +965,36 @@ class VariationalExperiment(QWidget):
         self.seed = QSpinBox()
         self.seed.setRange(0, 9999)
         mv.addRow('Starting point (seed)', self.seed)
+        self.loss_box = QComboBox()
+        for label, key in (('Mean squared error', 'mse'), ('Hinge (as an SVM)', 'hinge'), ('Cross-entropy', 'cross-entropy')):
+            self.loss_box.addItem(label, key)
+        mv.addRow('Loss', self.loss_box)
+        self.rate = QDoubleSpinBox()
+        self.rate.setRange(0.001, 1.0)
+        self.rate.setDecimals(3)
+        self.rate.setSingleStep(0.01)
+        self.rate.setValue(0.1)
+        self.rate.setToolTip('Adam\'s step size')
+        mv.addRow('Learning rate (Adam)', self.rate)
+        self.batch = QSpinBox()
+        self.batch.setRange(0, 5000)
+        self.batch.setSpecialValueText('all')
+        self.batch.setToolTip('Adam only: each step on a random batch of this many samples')
+        mv.addRow('Batch size (Adam)', self.batch)
+        self.validation_share = QDoubleSpinBox()
+        self.validation_share.setRange(0.0, 0.4)
+        self.validation_share.setSingleStep(0.05)
+        self.validation_share.setSpecialValueText('none')
+        self.validation_share.setToolTip('Part of the training data held out to watch for overfitting')
+        mv.addRow('Validation share', self.validation_share)
+        self.patience = QSpinBox()
+        self.patience.setRange(0, 500)
+        self.patience.setSpecialValueText('off')
+        self.patience.setToolTip('Stop when the validation loss has not improved for this many steps, and keep '
+                                 'the best step')
+        mv.addRow('Early stopping', self.patience)
+        self.method.currentIndexChanged.connect(self._adam_controls)
+        self.validation_share.valueChanged.connect(self._adam_controls)
         buttons = QHBoxLayout()
         self.train_button, self.stop_button = QPushButton('Train'), QPushButton('Stop')
         self.stop_button.setEnabled(False)
@@ -934,16 +1018,43 @@ class VariationalExperiment(QWidget):
         right = QVBoxLayout()
         self.regions = _plot('Decision regions')
         right.addWidget(self.regions, 3)
+        from PySide6.QtWidgets import QTabWidget
+        from quantumscope.gui.evaluation_panel import EvaluationPanel
+        self.views = QTabWidget()
         self.curve = _plot('Training', 'step', 'loss / accuracy')
         self.curve.addLegend(offset=(8, 4))
         self.loss_line = self.curve.plot(pen='#5ae6ff', name='loss')
         self.acc_line = self.curve.plot(pen='#5ad48a', name='training accuracy')
-        right.addWidget(self.curve, 2)
+        dash = Qt.PenStyle.DashLine
+        import pyqtgraph as pg
+        self.val_loss_line = self.curve.plot(pen=pg.mkPen('#5ae6ff', style=dash), name='validation loss')
+        self.val_acc_line = self.curve.plot(pen=pg.mkPen('#5ad48a', style=dash), name='validation accuracy')
+        self.views.addTab(self.curve, 'Training')
+        self.evaluation = EvaluationPanel(cross_validate=self._cross_validate)
+        self.views.addTab(self.evaluation, 'Evaluation')
+        right.addWidget(self.views, 2)
         root.addLayout(right, 1)
         self.model = None
+        self._adam_controls()
         self.train_button.clicked.connect(self.train)
         self.stop_button.clicked.connect(lambda: self.run.cancel() if getattr(self, 'run', None) else None)
         self.open_circuit.clicked.connect(self.open_in_circuit)
+
+    def _options(self):
+        """The training settings from the controls (shared by Train and Cross-validate)."""
+        adam = self.method.currentData() == 'Adam'
+        return dict(method=self.method.currentData(), steps=self.steps.value(), rate=self.rate.value(),
+                    batch_size=self.batch.value() if adam else 0, seed=self.seed.value())
+
+    def _adam_controls(self, *_):
+        adam = self.method.currentData() == 'Adam'
+        self.rate.setEnabled(adam)
+        self.batch.setEnabled(adam)
+        self.patience.setEnabled(self.validation_share.value() > 0)
+
+    def _new_model(self, p):
+        return V.Classifier(p.X_train.shape[1], layers=self.layers.value(), feature_map=self.feature_map.currentData(),
+                            seed=self.seed.value(), loss=self.loss_box.currentData())
 
     def train(self):
         """Train in the background; returns the run (run.wait() returns the result, for scripts)."""
@@ -955,25 +1066,35 @@ class VariationalExperiment(QWidget):
         if p.X_train.shape[1] > D.MAX_QUBITS:
             self.result.setText('Too many features for the qubits: reduce them in the Datasets tab.')
             return None
+        from quantumscope.ml import evaluation as E
         self.prepared = p
-        model = V.Classifier(p.X_train.shape[1], layers=self.layers.value(),
-                             feature_map=self.feature_map.currentData(), seed=self.seed.value())
-        settings = dict(method=self.method.currentData(), steps=self.steps.value(), layers=self.layers.value(),
-                        map=self.feature_map.currentData(), dataset=self.data.key())
+        model = self._new_model(p)
+        options = self._options()
+        share = self.validation_share.value()
+        if share > 0:                                             # held out from the training data
+            kept, held = E.stratified_split(p.y_train, share, seed=self.seed.value())
+            fit, validation = (p.X_train[kept], p.y_train[kept]), (p.X_train[held], p.y_train[held])
+            options.update(validation=validation, patience=self.patience.value())
+        else:
+            fit = (p.X_train, p.y_train)
+        settings = dict(method=options['method'], steps=options['steps'], layers=self.layers.value(),
+                        map=self.feature_map.currentData(), dataset=self.data.key(), loss=self.loss_box.currentData())
         plane = region_plane(p.X_train, p.X_test)
-        self._history = []
+        self._history, self._validation = [], []
 
         def work(report, cancelled):                              # the worker: no widgets here
-            def step(index, loss, accuracy):
+            def step(index, loss, accuracy, valid=None):
                 regions = None
                 if index % 5 == 0:                                # fresh regions now and then
                     regions = (region_values(model.decision, plane), model.predict(p.X_test))
-                report((index, loss, accuracy, regions))
+                report((index, loss, accuracy, valid, regions))
                 return not cancelled()
-            model.train(p.X_train, p.y_train, method=settings['method'], steps=settings['steps'], callback=step)
-            predicted = model.predict(p.X_test)
-            return dict(model=model, predicted=predicted, test=float(np.mean(predicted == p.y_test)),
-                        f=region_values(model.decision, plane), stopped=cancelled())
+            model.train(*fit, callback=step, **options)
+            decision = model.decision(p.X_test)
+            predicted = np.where(decision >= 0, 1, -1)
+            return dict(model=model, predicted=predicted, decision_test=decision,
+                        test=float(np.mean(predicted == p.y_test)), f=region_values(model.decision, plane),
+                        stopped=cancelled(), stopped_early=model.stopped_early, best_step=model.best_step)
 
         self.train_button.setEnabled(False)
         self.stop_button.setEnabled(True)
@@ -985,21 +1106,51 @@ class VariationalExperiment(QWidget):
         return self.run
 
     def _step(self, value, plane):
-        index, loss, accuracy, regions = value
+        index, loss, accuracy, valid, regions = value
         self._history.append((loss, accuracy))
         steps = list(range(len(self._history)))
         self.loss_line.setData(steps, [h[0] for h in self._history])
         self.acc_line.setData(steps, [h[1] for h in self._history])
-        self.result.setText(f'Step {index}: loss {loss:.4f}, training accuracy {accuracy:.0%}')
+        text = f'Step {index}: loss {loss:.4f}, training accuracy {accuracy:.0%}'
+        if valid is not None:
+            self._validation.append(valid)
+            self.val_loss_line.setData(steps, [v[0] for v in self._validation])
+            self.val_acc_line.setData(steps, [v[1] for v in self._validation])
+            text += f'; validation loss {valid[0]:.4f}, accuracy {valid[1]:.0%}'
+        else:
+            self.val_loss_line.setData([], [])
+            self.val_acc_line.setData([], [])
+        self.result.setText(text)
         if regions is not None:
             p = self.prepared
             draw_regions(self.regions, plane, regions[0], p.X_train, p.y_train, p.X_test, p.y_test, regions[1])
+
+    def _cross_validate(self, k, on_progress, on_done):
+        """Cross-validate the current settings on the training data: k fresh trainings, in the background."""
+        from quantumscope.gui.background import Run
+        from quantumscope.ml import evaluation as E
+        p = getattr(self, 'prepared', None) or self.data.prepared()
+        if p is None:
+            on_done(None, 'no data')
+            return None
+        options = self._options()
+        make = lambda: self._new_model(p)                         # noqa: E731
+
+        def work(report, cancelled):
+            folds = E.stratified_folds(p.y_train, k, seed=self.seed.value())
+            return E.cross_validate_variational(p.X_train, p.y_train, make, folds, options,
+                                                progress=lambda d, t: report((d, t)), cancelled=cancelled)
+        return Run(work, owner=self, on_progress=on_progress, on_done=on_done,
+                   on_error=lambda exc, details: on_done(None, exc)).start()
 
     def _use_loaded(self, model):
         """Match the controls to a loaded model, so they describe it (and Train would rebuild it)."""
         s = model.settings
         self.feature_map.setCurrentIndex(self.feature_map.findData(s['feature_map']))
         self.layers.setValue(int(s['layers']))
+        at = self.loss_box.findData(s.get('loss', 'mse'))
+        if at >= 0:
+            self.loss_box.setCurrentIndex(at)
         if s.get('optimizer'):
             at = self.method.findData(s['optimizer'])
             if at >= 0:
@@ -1017,8 +1168,12 @@ class VariationalExperiment(QWidget):
         self.model, p = r['model'], self.prepared
         losses = [h[0] for h in self._history] or [float('nan')]
         accuracies = [h[1] for h in self._history] or [0.0]
+        early = (f' Early stopping kept step {r["best_step"]}, the best on the validation data.'
+                 if r.get('stopped_early') else '')
         self.result.setText(f'{"Stopped" if r["stopped"] else "Done"} after {len(self._history) - 1} steps: training '
-                            f'accuracy {accuracies[-1]:.0%}, test accuracy {r["test"]:.0%}, final loss {losses[-1]:.4f}.')
+                            f'accuracy {accuracies[-1]:.0%}, test accuracy {r["test"]:.0%}, final loss {losses[-1]:.4f}.'
+                            + early)
+        self.evaluation.show_results(p.y_test, r['decision_test'], p.classes)
         draw_regions(self.regions, plane, r['f'], p.X_train, p.y_train, p.X_test, p.y_test, r['predicted'])
         self.open_circuit.setEnabled(True)
         self.last = dict(train=accuracies[-1], test=r['test'], history=list(self._history), stopped=r['stopped'])

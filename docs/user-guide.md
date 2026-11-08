@@ -220,6 +220,8 @@ The **Quantum ML** area turns data into quantum states and learns from them. Its
   - **Kernel matrix:** the training kernel sorted by class. Hover over a cell to see its value and the two samples' classes; click it to see both samples beside the tabs (for Digits and MNIST, the images).
   - **Kernel map:** the data as the kernel sees it (kernel PCA): points the kernel finds similar lie close together. Click a point to see that sample, its prediction and its decision value. If the points scatter apart with no structure, the kernel has concentrated.
 - If the kernel is close to 0 for different points (kernel concentration), the result says so and suggests a smaller bandwidth.
+- **Evaluation** (a tab beside the kernel views): the test set's accuracy, balanced accuracy, precision, recall, specificity, F1 and AUC, the confusion matrix and the ROC curve. **Cross-validate** trains on k − 1 parts of the training data and checks the remaining part, k times, for a steadier estimate than a single test score.
+- **Search:** choose the feature maps, classifiers, bandwidths, repetitions and C or λ values to try, and the number of folds. **Search** cross-validates every combination on the training data (the test set stays untouched), lists them best first, and **Use best** applies the winner and trains it.
 
 ![The kernel map: MNIST 3s and 8s as the kernel sees them, with a misclassified sample shown beside it](images/qml-kernel-map.png)
 
@@ -236,7 +238,10 @@ Both classifiers have a **Model** panel. After training, **Save model…** store
 ![Variational Classifier: a trained circuit's decision regions and its training curve](images/qml-variational.png)
 
 - The circuit is the feature map followed by **Trainable layers** of RY gates and CNOTs; its output is ⟨Z₀⟩ plus a bias.
-- **Optimizer:** **BFGS**, with exact parameter-shift gradients, or **Adam**. Set the **Steps** and the **Starting point (seed)**.
+- **Optimizer:** **BFGS**, with exact gradients, or **Adam**. Set the **Steps** and the **Starting point (seed)**.
+- **Loss:** mean squared error, hinge (as an SVM) or cross-entropy. With Adam, set the **Learning rate** and a **Batch size** (each step on a random batch).
+- **Validation share** holds out part of the training data; its loss and accuracy appear as dashed curves. **Early stopping** then ends training when the validation loss stops improving, and keeps the best step.
+- **Evaluation** (a tab beside **Training**) shows the same metrics, confusion matrix and ROC curve as the kernel classifier, and can cross-validate the current settings.
 - **Train** shows the loss and the training accuracy step by step, and the decision regions as they change; **Stop** ends training early.
 - **Open in circuit simulator** loads the trained circuit for one test point into Quantum Circuits, with the observable Z0.
 

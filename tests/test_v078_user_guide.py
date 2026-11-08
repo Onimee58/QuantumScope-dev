@@ -44,6 +44,7 @@ def test_the_guide_names_controls_that_exist():
                     'Import CSV or .npz…', 'Apply suggestions', 'Qubits (= features)', 'Samples per class',
                     'PCA components', 'Shots per entry', 'Trainable layers', 'Open in circuit simulator',
                     'Show the solution', 'Your own system', 'Save model…', 'Load model…', 'Predict on a file…',
-                    'Export CSV…', 'Save rotating GIF…', 'Separating axes', 'Kernel map'):
+                    'Export CSV…', 'Save rotating GIF…', 'Separating axes', 'Kernel map', 'Cross-validate',
+                    'Use best', 'Validation share', 'Early stopping'):
         assert control in text, control
         assert control in source, control

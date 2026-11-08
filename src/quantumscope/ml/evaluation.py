@@ -188,3 +188,32 @@ def search_kernel(X, y, grid, k=5, seed=0, kernel=None, progress=None, cancelled
                 progress(done, total)
     rows.sort(key=lambda r: (-round(r.mean, 12), round(r.std, 12)))   # best mean, then the steadiest
     return rows, rows[0]
+
+
+def stratified_split(y, fraction, seed=0):
+    """(kept rows, held-out rows): `fraction` of each class held out, e.g. for validation."""
+    y = np.asarray(y)
+    rng = np.random.default_rng(seed)
+    held = np.zeros(len(y), bool)
+    for c in np.unique(y):
+        members = rng.permutation(np.flatnonzero(y == c))
+        held[members[:int(round(fraction * len(members)))]] = True
+    return np.flatnonzero(~held), np.flatnonzero(held)
+
+
+def cross_validate_variational(X, y, make_model, folds, train_options=None, progress=None, cancelled=None):
+    """Cross-validate a variational classifier: a fresh model trained per fold (costly: k trainings).
+    progress(fold, folds) after each fold; returns None if cancelled."""
+    X, y = np.asarray(X, float), np.asarray(y)
+    result = CrossValidation([])
+    for k, (train, valid) in enumerate(folds):
+        if cancelled is not None and cancelled():
+            return None
+        model = make_model()
+        model.train(X[train], y[train], **(train_options or {}))
+        m = metrics(y[valid], model.predict(X[valid]))
+        result.scores.append(m.accuracy)
+        result.metrics.append(m)
+        if progress is not None:
+            progress(k + 1, len(folds))
+    return result
