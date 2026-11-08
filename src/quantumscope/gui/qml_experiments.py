@@ -107,6 +107,56 @@ class ImageStrip(QWidget):
         p.end()
 
 
+class SampleView(QWidget):
+    """What was clicked: one sample, or the two samples of a kernel-matrix cell (v0.8.2).
+    Image datasets (Digits, MNIST) show the image; others list the first raw feature values."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMinimumWidth(230)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(4, 4, 4, 4)
+        self.title = QLabel('Click a point (kernel map) or a cell (kernel matrix) to see the samples.')
+        self.title.setWordWrap(True)
+        self.title.setObjectName('muted')
+        layout.addWidget(self.title)
+        self.row = QHBoxLayout()
+        layout.addLayout(self.row)
+        layout.addStretch(1)
+        self.entries = []
+
+    def show_samples(self, entries, title=''):
+        """entries: dicts with 'heading', 'lines' and optionally 'image' (a 2-D array)."""
+        from PySide6.QtGui import QPixmap
+        while self.row.count():
+            item = self.row.takeAt(0)
+            if item.widget() is not None:
+                item.widget().deleteLater()
+        self.entries = entries
+        self.title.setText(title)
+        for entry in entries:
+            box = QVBoxLayout()
+            holder = QWidget()
+            holder.setLayout(box)
+            heading = QLabel(f'<b>{entry["heading"]}</b>')
+            heading.setWordWrap(True)
+            box.addWidget(heading)
+            image = entry.get('image')
+            if image is not None:
+                top = max(1e-9, float(np.max(image)))
+                pixels = np.ascontiguousarray((255 * (np.asarray(image) / top)).astype(np.uint8))
+                qimage = QImage(pixels.data, pixels.shape[1], pixels.shape[0], pixels.shape[1],
+                                QImage.Format.Format_Grayscale8).copy()
+                picture = QLabel()
+                picture.setPixmap(QPixmap.fromImage(qimage).scaled(96, 96))
+                box.addWidget(picture)
+            text = QLabel('<br>'.join(entry['lines']))
+            text.setWordWrap(True)
+            box.addWidget(text)
+            box.addStretch(1)
+            self.row.addWidget(holder)
+
+
 # ============================================================================================
 class DatasetsExperiment(QWidget):
     """Choose or import data, see whether it fits a quantum model, and prepare it."""
@@ -393,6 +443,7 @@ class _DataPicker(QGroupBox):
                 self.summary.setText('Nothing prepared yet: open the Datasets experiment and press Prepare.')
                 return None
             p = STORE.prepared
+            self.dataset = STORE.dataset
         else:
             dataset = D.load(key)
             verdict, _, recipe = D.check(dataset, qubits=self.qubits.value(), max_samples=self.max_samples)
@@ -407,6 +458,7 @@ class _DataPicker(QGroupBox):
                         return None
                     recipe.classes = (a, b)
             p = D.prepare(dataset, recipe)
+            self.dataset = dataset
         self.summary.setText(f'{p.classes[0]} (+1) vs {p.classes[1]} (−1): {len(p.y_train)} for training, '
                              f'{len(p.y_test)} for testing, {p.X_train.shape[1]} features on {p.X_train.shape[1]} qubits.')
         return p
@@ -558,12 +610,30 @@ class KernelExperiment(QWidget):
         form.addWidget(self.result)
         form.addStretch()
         root.addWidget(left)
-        right = QVBoxLayout()
+        from PySide6.QtWidgets import QSplitter, QTabWidget
+        right = QSplitter(Qt.Orientation.Vertical)                # drag the divider to resize
+        right.setChildrenCollapsible(False)
         self.regions = _plot('Decision regions')
-        right.addWidget(self.regions, 3)
+        right.addWidget(self.regions)
+        lower = QWidget()
+        below = QHBoxLayout(lower)
+        below.setContentsMargins(0, 0, 0, 0)
+        self.views = QTabWidget()
         self.heatmap = _plot('Training kernel K(x, x′), sorted by class (dashed: where the classes meet)')
-        right.addWidget(self.heatmap, 2)
-        root.addLayout(right, 1)
+        self.views.addTab(self.heatmap, 'Kernel matrix')
+        self.kernel_map = _plot('Kernel map: the data as the kernel sees it', 'kernel component 1', 'kernel component 2')
+        self.views.addTab(self.kernel_map, 'Kernel map')
+        below.addWidget(self.views, 1)
+        self.sample_view = SampleView()
+        below.addWidget(self.sample_view)
+        right.addWidget(lower)
+        right.setStretchFactor(0, 3)
+        right.setStretchFactor(1, 2)
+        right.setSizes([600, 400])                                # regions 3 : lower area 2
+        self.splitter = right
+        root.addWidget(right, 1)
+        self.heatmap.scene().sigMouseMoved.connect(self._heat_hover)
+        self.heatmap.scene().sigMouseClicked.connect(self._heat_click)
         self.train_button.clicked.connect(self.train)
         self.cancel_button.clicked.connect(lambda: self.run.cancel() if getattr(self, 'run', None) else None)
 
@@ -610,9 +680,13 @@ class KernelExperiment(QWidget):
             f = region_values(decision, plane)
             order = np.argsort(-p.y_train, kind='stable')
             off = float((exact_train.sum() - len(exact_train)) / max(1, len(exact_train) * (len(exact_train) - 1)))
+            from quantumscope.ml import views
+            map_train, map_test, shown, _ = views.kernel_map(Ktr, Kte)
             return dict(train=K.accuracy(p.y_train, model.predict(Ktr)), test=K.accuracy(p.y_test, predicted),
                         model=model, prepared=p, predicted=predicted, f=f, heat=Ktr[np.ix_(order, order)],
-                        error=float(np.abs(Ktr - exact_train).mean()), off=off)
+                        order=order, error=float(np.abs(Ktr - exact_train).mean()), off=off,
+                        decision_train=model.decision(Ktr), decision_test=model.decision(Kte),
+                        map_train=map_train, map_test=map_test, map_shown=shown)
 
         self.train_button.setEnabled(False)
         self.cancel_button.setEnabled(True)
@@ -622,6 +696,91 @@ class KernelExperiment(QWidget):
                        on_done=lambda r: self._trained(r, settings, plane),
                        on_error=self._failed).start()
         return self.run
+
+    def _draw_kernel_map(self, r):
+        import pyqtgraph as pg
+        p, plot = r['prepared'], self.kernel_map
+        plot.clear()
+        concentrated = r['off'] < 0.05
+        plot.setTitle(f'Kernel map: {r["map_shown"]:.0%} of the kernel\'s variance shown'
+                      + (' · points scatter apart: kernel concentration' if concentrated else ''))
+        for which, coords, labels, symbol, size in (('train', r['map_train'], p.y_train, 'o', 8),
+                                                    ('test', r['map_test'], p.y_test, 't', 11)):
+            for label, colour in zip((1, -1), CLASS_COLOURS):
+                chosen = np.flatnonzero(labels == label)
+                if not len(chosen):
+                    continue
+                spots = pg.ScatterPlotItem(coords[chosen, 0], coords[chosen, 1], size=size, symbol=symbol,
+                                           brush=pg.mkBrush(colour), data=[(which, int(i)) for i in chosen],
+                                           pen=pg.mkPen('#ffffff' if which == 'test' else '#0b1420', width=1))
+                spots.sigClicked.connect(lambda item, points, ev=None: self._show_points(points))
+                plot.addItem(spots)
+        if len(r['predicted']):
+            wrong = np.flatnonzero(r['predicted'] != p.y_test)
+            if len(wrong):                                        # mistakes: clicking one shows that sample
+                marks = pg.ScatterPlotItem(r['map_test'][wrong, 0], r['map_test'][wrong, 1], size=14, symbol='x',
+                                           brush=pg.mkBrush('#ff4d4d'), pen=pg.mkPen('#ff4d4d', width=2),
+                                           data=[('test', int(i)) for i in wrong])
+                marks.sigClicked.connect(lambda item, points, ev=None: self._show_points(points))
+                plot.addItem(marks)
+        plot.enableAutoRange()
+
+    def sample_entry(self, which, index):
+        """A sample's details for the sample viewer: which is 'train' or 'test'."""
+        r, ds = self.last, self.dataset
+        p = r['prepared']
+        rows = p.train_rows if which == 'train' else p.test_rows
+        value = (r['decision_train'] if which == 'train' else r['decision_test'])[index]
+        predicted = p.classes[0] if value >= 0 else p.classes[1]
+        truth = p.classes[0] if (p.y_train if which == 'train' else p.y_test)[index] == 1 else p.classes[1]
+        lines = [f'true class {truth}', f'predicted {predicted}' + ('' if predicted == truth else ' ✗'),
+                 f'decision {value:+.3f}']
+        entry = dict(heading=f'{"Training" if which == "train" else "Test"} sample {index + 1}', lines=lines)
+        if ds is not None and rows is not None:
+            raw = ds.X[rows[index]]
+            if ds.image_shape:
+                entry['image'] = raw.reshape(ds.image_shape)
+            else:
+                shown = [f'{ds.features[j]}: {raw[j]:.4g}' for j in range(min(6, len(raw)))]
+                entry['lines'] += shown + (['…'] if len(raw) > 6 else [])
+        return entry
+
+    def _show_points(self, points):
+        if not len(points) or getattr(self, 'last', None) is None:
+            return
+        which, index = points[0].data()
+        self.sample_view.show_samples([self.sample_entry(which, index)])
+
+    def _heat_cell(self, scene_pos):
+        """The (row, column) of the kernel matrix under the mouse, in training-sample numbers, or None."""
+        r = getattr(self, 'last', None)
+        if r is None or not self.heatmap.sceneBoundingRect().contains(scene_pos):
+            return None
+        point = self.heatmap.getPlotItem().vb.mapSceneToView(scene_pos)
+        size = len(r['order'])
+        i, j = int(point.y()), int(point.x())
+        if not (0 <= i < size and 0 <= j < size):
+            return None
+        return int(r['order'][j]), int(r['order'][i]), r['heat'][j, i]
+
+    def _heat_hover(self, scene_pos):
+        cell = self._heat_cell(scene_pos)
+        if cell is None:
+            self.heatmap.setToolTip('')
+            return
+        a, b, value = cell
+        p = self.last['prepared']
+        name = lambda k: p.classes[0] if p.y_train[k] == 1 else p.classes[1]      # noqa: E731
+        self.heatmap.setToolTip(f'K = {value:.3f} between training samples {a + 1} ({name(a)}) and {b + 1} ({name(b)})'
+                                '\nClick to see both.')
+
+    def _heat_click(self, event):
+        cell = self._heat_cell(event.scenePos())
+        if cell is None:
+            return
+        a, b, value = cell
+        self.sample_view.show_samples([self.sample_entry('train', a), self.sample_entry('train', b)],
+                                      f'Kernel value K = {value:.3f}')
 
     def _use_loaded(self, model):
         """Match the controls to a loaded model, so they describe it (and Train would rebuild it)."""
@@ -670,6 +829,8 @@ class KernelExperiment(QWidget):
             line.setZValue(10)                                   # above the image
             self.heatmap.addItem(line)
         self.last = r
+        self.dataset = self.data.dataset
+        self._draw_kernel_map(r)
         from quantumscope.ml import models as M
         self.model_panel.set_model(M.from_kernel(r['model'], p, settings, r['train'], r['test'], settings['dataset']))
         from quantumscope.ml import progress

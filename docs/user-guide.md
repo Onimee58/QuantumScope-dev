@@ -215,7 +215,10 @@ The **Quantum ML** area turns data into quantum states and learns from them. Its
 - **Shots per entry** estimates each kernel value from that many shots, as a quantum computer would; **exact** computes it exactly.
 - **Classifier:** a **Support vector machine** or **Kernel ridge**, with its strength **C or λ**. **Train** builds the kernel and the classifier in the background, so the window stays responsive; **Cancel** stops it.
 - **The decision regions** show the predicted class behind the points, deeper where the classifier is more confident, with the boundary as a white line. Training points are dots, test points triangles, and mistakes are marked ✕. With more than two features, the regions are drawn in the plane of the two leading principal components, a slice through the data.
-- **The kernel heatmap** shows the training kernel sorted by class. If the kernel is close to 0 for different points (kernel concentration), the result says so and suggests a smaller bandwidth.
+- **Below the decision regions,** two tabs show the kernel itself (drag the divider to give either part more room):
+  - **Kernel matrix:** the training kernel sorted by class. Hover over a cell to see its value and the two samples' classes; click it to see both samples beside the tabs (for Digits and MNIST, the images).
+  - **Kernel map:** the data as the kernel sees it (kernel PCA): points the kernel finds similar lie close together. Click a point to see that sample, its prediction and its decision value. If the points scatter apart with no structure, the kernel has concentrated.
+- If the kernel is close to 0 for different points (kernel concentration), the result says so and suggests a smaller bandwidth.
 
 ### Saving and using a model
 
