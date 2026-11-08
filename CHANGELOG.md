@@ -1,3 +1,29 @@
+## v0.8.1 — Speed, and no more frozen windows
+
+### Faster
+- **The circuit simulator is vectorized:** each gate is one array operation instead of a Python loop over every amplitude (17× faster at 10 qubits), and a simulation no longer runs the circuit twice. Results are identical: checked gate by gate against the original code.
+- **The circuit optimizer uses adjoint gradients:** one forward and one backward pass give every derivative at once, instead of two circuit runs per bound gate, with each gate's exact derivative (RX, RY, RZ, P, CP, U). Noisy and dynamic circuits keep the parameter-shift rule. The optimizer's path is identical either way.
+  - **Optimize** on the 6-qubit, 3-layer QAOA example: 13.2 s → 0.6 s.
+  - **Best of 3:** about 40 s → 1.4 s.
+  - **The landscape:** 6.1 s → 1.6 s.
+- **The variational classifier** uses adjoint gradients too, and computes its loss, gradient and progress from one pass: 10 qubits, 107 s → 7 s; 8 qubits, 11 s → 1.3 s.
+- **The SVM solver** picks the maximal violating pair (as LIBSVM does): 35–55× faster, reaching the same optimum (checked against SciPy).
+- **ZZ feature-map states:** 3.6× faster at 10 qubits.
+
+### No more frozen windows
+- **Training, Optimize, Best of N and the landscape run in the background,** with progress shown, so the window stays responsive.
+  - **Stop** and **Cancel** end a run early; closing its window stops it too.
+  - **The optimizer works on a copy of the circuit,** and its result is applied only if the circuit was not edited meanwhile.
+
+### Fixes
+- **Chart menus:** right-clicking a chart offered "Plot Options" (FFT, log scales, …), which crashed on scatter and bar charts. Every chart now offers **View All**, the axis options, **Save image…** (twice the screen resolution), **Copy image** and **Save data (CSV)…**, replacing pyqtgraph's Export dialog, which opened squashed and whose SVG and Matplotlib formats failed.
+- **The release workflow** reads the version from the code and refuses a tag that does not match. v0.8.0's first build had named its installers 0.7.8.
+
+### Quality
+- **A golden replay** of 19 circuit-editor steps is now part of the test suite.
+- **Performance tests** set time limits, so speed cannot quietly regress.
+- **Automated tests:** 1568 passing, plus 146 opt-in GUI tests. The whole suite runs in about 11 s (was 33 s).
+
 ## v0.8.0 — Quantum machine learning, VQLS, and the guide upgraded
 
 ### Quantum ML (a fourth area)

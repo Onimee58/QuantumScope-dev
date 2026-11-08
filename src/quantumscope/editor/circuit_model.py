@@ -1215,10 +1215,8 @@ class CircuitModel:
         occupied = sorted(column_ops)
         start = self.initial_vector()
         states = evolution(self.n, [g for c in occupied for g in column_ops[c]], start)
-        state = start
-        column_states = [state]
+        column_states, done = [start], 0                       # after each column: from the per-gate states
         for c in occupied:
-            for g in column_ops[c]:
-                state = apply_gate(state, self.n, g)
-            column_states.append(state)
+            done += len(column_ops[c])
+            column_states.append(states[done])
         return Simulation(occupied, column_states, states)

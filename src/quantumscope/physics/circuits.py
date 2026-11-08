@@ -45,44 +45,101 @@ def unitary(gate):
     raise ValueError('Unknown gate: ' + name)
 
 
+_FIXED = {}                                                    # matrices of gates without parameters
+
+
+def gate_matrix(gate):
+    """The gate's matrix on its own targets (2×2, 4×4 or 8×8), targets[0] the most significant.
+    Controlled gates: the first target(s) control. Fixed gates are built once and cached."""
+    name = gate.name.upper()
+    cached = _FIXED.get(name)
+    if cached is not None:
+        return cached
+    if name in SINGLE:
+        u = unitary(gate)
+    elif name == 'CP':
+        u = np.diag([1, 1, 1, np.exp(1j * gate.angle)]).astype(complex)
+    elif name == 'CX':
+        u = np.eye(4, dtype=complex)[[0, 1, 3, 2]]
+    elif name == 'CZ':
+        u = np.diag([1, 1, 1, -1]).astype(complex)
+    elif name == 'SWAP':
+        u = np.eye(4, dtype=complex)[[0, 2, 1, 3]]
+    elif name == 'CCX':
+        u = np.eye(8, dtype=complex)[[0, 1, 2, 3, 4, 5, 7, 6]]
+    elif name == 'CSWAP':
+        u = np.eye(8, dtype=complex)[[0, 1, 2, 3, 4, 6, 5, 7]]
+    else:
+        raise ValueError('Unsupported gate ' + name)
+    if name not in PARAMETERIZED:
+        u.setflags(write=False)
+        _FIXED[name] = u
+    return u
+
+
+def apply_matrix(state, n, matrix, targets):
+    """Apply a 2ᵏ×2ᵏ matrix to qubits `targets` of an n-qubit state: one tensor contraction over the
+    target axes of the state viewed as a 2×2×…×2 array (qubit 0 is axis 0, the most significant)."""
+    k = len(targets)
+    psi = np.asarray(state, complex).reshape((2,) * n)
+    out = np.tensordot(matrix.reshape((2,) * (2 * k)), psi, axes=(list(range(k, 2 * k)), list(targets)))
+    return np.moveaxis(out, list(range(k)), list(targets)).reshape(-1)
+
+
+_PERMUTATION = {'X': (1, 0), 'CX': (0, 1, 3, 2), 'SWAP': (0, 2, 1, 3),       # new local pattern → old one
+                'CCX': (0, 1, 2, 3, 4, 5, 7, 6), 'CSWAP': (0, 1, 2, 3, 4, 6, 5, 7)}
+_DIAGONAL = ('Z', 'S', 'T', 'SDG', 'TDG', 'P', 'RZ', 'CZ', 'CP')
+_INDEX = {}                                                    # cached per (n, targets)
+
+
+def _local_index(n, targets):
+    """For every basis state, the value of its target bits (targets[0] the most significant)."""
+    key = (n, targets)
+    if key not in _INDEX:
+        i = np.arange(1 << n)
+        local = np.zeros(1 << n, np.int64)
+        for q in targets:
+            local = (local << 1) | ((i >> (n - 1 - q)) & 1)
+        _INDEX[key] = local
+    return _INDEX[key]
+
+
+def _permutation(n, name, targets):
+    """For each basis state, the index of the amplitude it receives, for a gate that only reorders
+    basis states: the target bits are replaced by the gate's table entry, the other bits kept."""
+    key = (n, name, targets)
+    if key not in _INDEX:
+        k = len(targets)
+        source = np.array(_PERMUTATION[name])[_local_index(n, targets)]
+        index = np.arange(1 << n)
+        for pos, q in enumerate(targets):
+            bit = 1 << (n - 1 - q)
+            index = (index & ~bit) | (((source >> (k - 1 - pos)) & 1) * bit)
+        _INDEX[key] = index
+    return _INDEX[key]
+
+
 def apply_gate(state, n, gate):
     name = gate.name.upper()
     ids = gate.targets
     if name not in ALL: raise ValueError('Unsupported gate ' + name)
     if len(ids) != (3 if name in TRIPLE else 2 if name in DUAL else 1) or len(set(ids)) != len(ids) or any(q < 0 or q >= n for q in ids):
         raise ValueError('Invalid target qubits')
-    result = np.array(state, dtype=complex, copy=True)
-    if name in SINGLE:
-        mask = 1 << (n-1-ids[0]); u = unitary(gate)
-        for i in range(1 << n):
-            if i & mask: continue
-            j = i | mask
-            a,b = result[i],result[j]
-            result[i],result[j] = u[0,0]*a+u[0,1]*b, u[1,0]*a+u[1,1]*b
-    elif name in TRIPLE:
-        m1,m2,m3=(1<<(n-1-q) for q in ids)
-        for i in range(1<<n):
-            if name=='CCX' and (i&m1) and (i&m2) and not (i&m3):
-                j=i|m3;result[i],result[j]=result[j],result[i]
-            elif name=='CSWAP' and (i&m1) and not (i&m2) and (i&m3):
-                j=i^m2^m3;result[i],result[j]=result[j],result[i]
-    else:
-        m1,m2 = (1<<(n-1-q) for q in ids)
-        if name == 'CP':
-            phase = np.exp(1j*gate.angle)
-            for i in range(1 << n):
-                if i & m1 and i & m2: result[i] *= phase
-        elif name in ('CX','CZ'):
-            for i in range(1 << n):
-                if i & m1:
-                    if name == 'CZ' and i & m2: result[i] *= -1
-                    elif name == 'CX' and not i & m2:
-                        j=i|m2; result[i],result[j]=result[j],result[i]
-        else:
-            for i in range(1 << n):
-                if not (i&m1) and i&m2:
-                    j=i^m1^m2; result[i],result[j]=result[j],result[i]
-    return result
+    state = np.asarray(state, complex)
+    ids = tuple(ids)
+    if name in _PERMUTATION:                                       # X, CX, SWAP, CCX, CSWAP: reorder
+        return state[_permutation(n, name, ids)]
+    matrix = gate_matrix(gate if gate.name == name else Gate(name, ids, gate.angle, gate.phi, gate.lam))
+    if name in _DIAGONAL:                                          # a phase per basis state
+        return state * np.diagonal(matrix)[_local_index(n, ids)]
+    if len(ids) == 1:                                              # a 2×2 butterfly on one qubit
+        q = ids[0]
+        view = state.reshape(1 << q, 2, 1 << (n - q - 1))
+        out = np.empty_like(view)
+        out[:, 0, :] = matrix[0, 0] * view[:, 0, :] + matrix[0, 1] * view[:, 1, :]
+        out[:, 1, :] = matrix[1, 0] * view[:, 0, :] + matrix[1, 1] * view[:, 1, :]
+        return out.reshape(-1)
+    return apply_matrix(state, n, matrix, ids)
 
 
 def zero(n):
