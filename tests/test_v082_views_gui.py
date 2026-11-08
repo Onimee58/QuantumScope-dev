@@ -35,6 +35,8 @@ def trained(app, name='mnist', a='4', b='9', **extra):
     k.feature_map.setCurrentIndex(k.feature_map.findData(extra.get('map', 'angle')))
     k.bandwidth.setValue(extra.get('bandwidth', 0.5))
     k.reps.setValue(1)
+    if extra.get('method'):
+        k.method.setCurrentIndex(k.method.findData(extra['method']))
     k.train().wait()
     app.processEvents()
     return k
@@ -69,7 +71,7 @@ def test_kernel_map_points_and_layout(app):
     k._show_points([spots[-1].points()[0]])
     heading = k.sample_view.entries[0]['heading']
     assert heading == f'{"Training" if which == "train" else "Test"} sample {index + 1}'
-    assert k.regions.height() > k.splitter.sizes()[1]                             # regions keep the larger share
+    assert k.top_tabs.height() > k.splitter.sizes()[1]                            # regions keep the larger share
     tabular = trained(app, 'breast_cancer', None, None)
     tabular._show_points([[i for i in tabular.kernel_map.getPlotItem().items
                            if hasattr(i, 'points') and len(i.points())][0].points()[0]])
@@ -80,3 +82,55 @@ def test_kernel_map_points_and_layout(app):
 def test_kernel_map_flags_concentration(app):
     k = trained(app, 'wine', None, None, qubits=6, map='zz', bandwidth=1.0)
     assert k.last['off'] < 0.05 and 'kernel concentration' in k.kernel_map.getPlotItem().titleLabel.text
+
+
+class OffscreenInteractor(QtWidgets.QWidget):
+    """An off-screen stand-in for pyvistaqt.QtInteractor."""
+    def __init__(self, parent=None, *a, **k):
+        import pyvista as pv
+        super().__init__(parent)
+        self.__dict__['_p'] = pv.Plotter(off_screen=True, window_size=(600, 420))
+
+    def __getattr__(self, name):
+        return getattr(self.__dict__['_p'], name)
+
+    def render(self, *a, **k):
+        return self.__dict__['_p'].render()
+
+    def enable_point_picking(self, *a, **k):
+        self.__dict__['picking'] = k.get('callback')
+
+
+def test_the_3d_view(app, tmp_path, monkeypatch):
+    pytest.importorskip('pyvista')
+    import quantumscope.gui.decision3d as D3
+    monkeypatch.setattr(D3, 'make_plotter', lambda parent: OffscreenInteractor(parent))
+    k = trained(app, 'mnist', '3', '8')
+    view = k.view3d
+    assert view.geometry is None                                              # nothing until the tab opens
+    k.top_tabs.setCurrentIndex(1)
+    app.processEvents()
+    view.run.wait()
+    app.processEvents()
+    g = view.geometry
+    assert g['f'].shape == (30, 30, 30) and 'agrees with the classifier on' in view.caption.text()
+    view.plotter.__dict__['picking'](g['P_test'][4])                          # click a test point
+    assert k.sample_view.entries[0]['heading'] == 'Test sample 5'
+    for name in ('Front', 'Top', 'Side', 'Isometric', 'Reset'):
+        view.preset(name)
+    view.show_margins.setChecked(True)                                         # an SVM: margins allowed
+    assert view.show_margins.isEnabled()
+    assert os.path.getsize(view.save_image(str(tmp_path / 'view'))) > 1000
+    assert os.path.getsize(view.save_gif(str(tmp_path / 'turn'), frames=4)) > 1000
+    view.axes_box.setCurrentIndex(view.axes_box.findData('separating'))
+    view.run.wait()
+    app.processEvents()
+    assert 'class separation' in view.caption.text()
+    flat = trained(app, 'circles', None, None, qubits=2)                       # two features: no 3-D
+    flat.top_tabs.setCurrentIndex(1)
+    app.processEvents()
+    assert 'at least 3 features' in flat.view3d.caption.text()
+    ridge = trained(app, 'mnist', '0', '1', method='ridge')
+    ridge.top_tabs.setCurrentIndex(1)
+    app.processEvents()
+    assert not ridge.view3d.show_margins.isEnabled()                           # margins are an SVM idea

@@ -36,6 +36,7 @@ def test_the_guide_names_controls_that_exist():
                 source += open(os.path.join(folder, name), encoding='utf-8').read()
     # Algorithm parameters (such as VQLS's "Your own system") are labelled in the physics package.
     source += open(os.path.join(ROOT, 'src', 'quantumscope', 'physics', 'algorithms.py'), encoding='utf-8').read()
+    source += open(os.path.join(ROOT, 'src', 'quantumscope', 'ml', 'views.py'), encoding='utf-8').read()   # 3-D axes
     for control in ('Check for updates…', 'Run shots', 'Verify / truth table', 'Randomize all', 'Landscape…',
                     'Fire particles', 'Measure once', 'Measure many', 'Send one pair', 'Run Bell test',
                     'Teleport many', 'Open in the circuit simulator', 'Export PDF…', 'My course folder…',
@@ -43,6 +44,6 @@ def test_the_guide_names_controls_that_exist():
                     'Import CSV or .npz…', 'Apply suggestions', 'Qubits (= features)', 'Samples per class',
                     'PCA components', 'Shots per entry', 'Trainable layers', 'Open in circuit simulator',
                     'Show the solution', 'Your own system', 'Save model…', 'Load model…', 'Predict on a file…',
-                    'Export CSV…'):
+                    'Export CSV…', 'Save rotating GIF…', 'Separating axes', 'Kernel map'):
         assert control in text, control
         assert control in source, control

@@ -614,7 +614,12 @@ class KernelExperiment(QWidget):
         right = QSplitter(Qt.Orientation.Vertical)                # drag the divider to resize
         right.setChildrenCollapsible(False)
         self.regions = _plot('Decision regions')
-        right.addWidget(self.regions)
+        self.top_tabs = QTabWidget()
+        self.top_tabs.addTab(self.regions, 'Decision regions')
+        from quantumscope.gui.decision3d import Decision3DView
+        self.view3d = Decision3DView(on_pick=self._show_sample)
+        self.top_tabs.addTab(self.view3d, '3-D view')
+        right.addWidget(self.top_tabs)
         lower = QWidget()
         below = QHBoxLayout(lower)
         below.setContentsMargins(0, 0, 0, 0)
@@ -745,6 +750,10 @@ class KernelExperiment(QWidget):
                 entry['lines'] += shown + (['…'] if len(raw) > 6 else [])
         return entry
 
+    def _show_sample(self, which, index):
+        if getattr(self, 'last', None) is not None:
+            self.sample_view.show_samples([self.sample_entry(which, index)])
+
     def _show_points(self, points):
         if not len(points) or getattr(self, 'last', None) is None:
             return
@@ -832,7 +841,9 @@ class KernelExperiment(QWidget):
         self.dataset = self.data.dataset
         self._draw_kernel_map(r)
         from quantumscope.ml import models as M
-        self.model_panel.set_model(M.from_kernel(r['model'], p, settings, r['train'], r['test'], settings['dataset']))
+        trained = M.from_kernel(r['model'], p, settings, r['train'], r['test'], settings['dataset'])
+        self.model_panel.set_model(trained)
+        self.view3d.set_result(r, trained)
         from quantumscope.ml import progress
         progress.trained('kernel', train=r['train'], test=r['test'], map=settings['kind'],
                          bandwidth=settings['bandwidth'], shots=settings['shots'], dataset=settings['dataset'])
