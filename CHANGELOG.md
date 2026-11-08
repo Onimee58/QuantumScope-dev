@@ -1,3 +1,36 @@
+## v0.8.2 — Saving models, seeing kernels, and a 3-D decision view
+
+### Saving and using trained models
+- **Both classifiers have a Model panel:** a summary of the current model, **Save model…**, **Load model…** and **Predict on a file…**.
+- **A model file holds everything a prediction needs:** the classifier, its settings, and the preprocessing it was trained with (classes, missing-value means, PCA and scaling, all fitted on the training data), so new data is prepared exactly like the training data.
+  - **Small:** an SVM keeps only its support vectors (a 3-vs-8 MNIST model is about 26 KB).
+  - **Safe:** a NumPy `.npz` file with a JSON header, never unpickled.
+  - **Open in Python** with `numpy.load`.
+  - **Clear messages** for files that are not models, damaged, incomplete, or from a newer QuantumScope.
+- **Loading a model sets the controls to match it,** so **Train** rebuilds the same model.
+- **Predict on a file…** reads `.csv` (columns matched by name, in any order; the label column is optional) or `.npz` (images flattened). It runs in the background and shows each sample's prediction and decision value, with the true class, correctness and accuracy when the file has labels; samples of other classes are counted separately. **Export CSV…** saves the results.
+
+### Seeing the kernel
+- **Kernel map** (a new tab beside the kernel matrix): the data as the kernel sees it, by kernel PCA of the kernel the classifier already computed. It equals ordinary PCA for a linear kernel, and flags kernel concentration.
+- **The kernel matrix is interactive:** hover over a cell for its value and the two samples' classes; click it to see both samples.
+- **A sample viewer** shows what you click (the image, for Digits and MNIST).
+- **A draggable divider** sets the space between the decision regions and the kernel views.
+
+### 3-D decision view
+- **A new tab beside the decision regions:** the points along **Principal components** or **Separating axes**, with the decision boundary as a surface and, for an SVM, the **Margins**. Support vectors have a halo; test points are cubes and mistakes red.
+- **Drag to rotate,** scroll to zoom; **Front**, **Top**, **Side**, **Isometric** and **Reset**; click a point to see its sample.
+- **With more than three features it is a slice,** and the caption gives how often the slice agrees with the classifier (100% with three features).
+- **Save image…** and **Save rotating GIF…** (a full turn, for slides).
+- **Computed in the background,** only when the tab is first opened.
+
+### Fixes
+- **The Quantum ML control columns scroll instead of squashing** when the window is short. Every control keeps its natural size, lists show long names in full when opened, and the columns fit every dataset's controls.
+- **The updater never freezes the window:** checking and downloading run in the background with **Cancel**. GitHub's temporary errors (500, 502, 503, 504, timeouts) are retried up to three times, and lasting trouble is explained with a link to the release page. (Reported: updating from 0.8.0 stopped responding, then showed error 504.)
+- **The test comparing adjoint and parameter-shift optimization** now accepts rounding differences (paths agree to 10⁻⁶; step counts within two), which had failed v0.8.1's first release build.
+
+### Quality
+- **Automated tests:** 1587 passing, plus 157 opt-in GUI tests, including layout checks across datasets and window sizes, and the updater under slow and failing networks.
+
 ## v0.8.1 — Speed, and no more frozen windows
 
 ### Faster

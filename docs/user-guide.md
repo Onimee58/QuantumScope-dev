@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.8.0** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.8.2** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits and quantum machine learning, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -221,9 +221,15 @@ The **Quantum ML** area turns data into quantum states and learns from them. Its
   - **Kernel map:** the data as the kernel sees it (kernel PCA): points the kernel finds similar lie close together. Click a point to see that sample, its prediction and its decision value. If the points scatter apart with no structure, the kernel has concentrated.
 - If the kernel is close to 0 for different points (kernel concentration), the result says so and suggests a smaller bandwidth.
 
+![The kernel map: MNIST 3s and 8s as the kernel sees them, with a misclassified sample shown beside it](images/qml-kernel-map.png)
+
+![The 3-D view with separating axes: the decision boundary, the SVM's margins, and support vectors with halos](images/qml-3d.png)
+
 ### Saving and using a model
 
 Both classifiers have a **Model** panel. After training, **Save model…** stores the model as a small `.npz` file: the classifier, its settings, and the preprocessing it was trained with (the classes, PCA, scaling and so on), so new data is prepared exactly like the training data. **Load model…** opens a saved model and sets the controls to match it. **Predict on a file…** predicts every sample in a `.csv` or `.npz` file with the same raw features as the training data: CSV columns are matched by name, and a label column is optional. The results show each sample's prediction and decision value, and, when the file has labels, the true class, whether the prediction was correct, and the accuracy. **Export CSV…** saves them. Model files are never run as code, so they are safe to share.
+
+![Predictions for 300 new MNIST images from a saved 3-vs-8 model: accuracy on its two classes, and each sample's result](images/qml-predictions.png)
 
 ### Variational Classifier
 

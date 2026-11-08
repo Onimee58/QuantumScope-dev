@@ -63,6 +63,24 @@ def screenshots():
             def render(self, *a, **k):
                 return self.__dict__['_p'].render()
         M.QtInteractor = Interactor
+
+        class DecisionInteractor(Interactor):                # the 3-D decision view: larger, picking accepted
+            def __init__(self, parent=None, *a, **k):
+                QWidget.__init__(self, parent)
+                self.__dict__['_p'] = pv.Plotter(off_screen=True, window_size=(960, 640))
+
+            def enable_point_picking(self, *a, **k):
+                pass
+        import quantumscope.gui.decision3d as D3
+        D3.make_plotter = lambda parent: DecisionInteractor(parent)
+        from PySide6.QtWidgets import QMessageBox                # no one can click a message box here:
+
+        def stop(title):                                          # fail loudly instead of waiting forever
+            def show(*args, **kwargs):
+                raise RuntimeError(f'Unexpected {title} while making the guide: {args[2] if len(args) > 2 else args}')
+            return staticmethod(show)
+        for kind in ('warning', 'information', 'critical'):
+            setattr(QMessageBox, kind, stop(kind))
     from quantumscope.gui.theme import apply_theme
     apply_theme('dark')
     w = M.MainWindow()
@@ -169,11 +187,49 @@ def screenshots():
     kernel = w._open_experiments['qml_kernel']
     kernel.data.source.setCurrentIndex(kernel.data.source.findData('mnist'))
     kernel.data.qubits.setValue(4)
+    kernel.data.class_a.setCurrentIndex(kernel.data.class_a.findText('3'))
+    kernel.data.class_b.setCurrentIndex(kernel.data.class_b.findText('8'))
     kernel.feature_map.setCurrentIndex(kernel.feature_map.findData('angle'))
     kernel.bandwidth.setValue(0.5)
     kernel.train().wait()
     settle(app, 0.4)
     save(w, 'qml-kernel.png', scale=0.75)
+    kernel.views.setCurrentIndex(1)                          # the kernel map, with a mistake selected
+    mistakes = [item for item in kernel.kernel_map.getPlotItem().items
+                if hasattr(item, 'points') and len(item.points()) and item.points()[0].data()
+                and item.opts.get('symbol') == 'x']
+    if mistakes:
+        kernel._show_points([mistakes[0].points()[0]])
+    settle(app, 0.4)
+    save(w, 'qml-kernel-map.png', scale=0.75)
+    kernel.top_tabs.setCurrentIndex(1)                       # the 3-D view: separating axes, margins
+    settle(app, 0.2)
+    kernel.view3d.axes_box.setCurrentIndex(kernel.view3d.axes_box.findData('separating'))
+    kernel.view3d.run.wait()
+    kernel.view3d.show_margins.setChecked(True)
+    settle(app, 0.3)
+    from PySide6.QtGui import QImage
+    from PySide6.QtCore import Qt as _Qt
+    shot = kernel.view3d.save_image(os.path.join(IMAGES, 'qml-3d.png'))
+    QImage(shot).scaledToWidth(960, _Qt.TransformationMode.SmoothTransformation).save(shot)
+    print('   qml-3d.png', QImage(shot).width(), 'x', QImage(shot).height())
+    kernel.top_tabs.setCurrentIndex(0)
+    import numpy as _np
+    from quantumscope.ml import datasets as _D
+    digits = _D.load('mnist')                                 # predict on new images with the saved model
+    import tempfile
+    scratch = tempfile.mkdtemp(prefix='quantumscope-guide-')    # outside the repository
+    model_path = kernel.model_panel.save(os.path.join(scratch, 'digits-3-vs-8.npz'))
+    sample_path = os.path.join(scratch, 'new-digits.npz')
+    _np.savez(sample_path, images=digits.X[1000:1300].reshape(-1, 28, 28), y=digits.y[1000:1300])
+    kernel.model_panel.load(model_path)
+    kernel.model_panel.predict_file(sample_path).wait()
+    settle(app, 0.4)
+    dialog = kernel.model_panel.dialog
+    dialog.resize(640, 460)
+    settle(app, 0.2)
+    save(dialog, 'qml-predictions.png', scale=0.9)
+    dialog.close()
     w._launch_qml_variational()
     variational = w._open_experiments['qml_variational']
     variational.data.source.setCurrentIndex(variational.data.source.findData('breast_cancer'))
