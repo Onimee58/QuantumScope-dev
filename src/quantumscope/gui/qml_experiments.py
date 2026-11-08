@@ -328,6 +328,20 @@ class _DataPicker(QGroupBox):
         self._classes_for_source()
         self._sync()
 
+    def show_model_data(self, model):
+        """Select a loaded model's dataset (built-in or synthetic), qubits and classes, if possible."""
+        key = model.info.get('dataset', '')
+        index = self.source.findData(key)
+        if index < 0 or key == 'store':
+            return False
+        self.source.setCurrentIndex(index)
+        self.qubits.setValue(model.pipeline.outputs)
+        for box, name in ((self.class_a, model.classes[0]), (self.class_b, model.classes[1])):
+            at = box.findText(name)
+            if at >= 0:
+                box.setCurrentIndex(at)
+        return True
+
     def _classes_for_source(self, *_):
         """Offer the dataset's classes when it has more than two (MNIST, Iris, …), defaulting to the
         checker's suggestion; hidden for two-class data and for the Datasets tab's data."""
@@ -535,6 +549,10 @@ class KernelExperiment(QWidget):
         row.addWidget(self.cancel_button)
         mv.addRow(row)
         form.addWidget(model)
+        from quantumscope.gui.model_panel import ModelPanel
+        self.model_panel = ModelPanel('kernel')
+        self.model_panel.on_loaded = self._use_loaded
+        form.addWidget(self.model_panel)
         self.result = QLabel('Press Train.')
         self.result.setWordWrap(True)
         form.addWidget(self.result)
@@ -605,6 +623,17 @@ class KernelExperiment(QWidget):
                        on_error=self._failed).start()
         return self.run
 
+    def _use_loaded(self, model):
+        """Match the controls to a loaded model, so they describe it (and Train would rebuild it)."""
+        s = model.settings
+        self.feature_map.setCurrentIndex(self.feature_map.findData(s['feature_map']))
+        self.reps.setValue(int(s['reps']))
+        self.bandwidth.setValue(float(s['bandwidth']))
+        self.method.setCurrentIndex(self.method.findData(s.get('method', 'svm')))
+        self.strength.setValue(float(s.get('strength', 1.0)))
+        self.shots.setValue(int(s.get('shots', 0)))
+        self.data.show_model_data(model)
+
     def _failed(self, exc, details):
         self.train_button.setEnabled(True)
         self.cancel_button.setEnabled(False)
@@ -641,6 +670,8 @@ class KernelExperiment(QWidget):
             line.setZValue(10)                                   # above the image
             self.heatmap.addItem(line)
         self.last = r
+        from quantumscope.ml import models as M
+        self.model_panel.set_model(M.from_kernel(r['model'], p, settings, r['train'], r['test'], settings['dataset']))
         from quantumscope.ml import progress
         progress.trained('kernel', train=r['train'], test=r['test'], map=settings['kind'],
                          bandwidth=settings['bandwidth'], shots=settings['shots'], dataset=settings['dataset'])
@@ -694,6 +725,10 @@ class VariationalExperiment(QWidget):
         self.open_circuit.setEnabled(False)
         mv.addRow(self.open_circuit)
         form.addWidget(model)
+        from quantumscope.gui.model_panel import ModelPanel
+        self.model_panel = ModelPanel('variational')
+        self.model_panel.on_loaded = self._use_loaded
+        form.addWidget(self.model_panel)
         self.result = QLabel('Press Train.')
         self.result.setWordWrap(True)
         form.addWidget(self.result)
@@ -763,6 +798,17 @@ class VariationalExperiment(QWidget):
             p = self.prepared
             draw_regions(self.regions, plane, regions[0], p.X_train, p.y_train, p.X_test, p.y_test, regions[1])
 
+    def _use_loaded(self, model):
+        """Match the controls to a loaded model, so they describe it (and Train would rebuild it)."""
+        s = model.settings
+        self.feature_map.setCurrentIndex(self.feature_map.findData(s['feature_map']))
+        self.layers.setValue(int(s['layers']))
+        if s.get('optimizer'):
+            at = self.method.findData(s['optimizer'])
+            if at >= 0:
+                self.method.setCurrentIndex(at)
+        self.data.show_model_data(model)
+
     def _failed(self, exc, details):
         self.train_button.setEnabled(True)
         self.stop_button.setEnabled(False)
@@ -780,6 +826,9 @@ class VariationalExperiment(QWidget):
         self.open_circuit.setEnabled(True)
         self.last = dict(train=accuracies[-1], test=r['test'], history=list(self._history), stopped=r['stopped'])
         r.update(self.last)
+        from quantumscope.ml import models as M
+        self.model_panel.set_model(M.from_variational(self.model, p, settings, accuracies[-1], r['test'],
+                                                      settings['dataset']))
         from quantumscope.ml import progress
         progress.trained('variational', train=accuracies[-1], test=r['test'], map=settings['map'],
                          layers=settings['layers'], dataset=settings['dataset'])

@@ -42,6 +42,7 @@ def test_the_guide_names_controls_that_exist():
                     'Restore defaults', 'Render state', 'Enable second 3D viewer', 'Simplify circuit…',
                     'Import CSV or .npz…', 'Apply suggestions', 'Qubits (= features)', 'Samples per class',
                     'PCA components', 'Shots per entry', 'Trainable layers', 'Open in circuit simulator',
-                    'Show the solution', 'Your own system'):
+                    'Show the solution', 'Your own system', 'Save model…', 'Load model…', 'Predict on a file…',
+                    'Export CSV…'):
         assert control in text, control
         assert control in source, control
