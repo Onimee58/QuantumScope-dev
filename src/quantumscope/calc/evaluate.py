@@ -339,7 +339,16 @@ class Calculator:
                 raise CalcError('An eigensystem, Bloch vector or Pauli decomposition is shown, not computed with')
             return self._step(node, b.dagger(inner))
         if kind == 'binary':
-            return self._step(node, self._check_size(self._binary(node.value, *[self._eval(a) for a in node.args])))
+            values = [self._eval(a) for a in node.args]
+            try:
+                return self._step(node, self._check_size(self._binary(node.value, *values)))
+            except CalcError as exc:
+                tensored = [a for a in node.args if a.kind == 'binary' and a.value == '⊗']
+                if node.value == '*' and tensored and 'Cannot multiply' in str(exc):
+                    raise CalcError(f'{exc}. Note that ⊗ binds more tightly than side-by-side products, so '
+                                    f'"{tensored[0].text}" was taken together; add brackets, such as '
+                                    f'(RY(θ)|0⟩) ⊗ |1⟩') from None
+                raise
         if kind == 'call':
             name = node.value
             if name in self.variables or name in self.library() or self.backend.constant(name) is not None:

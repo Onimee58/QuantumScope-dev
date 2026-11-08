@@ -169,6 +169,9 @@ class MainWindow(QMainWindow):
             menu.addAction("Datasets", self._launch_qml_datasets)
             menu.addAction("Quantum Kernel Classifier", self._launch_qml_kernel)
             menu.addAction("Variational Classifier", self._launch_qml_variational)
+        if category in (None,"math"):
+            menu.addSection("MATH")
+            menu.addAction("Quantum Calculator", self._launch_calculator)
         return menu
 
     def _show_settings(self):
@@ -201,7 +204,8 @@ class MainWindow(QMainWindow):
          "doubleslit": self._launch_double_slit, "superposition": self._launch_superposition,
          "entanglement": self._launch_entanglement, "teleportation": self._launch_teleportation,
          "qec": self._launch_qec_explorer, "qml_datasets": self._launch_qml_datasets,
-         "qml_kernel": self._launch_qml_kernel, "qml_variational": self._launch_qml_variational}[view]()
+         "qml_kernel": self._launch_qml_kernel, "qml_variational": self._launch_qml_variational,
+         "calculator": self._launch_calculator}[view]()
 
     def apply_preferences(self):
         from quantumscope.gui import preferences as prefs
@@ -298,7 +302,8 @@ class MainWindow(QMainWindow):
         for category, title in (("hydrogen", "⚛  Hydrogen"),
                                 ("principles", "◈  Quantum Principles"),
                                 ("circuits", "▦  Quantum Circuits"),
-                                ("qml", "◇  Quantum ML")):
+                                ("qml", "◇  Quantum ML"),
+                                ("math", "∑  Math")):
             tabs = QTabWidget()
             tabs.setObjectName("experimentWorkspace")
             tabs.setTabsClosable(True)
@@ -342,6 +347,7 @@ class MainWindow(QMainWindow):
         self._experiment_labels, self._experiment_icons, self._placeholders = {}, {}, {}
         self._launch_double_slit()
         self._show_placeholder("qml")                    # Quantum ML opens on its Start page
+        self._show_placeholder("math")                   # so does Math (v0.9.0)
         self._select_category("hydrogen")
         self.statusBar().showMessage("Ready  ·  Choose an experiment or explore hydrogen orbitals")
 
@@ -354,7 +360,7 @@ class MainWindow(QMainWindow):
     EXPERIMENT_AREAS={"dynamics_2d":"hydrogen","dynamics_3d":"hydrogen","qec_explorer":"circuits",
                       "double_slit":"principles","superposition":"principles","entanglement":"principles",
                       "teleportation":"principles","qml_datasets":"qml","qml_kernel":"qml",
-                      "qml_variational":"qml"}
+                      "qml_variational":"qml","calculator":"math"}
 
     def _open_experiment(self, key, label, constructor):
         """One persistent experiment tab in its own area. A closed tab was only hidden, so it
@@ -475,6 +481,43 @@ class MainWindow(QMainWindow):
     def _launch_qml_variational(self):
         from quantumscope.gui.qml_experiments import VariationalExperiment
         self._open_experiment("qml_variational", "Variational Classifier", VariationalExperiment)
+
+    def _launch_calculator(self):
+        from quantumscope.gui.calculator import CalculatorView
+        self._open_experiment("calculator", "Quantum Calculator",
+                              lambda parent: CalculatorView(parent, send_state=self.send_state_to_circuit))
+        return self._open_experiments["calculator"]
+
+    def open_calculator(self, expression=None):
+        """Open the calculator, optionally with an expression evaluated (lesson "Try it" links)."""
+        view = self._launch_calculator()
+        if expression:
+            return view.set_expression(expression, evaluate=True)
+        return None
+
+    def send_state_to_circuit(self, vector):
+        """Start the circuit simulator from a calculator state. A product state becomes per-qubit
+        starting states (undoable); an entangled one cannot, which the returned message explains."""
+        from quantumscope.calc.bridge import product_angles
+        from quantumscope.physics.initial_states import InitialState
+        try:
+            angles = product_angles(vector)
+        except ValueError as exc:
+            return str(exc)
+        if angles is None:
+            return ('This state is entangled, so it cannot be written as one starting state per qubit. '
+                    'Build it in the circuit with gates instead (a Bell state: H, then CNOT).')
+        workspace = self.circuit_widget
+        model = workspace.model
+        if model.n != len(angles):                     # as if the qubit count were changed by hand: the
+            workspace.qubits.setValue(len(angles))      # workspace asks only if gates would be removed
+            if model.n != len(angles):
+                return 'Not sent: the circuit is unchanged.'
+        for qubit, (theta, phi) in enumerate(angles):
+            workspace.set_initial_state(qubit, InitialState(theta, phi))
+        workspace._changed()
+        self._launch_circuits()
+        return f'Sent: the circuit now starts in this state ({len(angles)} qubit{"s" if len(angles) != 1 else ""}).'
 
     def _launch_qec_explorer(self):
         from quantumscope.gui.qec_chart import ErrorCorrectionExplorer

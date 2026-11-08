@@ -39,7 +39,7 @@ def window():
 def test_quantum_ml_area_and_trained_circuit_in_the_simulator(window):
     w = window
     titles = [w.categories.tabText(i).strip() for i in range(w.categories.count())]
-    assert titles[-1].endswith('Quantum ML') and 'qml' in w.workspaces
+    assert any(t.endswith('Quantum ML') for t in titles) and 'qml' in w.workspaces   # (Math follows, v0.9.0)
     start = w.workspaces['qml']
     assert start.count() == 1 and start.tabText(0) == 'Start'                    # opens on its Start page
     w._launch_qml_variational()
