@@ -266,7 +266,7 @@ class Guide:
             painter.translate(margins.left(), margins.top())
             painter.scale(scale, scale)
             painter.translate(0, -p * self.H)
-            doc.drawContents(painter, QRectF(0, p * self.H, self.W, self.H))
+            draw_text(painter, doc, QRectF(0, p * self.H, self.W, self.H))
             painter.restore()
             if p:                                                  # no number on the cover
                 painter.save()
@@ -278,6 +278,31 @@ class Guide:
                 painter.restore()
         painter.end()
         return total
+
+
+def print_palette():
+    """Dark text on white paper, whatever theme the app is in. Text without its own colour takes the
+    palette's: the guide tool switches the app to its dark theme for the screenshots, and before
+    v0.8.4 the body text then came out near-white on white paper."""
+    from PySide6.QtGui import QColor, QPalette
+    palette = QPalette()
+    for role, colour in ((QPalette.ColorRole.Text, '#111827'), (QPalette.ColorRole.WindowText, '#111827'),
+                         (QPalette.ColorRole.Link, '#1d4ed8'), (QPalette.ColorRole.Base, '#ffffff'),
+                         (QPalette.ColorRole.Window, '#ffffff')):
+        palette.setColor(role, QColor(colour))
+    return palette
+
+
+def draw_text(painter, doc, clip):
+    """One page of the laid-out guide, in the print palette."""
+    from PySide6.QtGui import QAbstractTextDocumentLayout
+    context = QAbstractTextDocumentLayout.PaintContext()
+    context.palette = print_palette()
+    context.clip = clip
+    painter.save()
+    painter.setClipRect(clip)
+    doc.documentLayout().draw(painter, context)
+    painter.restore()
 
 
 def draw_cover(painter, page):

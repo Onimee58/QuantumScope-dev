@@ -1,3 +1,14 @@
+## v0.8.5 — The user guide's text is readable again
+
+### Fixes
+- **The user guide's body text was nearly invisible** (pale grey on white) in the guides shipped with v0.8.2 to v0.8.4; only captions and screenshots stood out. The guide is built after the screenshots, which switch the app to its dark theme, and text without its own colour took that theme's near-white. Pages now print in a fixed palette (dark text, blue links), whatever the app's theme.
+
+### User guide
+- **The cover now shows a quantum circuit and a Bloch sphere** over the double-slit detections: a three-qubit GHZ circuit, and a sphere in a true 3-D projection with one state vector.
+
+### Quality
+- **New tests:** a text page drawn under the dark theme must be dark, and the committed guide's contents page must have dark ink. Both fail on the v0.8.4 builder and PDF.
+
 ## v0.8.4 — The start-up logo on every system, and a new guide cover
 
 ### Fixes
