@@ -50,6 +50,7 @@ class Dataset:
     citation: str = ''
     image_shape: tuple = None          # e.g. (8, 8) for images
     text_columns: dict = field(default_factory=dict)   # column → its categories (values are codes)
+    label_name: str = ''                                 # the label column's name in an imported file
 
     @property
     def counts(self):
@@ -153,7 +154,8 @@ def _import_csv(path):
     classes = sorted(set(labels), key=lambda v: (_number(v) is None, _number(v) or 0, v))
     y = np.array([classes.index(v) for v in labels], int)
     return Dataset(os.path.basename(path), X, y, [names[i] for i in keep], classes,
-                   f'Imported from {os.path.basename(path)}.', text_columns=text_columns)
+                   f'Imported from {os.path.basename(path)}.', text_columns=text_columns,
+                   label_name=names[label_column] if header else '')
 
 
 def _import_npz(path):
@@ -260,6 +262,75 @@ def check(dataset, qubits=4, max_samples=200):
 
 # ---- preprocessing -----------------------------------------------------------------------------------
 @dataclass
+class Pipeline:
+    """Every fitted preprocessing step, so new raw data is transformed exactly like the training
+    data (v0.8.2). Fitted on the training split only; transform() applies it to any rows with the
+    dataset's raw columns. At prediction time, missing values are always filled with the training
+    means (a sample to be predicted cannot be dropped)."""
+    features: list                     # raw feature names, in the dataset's column order
+    text_columns: dict                 # raw column → its categories (codes are positions in this list)
+    classes: tuple                     # (name of +1, name of −1)
+    keep: np.ndarray                   # raw columns used (text columns may be dropped)
+    means: np.ndarray                  # training means of the kept columns
+    fill: bool                         # the recipe fills missing values with the means
+    varying: np.ndarray = None         # kept columns that vary (constant ones dropped), or None
+    pca_mean: np.ndarray = None
+    pca_components: np.ndarray = None  # k × columns, or None
+    lo: np.ndarray = None              # scaling to [0, π]: (x − lo) / span · π, or None
+    span: np.ndarray = None
+    names: list = field(default_factory=list)   # the prepared features' names
+    label_name: str = ''               # the training file's label column, if it had a name
+
+    @property
+    def inputs(self):
+        return len(self.features)
+
+    @property
+    def outputs(self):
+        return len(self.names)
+
+    def transform(self, X, fill_missing=None):
+        """Raw rows (samples × raw features, text as category codes) → prepared features."""
+        X = np.atleast_2d(np.asarray(X, float))
+        if X.shape[1] != self.inputs:
+            raise ValueError(f'Expected {self.inputs} raw features, got {X.shape[1]}')
+        X = X[:, self.keep]
+        if (self.fill if fill_missing is None else fill_missing) and np.isnan(X).any():
+            X = np.where(np.isnan(X), self.means, X)
+        if self.varying is not None:
+            X = X[:, self.varying]
+        if self.pca_components is not None:
+            X = (X - self.pca_mean) @ self.pca_components.T
+        if self.lo is not None:
+            X = (X - self.lo) / self.span * math.pi
+        return X
+
+    def predict_ready(self, X):
+        """transform() for prediction: missing values always filled with the training means."""
+        return self.transform(X, fill_missing=True)
+
+    def to_arrays(self, prefix='pipe_'):
+        """Arrays and a JSON-ready header, for saving (no pickle)."""
+        arrays = {prefix + 'keep': self.keep, prefix + 'means': self.means}
+        for name in ('varying', 'pca_mean', 'pca_components', 'lo', 'span'):
+            value = getattr(self, name)
+            if value is not None:
+                arrays[prefix + name] = value
+        header = dict(features=list(self.features), classes=list(self.classes), fill=bool(self.fill),
+                      names=list(self.names), text_columns={str(k): list(v) for k, v in self.text_columns.items()},
+                      label_name=self.label_name)
+        return arrays, header
+
+    @classmethod
+    def from_arrays(cls, arrays, header, prefix='pipe_'):
+        get = lambda name: np.asarray(arrays[prefix + name]) if prefix + name in arrays else None   # noqa: E731
+        return cls(list(header['features']), {int(k): list(v) for k, v in header['text_columns'].items()},
+                   tuple(header['classes']), get('keep').astype(int), get('means').astype(float), bool(header['fill']),
+                   None if get('varying') is None else get('varying').astype(bool), get('pca_mean'),
+                   get('pca_components'), get('lo'), get('span'), list(header['names']), header.get('label_name', ''))
+
+
+@dataclass
 class Prepared:
     X_train: np.ndarray
     X_test: np.ndarray
@@ -268,29 +339,35 @@ class Prepared:
     features: list
     classes: tuple                     # (name of +1, name of −1)
     steps: list                        # what was done, in words
+    pipeline: Pipeline = None          # the fitted steps, to prepare new data the same way
+    train_rows: np.ndarray = None      # which dataset rows went into training and testing
+    test_rows: np.ndarray = None
 
 
 def prepare(dataset, recipe):
-    """Apply a recipe: choose classes, clean, split, then fit on the training split only."""
+    """Apply a recipe: choose classes, clean, split, then fit on the training split only.
+    The fitted steps are kept in a Pipeline, which prepares new raw data the same way."""
+    import warnings
     rng = np.random.default_rng(recipe.seed)
     a, b = recipe.classes
     steps = [f'Classes: {dataset.classes[a]} (+1) and {dataset.classes[b]} (−1).']
-    X, y, names = dataset.X.copy(), dataset.y, list(dataset.features)
-    pick = np.isin(y, (a, b))
-    X, y = X[pick], y[pick]
+    rows = np.flatnonzero(np.isin(dataset.y, (a, b)))                # dataset rows still in play
+    X, y = dataset.X[rows].copy(), dataset.y[rows]
+    keep = np.arange(dataset.X.shape[1])
     if recipe.text == 'drop' and dataset.text_columns:
-        keep = [i for i in range(X.shape[1]) if i not in dataset.text_columns]
-        X, names = X[:, keep], [names[i] for i in keep]
+        keep = np.array([i for i in range(X.shape[1]) if i not in dataset.text_columns], int)
+        X = X[:, keep]
         steps.append(f'Dropped {len(dataset.text_columns)} text columns.')
     elif dataset.text_columns:
         steps.append(f'Encoded {len(dataset.text_columns)} text columns as category codes.')
+    names = [dataset.features[i] for i in keep]
     if recipe.missing == 'drop':
         good = ~np.isnan(X).any(axis=1)
         steps.append(f'Dropped {int((~good).sum())} samples with missing values.')
-        X, y = X[good], y[good]
+        X, y, rows = X[good], y[good], rows[good]
     if recipe.per_class:
         chosen = np.concatenate([rng.permutation(np.flatnonzero(y == c))[:recipe.per_class] for c in (a, b)])
-        X, y = X[chosen], y[chosen]
+        X, y, rows = X[chosen], y[chosen], rows[chosen]
         steps.append(f'Kept at most {recipe.per_class} samples per class.')
     test = np.zeros(len(y), bool)                              # stratified split
     for c in (a, b):
@@ -298,9 +375,13 @@ def prepare(dataset, recipe):
         test[members[:int(round(recipe.test_fraction * len(members)))]] = True
     Xtr, Xte = X[~test], X[test]
     steps.append(f'Split: {int((~test).sum())} for training, {int(test.sum())} for testing.')
+    with warnings.catch_warnings():                             # an all-missing column has no mean
+        warnings.simplefilter('ignore', RuntimeWarning)
+        means = np.nanmean(Xtr, axis=0) if len(Xtr) else np.zeros(Xtr.shape[1])
+    means = np.where(np.isnan(means), 0.0, means)
+    pipe = Pipeline(list(dataset.features), dict(dataset.text_columns), (dataset.classes[a], dataset.classes[b]),
+                    keep, means, recipe.missing == 'mean')
     if recipe.missing == 'mean' and (np.isnan(Xtr).any() or np.isnan(Xte).any()):   # either split
-        means = np.nanmean(Xtr, axis=0)
-        means = np.where(np.isnan(means), 0.0, means)
         Xtr = np.where(np.isnan(Xtr), means, Xtr)
         Xte = np.where(np.isnan(Xte), means, Xte)
         steps.append('Filled missing values with the training means.')
@@ -309,6 +390,7 @@ def prepare(dataset, recipe):
         if not varying.all():
             steps.append(f'Dropped {int((~varying).sum())} constant features.')
             Xtr, Xte, names = Xtr[:, varying], Xte[:, varying], [n for n, v in zip(names, varying) if v]
+            pipe.varying = varying
     if recipe.components and recipe.components < Xtr.shape[1]:
         mean = Xtr.mean(axis=0)
         _, s, vt = np.linalg.svd(Xtr - mean, full_matrices=False)
@@ -317,11 +399,101 @@ def prepare(dataset, recipe):
         Xtr, Xte = (Xtr - mean) @ vt[:k].T, (Xte - mean) @ vt[:k].T
         names = [f'PC{i + 1}' for i in range(k)]
         steps.append(f'PCA: {k} components keep {explained:.0%} of the variance.')
+        pipe.pca_mean, pipe.pca_components = mean, vt[:k]
     if recipe.scale == 'pi':
         lo, hi = Xtr.min(axis=0), Xtr.max(axis=0)
         span = np.where(hi > lo, hi - lo, 1.0)
         Xtr, Xte = (Xtr - lo) / span * math.pi, (Xte - lo) / span * math.pi
         steps.append('Scaled each feature to [0, π] (from the training data).')
+        pipe.lo, pipe.span = lo, span
+    pipe.names = list(names)
+    pipe.label_name = dataset.label_name
     to_pm = lambda v: np.where(v == a, 1, -1)                  # noqa: E731
     return Prepared(Xtr, Xte, to_pm(y[~test]), to_pm(y[test]), names,
-                    (dataset.classes[a], dataset.classes[b]), steps)
+                    (dataset.classes[a], dataset.classes[b]), steps, pipe, rows[~test], rows[test])
+
+
+@dataclass
+class NewData:
+    """Raw rows to predict, aligned to a pipeline's features (v0.8.2)."""
+    X: np.ndarray                      # samples × the pipeline's raw features (text as category codes)
+    labels: list = None                # the true class names, when the file has a label column
+    notes: list = field(default_factory=list)
+
+
+def read_for_prediction(path, pipeline):
+    """Read a .csv or .npz file of new samples for a trained model's pipeline. CSV columns are
+    matched by header name (order and extra columns do not matter); without a header they must be in
+    the training order. A label column is optional. Text values map through the model's categories;
+    unseen ones become missing values, which prediction fills with the training means."""
+    if path.lower().endswith('.npz'):
+        with np.load(path, allow_pickle=False) as z:
+            keys = {k.lower(): k for k in z.files}
+            x_key = next((keys[k] for k in ('x', 'data', 'features', 'images', 'inputs') if k in keys), None)
+            if x_key is None:
+                raise ValueError(f'The file needs an array named X (found: {", ".join(z.files)})')
+            X = np.asarray(z[x_key], float)
+            y_key = next((keys[k] for k in ('y', 'labels', 'label', 'target', 'targets', 'classes') if k in keys), None)
+            labels = [str(v) for v in np.asarray(z[y_key]).ravel()] if y_key else None
+        X = X.reshape(len(X), -1)
+        if X.shape[1] != pipeline.inputs:
+            raise ValueError(f'The model expects {pipeline.inputs} features per sample; this file has {X.shape[1]}')
+        return NewData(X, labels)
+    with open(path, newline='', encoding='utf-8-sig') as handle:
+        sample = handle.read(4096)
+        handle.seek(0)
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=',;\t')
+        except csv.Error:
+            dialect = csv.excel
+        rows = [r for r in csv.reader(handle, dialect) if any(cell.strip() for cell in r)]
+    if not rows:
+        raise ValueError('The file is empty')
+    expected = [f.strip().lower() for f in pipeline.features]
+    first = [c.strip().lower() for c in rows[0]]
+    header = any(_number(c) is None and c not in MISSING for c in first)
+    notes = []
+    if header:
+        missing = [f for f, low in zip(pipeline.features, expected) if low not in first]
+        if missing:
+            shown = ', '.join(missing[:6]) + (f' and {len(missing) - 6} more' if len(missing) > 6 else '')
+            raise ValueError(f'The file lacks columns the model needs: {shown}')
+        positions = [first.index(low) for low in expected]
+        wanted = pipeline.label_name.strip().lower()                       # the training file's label column first
+        label_at = next((i for i, c in enumerate(first) if wanted and c == wanted), None)
+        if label_at is None:
+            label_at = next((i for i, c in enumerate(first) if c in LABEL_NAMES and c not in expected), None)
+        body = rows[1:]
+    else:
+        width = len(rows[0])
+        if width not in (pipeline.inputs, pipeline.inputs + 1):
+            raise ValueError(f'The model expects {pipeline.inputs} columns (plus an optional label); '
+                             f'this file has {width}')
+        positions = list(range(pipeline.inputs))
+        label_at = pipeline.inputs if width == pipeline.inputs + 1 else None
+        body = rows
+    X = np.full((len(body), pipeline.inputs), np.nan)
+    unseen = 0
+    for r, row in enumerate(body):
+        for j, at in enumerate(positions):
+            cell = row[at].strip() if at < len(row) else ''
+            if cell.lower() in MISSING:
+                continue
+            if j in pipeline.text_columns:
+                categories = pipeline.text_columns[j]
+                if cell in categories:
+                    X[r, j] = categories.index(cell)
+                else:
+                    unseen += 1
+            else:
+                value = _number(cell)
+                if value is None:
+                    raise ValueError(f'Row {r + 1}: "{cell}" in column {pipeline.features[j]} is not a number')
+                X[r, j] = value
+    if unseen:
+        notes.append(f'{unseen} text values the model never saw were treated as missing.')
+    gaps = int(np.isnan(X).sum()) - unseen
+    if gaps:
+        notes.append(f'{gaps} missing values were filled with the training means.')
+    labels = [row[label_at].strip() if label_at < len(row) else '' for row in body] if label_at is not None else None
+    return NewData(X, labels, notes)
