@@ -135,6 +135,7 @@ def from_kernel(classifier, prepared, settings, train, test, dataset=''):
 def from_variational(classifier, prepared, settings, train, test, dataset=''):
     """A trained V.Classifier, with the data and settings it was trained on."""
     s = dict(feature_map=classifier.feature_map, reps=int(classifier.reps), bandwidth=float(classifier.bandwidth),
-             layers=int(classifier.layers), optimizer=settings.get('method', ''))
+             layers=int(classifier.layers), optimizer=settings.get('method', ''),
+             loss=getattr(classifier, 'loss_name', 'mse'))
     arrays = dict(theta=np.array(classifier.theta, float), bias=float(classifier.bias))
     return TrainedModel('variational', prepared.pipeline, s, arrays, _info(prepared, train, test, dataset))
