@@ -18,6 +18,7 @@ class Splash(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setFixedSize(SIZE, SIZE)
+        self.painted = False
         self.renderer = None
         try:
             from PySide6.QtSvg import QSvgRenderer
@@ -42,15 +43,35 @@ class Splash(QWidget):
             painter.drawPixmap(self.rect().adjusted(8, 8, -8, -8),
                                QPixmap(str(files('quantumscope').joinpath('assets/quantumscope-256.png'))))
         painter.end()
+        self.painted = True
 
 
-def show_splash(app):
-    """Show the splash at once (before the slow imports) and return it, or None if it cannot show."""
+WAIT = 0.5                                                    # seconds, at most, for the window system
+
+
+def show_splash(app, wait=WAIT):
+    """Show the splash before the slow imports, and return it (None if it cannot show).
+
+    On Windows a new window is on screen and painted almost at once. On Linux (X11, Wayland) and
+    macOS, showing a window is asynchronous: the window system maps it a moment later and only then
+    asks for it to be painted. So keep handling events until the splash is really exposed and
+    painted, for at most `wait` seconds; before v0.8.4 three quick passes ended before that on Linux,
+    and the slow imports then kept the splash from ever painting."""
+    import time
     try:
         splash = Splash()
         splash.show()
-        for _ in range(3):                                    # paint it before anything slow starts
+        splash.raise_()
+        deadline = time.monotonic() + wait
+        while time.monotonic() < deadline:
             app.processEvents()
+            handle = splash.windowHandle()
+            if splash.painted and handle is not None and handle.isExposed():
+                break
+            if handle is not None and handle.isExposed() and not splash.painted:
+                splash.repaint()                              # exposed: paint now, not later
+            time.sleep(0.005)
+        app.processEvents()                                   # deliver the painted frame
         return splash
     except Exception:                                         # noqa: BLE001 - a splash must never stop start-up
         return None

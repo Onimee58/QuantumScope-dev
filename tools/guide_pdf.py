@@ -24,8 +24,12 @@ except ImportError:                     # e.g. a CI machine without graphics lib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCS = os.path.join(ROOT, 'docs')
-LOGO = os.path.join(ROOT, 'src', 'quantumscope', 'assets', 'quantumscope-512.png')
 AUTHOR = 'Md. Saif Hassan Onim, PhD'
+AUTHOR_LINES = ('Postdoctoral Fellow, Electrical and Computer Engineering',
+                'Southern Methodist University, Dallas, Texas')
+REPOSITORY = 'github.com/Onimee58/QuantumScope'
+MARK = os.path.join(ROOT, 'src', 'quantumscope', 'assets', 'quantumscope-mark.svg')
+NAVY, PANEL, CYAN, MIST, MUTED = '#0b1420', '#13263f', '#5ae6ff', '#e6eef7', '#8fa3ba'
 MAX_W, MAX_H = 640, 400                 # largest figure, in document units (96 per inch)
 FOOTER = 26                             # room for the page number at the bottom of each page
 GAP_LIMIT = 0.25                        # a page ending with more than this share empty is a "blank spot"
@@ -101,10 +105,7 @@ def _front(headings, figures, pages):
     fig_rows = [f'<tr><td>Figure {k + 1}. {htmlmod.escape(alt)}</td><td align="right">{page(("f", k))}</td></tr>'
                 for k, (alt, _) in enumerate(figures)]
     table = '<table width="100%" cellspacing="0" cellpadding="3">{}</table>'
-    return (f'<p align="center" style="margin-top:230px;"><img src="{QUrl.fromLocalFile(LOGO).toString()}" '
-            f'width="230" height="230" /></p>'
-            f'<p align="center" style="margin-top:40px; font-size:20pt; font-weight:600; page-break-after:always;">'
-            f'{AUTHOR}</p>'
+    return ('<p style="page-break-after:always;">&nbsp;</p>'            # the cover: painted separately
             '<h1>Contents</h1>' + table.format(''.join(rows)) +
             '<p style="page-break-after:always;"></p>'
             '<h1>List of figures</h1>' + table.format(''.join(fig_rows)) +
@@ -245,6 +246,8 @@ class Guide:
         printer = self.printer
         printer.setOutputFileName(path)
         printer.setDocName('QuantumScope User Guide')
+        printer.setFullPage(True)                                   # the cover runs to the paper's edges
+        margins = printer.pageLayout().marginsPixels(printer.resolution())
         scale = printer.resolution() / 96.0
         total = int(doc.documentLayout().documentSize().height() // self.H) + 1
         painter = QPainter(printer)
@@ -253,13 +256,21 @@ class Guide:
         for p in range(total):
             if p:
                 printer.newPage()
+            if p == 0:
+                painter.save()
+                painter.scale(printer.resolution() / 72.0, printer.resolution() / 72.0)
+                draw_cover(painter, printer.pageLayout().fullRect(QPageLayout.Unit.Point))
+                painter.restore()
+                continue
             painter.save()
+            painter.translate(margins.left(), margins.top())
             painter.scale(scale, scale)
             painter.translate(0, -p * self.H)
             doc.drawContents(painter, QRectF(0, p * self.H, self.W, self.H))
             painter.restore()
-            if p:                                                  # no number on the title page
+            if p:                                                  # no number on the cover
                 painter.save()
+                painter.translate(margins.left(), margins.top())
                 painter.scale(scale, scale)
                 painter.setFont(font)
                 painter.setPen(Qt.GlobalColor.darkGray)
@@ -267,6 +278,85 @@ class Guide:
                 painter.restore()
         painter.end()
         return total
+
+
+def draw_cover(painter, page):
+    """The cover, in points on the full page: a double-slit pattern built from single detections (the
+    most characteristic picture in quantum physics, as QuantumScope's detector screen shows it), the
+    title, the version, and the author."""
+    import datetime
+    import math
+    import numpy as np
+    from PySide6.QtCore import QPointF
+    from PySide6.QtGui import QColor, QFontDatabase
+    from PySide6.QtSvg import QSvgRenderer
+    from quantumscope import __version__
+    w, h = page.width(), page.height()
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.fillRect(QRectF(0, 0, w, h), QColor(NAVY))
+    band = h * 0.47                                              # the pattern's height
+    # Intensity of two slits: cos² fringes under the single-slit sinc² envelope (x in units of the
+    # screen), sampled point by point; each dot is one detected particle.
+    rng = np.random.default_rng(1803)                            # Young's double-slit experiment, 1803
+
+    def intensity(x):
+        u = (x - 0.5) * 2.0
+        envelope = np.sinc(1.6 * u) ** 2
+        return envelope * np.cos(math.pi * 7.5 * u) ** 2
+    xs = rng.uniform(0, 1, 60000)
+    keep = rng.uniform(0, 1, len(xs)) < intensity(xs)
+    xs = xs[keep][:5200]
+    ys = rng.beta(1.25, 1.0, len(xs))                            # thinning out towards the title
+    painter.setPen(Qt.PenStyle.NoPen)
+    for x, y in zip(xs, ys):
+        fade = 0.25 + 0.75 * (1 - y)
+        colour = QColor(CYAN)
+        colour.setAlphaF(min(1.0, 0.18 + 0.65 * fade * rng.uniform(0.6, 1.0)))
+        painter.setBrush(colour)
+        r = 0.55 + 0.75 * rng.uniform()
+        painter.drawEllipse(QPointF(x * w, 26 + y * (band - 40)), r, r)
+    from PySide6.QtGui import QLinearGradient                     # the pattern fades into the page
+    fade = QLinearGradient(0, band * 0.62, 0, band + 8)
+    clear, solid = QColor(NAVY), QColor(NAVY)
+    clear.setAlphaF(0.0)
+    fade.setColorAt(0.0, clear)
+    fade.setColorAt(1.0, solid)
+    painter.fillRect(QRectF(0, band * 0.62, w, band * 0.38 + 8), fade)
+
+    def font(family, size, bold=False):
+        """A font `size` points high. The painter already works in points, so the size is given in its
+        units (a point size would be scaled by the printer's resolution a second time)."""
+        f = QFont(family if family in QFontDatabase.families() else 'DejaVu Sans')
+        f.setPixelSize(max(1, round(size)))
+        f.setBold(bold)
+        return f
+
+    def text(x, y, value, family, size, colour, bold=False):
+        painter.setFont(font(family, size, bold))
+        painter.setPen(QColor(colour))
+        painter.drawText(QPointF(x, y), value)
+    left = 64.0
+    top = band + 12
+    QSvgRenderer(MARK).render(painter, QRectF(left - 4, top, 58, 58))
+    text(left, top + 118, 'QuantumScope', 'Inter Display', 46, MIST, bold=True)
+    text(left, top + 156, 'User Guide', 'Inter Display', 24, CYAN)
+    painter.setFont(font('Inter', 11))
+    painter.setPen(QColor(MUTED))
+    painter.drawText(QRectF(left, top + 172, w * 0.62, 48), int(Qt.TextFlag.TextWordWrap),
+                     'An interactive studio for hydrogen orbitals, the experiments of quantum mechanics, '
+                     'quantum circuits and quantum machine learning.')
+    month = datetime.date.today().strftime('%B %Y')
+    text(left, top + 236, f'Version {__version__}, {month}', 'Inter', 10.5, MIST)
+    painter.setPen(QColor(PANEL))
+    painter.drawLine(QPointF(left, h - 132), QPointF(w - left, h - 132))
+    text(left, h - 100, AUTHOR, 'Inter', 13, MIST, bold=True)
+    for k, line in enumerate(AUTHOR_LINES):
+        text(left, h - 80 + 16 * k, line, 'Inter', 10, MUTED)
+    painter.setFont(font('Inter', 10))
+    painter.setPen(QColor(MUTED))
+    right = QRectF(w / 2, h - 113, w / 2 - left, 54)
+    painter.drawText(right, int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop),
+                     f'{REPOSITORY}\nOpen source, MIT licence')
 
 
 def _fragments(block):

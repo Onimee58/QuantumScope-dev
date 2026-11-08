@@ -1,3 +1,14 @@
+## v0.8.4 — The start-up logo on every system, and a new guide cover
+
+### Fixes
+- **The start-up logo (the Q) now shows on Linux and macOS,** not only on Windows. There, a new window appears only when the window manager shows it, a moment later; QuantumScope moved on to its slow start-up work before that, so the logo never painted. It now waits until the logo is on screen, for at most half a second. (Reproduced under X11 with a window manager: painted in 0 of 5 starts before, 5 of 5 now.)
+
+### User guide
+- **A new cover:** a double-slit pattern built from single detections, as QuantumScope's own detector screen draws it, with the title, the version and date, the author and affiliation, and the project's address and licence.
+
+### Quality
+- **Tests:** the splash under X11 with a real window manager (run where xvfb-run and openbox are installed); the cover's content.
+
 ## v0.8.3 — Evaluating and tuning the Quantum ML classifiers
 
 ### Evaluation

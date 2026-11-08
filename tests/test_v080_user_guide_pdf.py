@@ -24,7 +24,10 @@ def test_the_pdf_has_a_title_page_bookmarks_links_and_page_numbers():
     pypdf = pytest.importorskip('pypdf')
     reader = pypdf.PdfReader(PDF)
     texts = [re.sub(r'\s+', ' ', page.extract_text() or '') for page in reader.pages]
-    assert texts[0].strip() == 'Md. Saif Hassan Onim, PhD'                         # only the logo and the author
+    from quantumscope import __version__
+    for words in ('QuantumScope', 'User Guide', 'Md. Saif Hassan Onim, PhD', 'Postdoctoral Fellow',
+                  'Southern Methodist University', f'Version {__version__}', 'github.com/Onimee58/QuantumScope'):
+        assert words in texts[0], words                                              # the cover (v0.8.4)
     assert texts[1].startswith('Contents') and 'List of figures' in ' '.join(texts[2:4])
 
     def walk(items):

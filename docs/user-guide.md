@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.8.3** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.8.4** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits and quantum machine learning, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
