@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.8.2** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.8.3** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits and quantum machine learning, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -226,6 +226,10 @@ The **Quantum ML** area turns data into quantum states and learns from them. Its
 ![The kernel map: MNIST 3s and 8s as the kernel sees them, with a misclassified sample shown beside it](images/qml-kernel-map.png)
 
 ![The 3-D view with separating axes: the decision boundary, the SVM's margins, and support vectors with halos](images/qml-3d.png)
+
+![The Evaluation tab: test-set metrics, the confusion matrix, the ROC curve and a 5-fold cross-validation](images/qml-evaluation.png)
+
+![The Search tab: kernel settings cross-validated on the training data and ranked, best first](images/qml-search.png)
 
 ### Saving and using a model
 

@@ -1,3 +1,28 @@
+## v0.8.3 — Evaluating and tuning the Quantum ML classifiers
+
+### Evaluation
+- **An Evaluation tab in both classifiers:** the test set's accuracy, balanced accuracy, precision, recall, specificity, F1 and AUC, the confusion matrix (labelled with the class names), and the ROC curve with the chance diagonal.
+- **Cross-validate** (k folds, stratified) gives the mean ± spread and every fold's score. The kernel classifier shares one training kernel across all folds, with no new kernel values needed; the variational classifier trains a fresh model per fold.
+- **All metrics are checked against independent computations,** and the AUC is computed two ways: the area under the curve, and the equivalent rank statistic.
+
+### Hyperparameter search (kernel classifier)
+- **A Search tab:** choose the feature maps, classifiers, bandwidths, repetitions, C or λ values and folds.
+- **Every combination is cross-validated on the training data** (the test set is never used), sharing each kernel across folds and classifier settings: 54 settings × 5 folds take about a second.
+- **The results are listed best first** (the highest mean, then the steadiest), and **Use best** applies the winner and trains it.
+
+### Training controls (variational classifier)
+- **Loss:** mean squared error, hinge or cross-entropy, each with exact gradients.
+- **Learning rate** and **Batch size** for Adam (random mini-batches, reproducible from the seed).
+- **Validation share:** held-out training data, with its loss and accuracy drawn as dashed curves. **Early stopping** ends training when the validation loss stops improving, and keeps the best step.
+- **Saved models record their loss.**
+
+### Lessons
+- **A new lecture, "Evaluating a classifier":** the confusion matrix and its measures, the ROC curve and what its area means, training, validation and test sets, cross-validation, the optimistic bias of a hyperparameter search, and early stopping.
+- **Seven glossary terms** (112 in total): confusion matrix, precision, recall, ROC curve, cross-validation, hyperparameter, early stopping.
+
+### Quality
+- **Automated tests:** 1604 passing, plus 160 opt-in GUI tests.
+
 ## v0.8.2 — Saving models, seeing kernels, and a 3-D decision view
 
 ### Saving and using trained models

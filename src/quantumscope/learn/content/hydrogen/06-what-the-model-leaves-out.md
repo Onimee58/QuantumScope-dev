@@ -5,6 +5,7 @@ kind: lecture
 order: 6
 objectives: List the physics beyond the Schrödinger model | Estimate the size of fine-structure and hyperfine effects | Know when the simple model is accurate enough
 math: 05-eigenvalues
+noglossary: Precision
 ---
 # What the model leaves out
 

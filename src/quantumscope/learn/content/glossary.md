@@ -644,3 +644,43 @@ aliases: condition numbers
 lesson: circuits/27-vqls
 see: Eigenvalue
 κ = σmax / σmin, the ratio of a matrix's largest to its smallest singular value. A large κ makes A x = b harder to solve.
+
+### Confusion matrix
+aliases: confusion matrices
+lesson: qml/06-evaluating-classifiers
+see: Precision, Recall
+A table of a classifier's test results: how many samples of each true class were predicted as each class. Its diagonal holds the correct predictions.
+
+### Precision
+lesson: qml/06-evaluating-classifiers
+see: Recall, Confusion matrix
+Of the samples a classifier predicts as positive, the share that really are positive: TP / (TP + FP).
+
+### Recall
+aliases: sensitivity, true-positive rate
+lesson: qml/06-evaluating-classifiers
+see: Precision, ROC curve
+Of the samples that really are positive, the share a classifier finds: TP / (TP + FN).
+
+### ROC curve
+aliases: ROC curves, AUC, area under the curve
+lesson: qml/06-evaluating-classifiers
+see: Recall
+The true-positive rate against the false-positive rate as a classifier's threshold moves. The area under it (AUC) is the probability that a random positive sample scores above a random negative one.
+
+### Cross-validation
+aliases: cross-validate, cross-validated, k-fold cross-validation
+lesson: qml/06-evaluating-classifiers
+see: Test set, Hyperparameter
+Splitting the training data into k parts and, k times, training on all but one part and checking the remaining one: a mean and a spread instead of a single score.
+
+### Hyperparameter
+aliases: hyperparameters, hyperparameter search
+lesson: qml/06-evaluating-classifiers
+see: Cross-validation, Bandwidth
+A setting chosen before training rather than learned, such as the bandwidth, the feature map or C. A search compares settings by cross-validation.
+
+### Early stopping
+lesson: qml/06-evaluating-classifiers
+see: Overfitting, Training set
+Stopping training when the loss on validation data stops improving, and keeping the best step, to avoid overfitting.

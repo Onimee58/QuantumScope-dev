@@ -214,6 +214,21 @@ def screenshots():
     QImage(shot).scaledToWidth(960, _Qt.TransformationMode.SmoothTransformation).save(shot)
     print('   qml-3d.png', QImage(shot).width(), 'x', QImage(shot).height())
     kernel.top_tabs.setCurrentIndex(0)
+    kernel.views.setCurrentWidget(kernel.evaluation)          # v0.8.3: Evaluation, with cross-validation
+    cv = kernel.evaluation.run_cross_validation()
+    while cv.running():
+        app.processEvents()
+    settle(app, 0.4)
+    save(w, 'qml-evaluation.png', scale=0.75)
+    kernel.views.setCurrentWidget(kernel.search_panel)        # and a search, ranked
+    kernel.search_panel.bandwidths.setText('0.25, 0.5, 1')
+    kernel.search_panel.strengths.setText('1, 10')
+    search = kernel.search_panel.search()
+    while search.running():
+        app.processEvents()
+    settle(app, 0.4)
+    save(w, 'qml-search.png', scale=0.75)
+    kernel.views.setCurrentWidget(kernel.heatmap)
     import numpy as _np
     from quantumscope.ml import datasets as _D
     digits = _D.load('mnist')                                 # predict on new images with the saved model
