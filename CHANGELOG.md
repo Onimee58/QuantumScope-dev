@@ -1,8 +1,8 @@
 ## v0.8.1 — Speed, and no more frozen windows
 
 ### Faster
-- **The circuit simulator is vectorized:** each gate is one array operation instead of a Python loop over every amplitude (17× faster at 10 qubits), and a simulation no longer runs the circuit twice. Results are identical: checked gate by gate against the original code.
-- **The circuit optimizer uses adjoint gradients:** one forward and one backward pass give every derivative at once, instead of two circuit runs per bound gate, with each gate's exact derivative (RX, RY, RZ, P, CP, U). Noisy and dynamic circuits keep the parameter-shift rule. The optimizer's path is identical either way.
+- **The circuit simulator is vectorized:** each gate is one array operation instead of a Python loop over every amplitude (17× faster at 10 qubits), and a simulation no longer runs the circuit twice. Results are the same up to rounding (about 10⁻¹⁶): checked gate by gate against the original code.
+- **The circuit optimizer uses adjoint gradients:** one forward and one backward pass give every derivative at once, instead of two circuit runs per bound gate, with each gate's exact derivative (RX, RY, RZ, P, CP, U). Noisy and dynamic circuits keep the parameter-shift rule. The optimizer follows the same path up to rounding in the last digits, which can change by a step when it stops.
   - **Optimize** on the 6-qubit, 3-layer QAOA example: 13.2 s → 0.6 s.
   - **Best of 3:** about 40 s → 1.4 s.
   - **The landscape:** 6.1 s → 1.6 s.
