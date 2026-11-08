@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
     QSplitter, QFileDialog, QMessageBox, QCheckBox)
 from quantumscope.physics.double_slit import DoubleSlit
 from quantumscope.gui.double_slit_apparatus import DoubleSlitApparatus
+from quantumscope.gui.plots import tidy
 
 
 class DoubleSlitDialog(QDialog):
@@ -81,7 +82,7 @@ class DoubleSlitDialog(QDialog):
         self.animation.setChecked(True)
         self.animation.toggled.connect(self.apparatus.set_animated)
         rlayout.addWidget(self.animation)
-        self.curve = pg.PlotWidget(title='Double-slit screen probability density')
+        self.curve = tidy(pg.PlotWidget(title='Double-slit screen probability density'))
         self.curve.setLabel('bottom', 'Position on screen', units='mm')
         self.curve.setLabel('left', 'Probability density', units='1/mm')
         self.curve.showGrid(x=True, y=True, alpha=.2)

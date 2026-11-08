@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (QComboBox, QFormLayout, QGroupBox, QHBoxLayout, Q
 
 from quantumscope.gui.principles_visuals import BlochView, _dark, angles
 from quantumscope.physics import bell as B
+from quantumscope.gui.plots import tidy
 
 PLUS, MINUS = QColor(90, 230, 150), QColor(255, 150, 90)
 
@@ -284,7 +285,7 @@ class EntanglementDialog(QWidget):
         bottom = QHBoxLayout()
         self.grid = CorrelationGrid()
         bottom.addWidget(self.grid, 1)
-        self.curve = pg.PlotWidget()
+        self.curve = tidy(pg.PlotWidget())
         self.curve.setMinimumHeight(170)
         self.curve.setLabel('bottom', "Bob's axis (°), Alice's fixed")
         self.curve.setLabel('left', 'Correlation E')

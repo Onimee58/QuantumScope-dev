@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBo
 from quantumscope.ml import datasets as D
 from quantumscope.ml import kernels as K
 from quantumscope.ml import variational as V
+from quantumscope.gui.plots import tidy
 
 CLASS_COLOURS = ('#5ae6ff', '#ff9a5a')                     # +1, −1
 
@@ -48,7 +49,7 @@ def _source_combo():
 
 def _plot(title, x_label='', y_label=''):
     import pyqtgraph as pg
-    plot = pg.PlotWidget()
+    plot = tidy(pg.PlotWidget())
     plot.setTitle(title)
     plot.setLabel('bottom', x_label)
     plot.setLabel('left', y_label)

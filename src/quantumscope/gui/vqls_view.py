@@ -3,6 +3,7 @@ import numpy as np
 from PySide6.QtWidgets import QDialog, QLabel, QVBoxLayout
 
 from quantumscope.physics import vqls
+from quantumscope.gui.plots import tidy
 
 
 class VqlsSolutionDialog(QDialog):
@@ -15,7 +16,7 @@ class VqlsSolutionDialog(QDialog):
         self.summary = QLabel()
         self.summary.setWordWrap(True)
         layout.addWidget(self.summary)
-        self.plot = pg.PlotWidget()
+        self.plot = tidy(pg.PlotWidget())
         self.plot.setLabel('left', 'amplitude')
         self.plot.setLabel('bottom', 'basis state')
         self.plot.showGrid(y=True, alpha=0.2)

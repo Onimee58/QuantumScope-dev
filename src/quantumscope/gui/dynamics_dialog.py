@@ -10,6 +10,7 @@ from quantumscope.physics.hydrogen import HydrogenAtom
 from quantumscope.physics.dynamics import HydrogenSuperposition, suggested_half_width
 from quantumscope.gui.controls import Debouncer, with_action, with_quick_values
 from quantumscope.physics.dynamics_export import CONTRAST_MODES, display_intensity
+from quantumscope.gui.plots import tidy
 
 
 def density_lut(grayscale=False):
@@ -117,7 +118,7 @@ class HydrogenDynamicsDialog(QDialog):
         scroll.setWidget(controls)
         split.addWidget(scroll)
         viewer = QWidget(); vlayout = QVBoxLayout(viewer)
-        self.plot = pg.PlotWidget()
+        self.plot = tidy(pg.PlotWidget())
         self.plot.setAspectLocked(True)
         self.plot.setBackground('#101820')
         self.plot.setLabel('bottom','First plane coordinate', units='a_mu')

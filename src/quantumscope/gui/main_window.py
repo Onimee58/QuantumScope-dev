@@ -21,6 +21,7 @@ from quantumscope import __version__
 from quantumscope.physics import HydrogenAtom, density_grid
 from quantumscope.physics.hydrogen import A_MU_METERS, captured_probability, RealHydrogenState
 from quantumscope.visualization.orbitals import draw_orbital, set_camera_view, probability_radius
+from quantumscope.gui.plots import tidy
 
 
 
@@ -683,7 +684,7 @@ class MainWindow(QMainWindow):
         bottom.setChecked(True)
         self.radial_group = bottom
         blayout = QVBoxLayout(bottom)
-        self.radial_plot = pg.PlotWidget()
+        self.radial_plot = tidy(pg.PlotWidget())
         self.radial_plot.setBackground("#101820")
         self.radial_plot.setLabel("bottom", "r", units="a_mu")
         self.radial_plot.setLabel("left", "P(r)", units="a_mu^-1")
