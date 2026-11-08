@@ -209,7 +209,10 @@ class Calculator:
         statement = parse(text)
         self.steps = []
         value = self._eval(statement.expr)
-        value = self._scalar_if_1x1(self.backend.simplify(value))
+        if not isinstance(value, Special):
+            value = self._scalar_if_1x1(self.backend.simplify(value))
+        elif statement.assign:
+            raise CalcError('An eigensystem, Bloch vector or Pauli decomposition cannot be given a name')
         if statement.assign:
             if statement.assign in ('i', 'pi', 'π', 'e') or statement.assign in self.library():
                 raise CalcError(f'{statement.assign} is built in and cannot be changed; choose another name')
@@ -284,6 +287,8 @@ class Calculator:
 
     def _scalar_if_1x1(self, v):
         b = self.backend
+        if isinstance(v, Special):
+            return v
         if b.is_matrix(v) and b.shape(v) == (1, 1):
             return b.entries(v)[0][0]
         return v
@@ -324,9 +329,15 @@ class Calculator:
                 raise CalcError('Matrix entries must be numbers')
             return self._step(node, b.matrix(rows))
         if kind == 'unary':
-            return self._step(node, -self._eval(node.args[0]))
+            inner = self._eval(node.args[0])
+            if isinstance(inner, Special):
+                raise CalcError('An eigensystem, Bloch vector or Pauli decomposition is shown, not computed with')
+            return self._step(node, -inner)
         if kind == 'postfix':
-            return self._step(node, b.dagger(self._eval(node.args[0])))
+            inner = self._eval(node.args[0])
+            if isinstance(inner, Special):
+                raise CalcError('An eigensystem, Bloch vector or Pauli decomposition is shown, not computed with')
+            return self._step(node, b.dagger(inner))
         if kind == 'binary':
             return self._step(node, self._check_size(self._binary(node.value, *[self._eval(a) for a in node.args])))
         if kind == 'call':
@@ -341,6 +352,8 @@ class Calculator:
 
     def _binary(self, op, a, c):
         b = self.backend
+        if isinstance(a, Special) or isinstance(c, Special):
+            raise CalcError('An eigensystem, Bloch vector or Pauli decomposition is shown, not computed with')
         ma, mc = b.is_matrix(a), b.is_matrix(c)
         if op in '+-':
             if ma != mc:
@@ -455,6 +468,9 @@ class Calculator:
             return b.identity(n)
         if name in ('RX', 'RY', 'RZ', 'P', 'U'):
             return self._rotation(name, args)
+        result = self._quantum(name, args)
+        if result is not None:
+            return result
         raise CalcError(f'{name}() is not a known function')
 
     def _rotation(self, name, args):
@@ -478,3 +494,181 @@ class Calculator:
         if name == 'RZ':
             return b.matrix([[b.scalar_function('exp', -i * t / 2), 0], [0, b.scalar_function('exp', i * t / 2)]])
         return b.matrix([[1, 0], [0, b.scalar_function('exp', i * t)]])           # P(λ)
+
+
+# ---- results that are not numbers or matrices (v0.9.0, 20b) ------------------------------------
+@dataclass
+class Special:
+    """An eigensystem, a Bloch vector or a Pauli decomposition: shown, not computed with."""
+    kind: str                           # 'eigen', 'bloch', 'pauli'
+    data: list
+
+
+def _quantum(self, name, args):
+    """The quantum functions; None if `name` is not one of them."""
+    b = self.backend
+    exact = b.name == 'exact'
+
+    def need(count):
+        if len(args) != count:
+            raise CalcError(f'{name}() takes {count} argument{"s" if count != 1 else ""}')
+
+    def density(v):
+        """A ket becomes |ψ⟩⟨ψ|; a square matrix is taken as a density matrix already."""
+        if not b.is_matrix(v):
+            raise CalcError(f'{name}() needs a state or a density matrix')
+        rows, cols = b.shape(v)
+        if cols == 1:
+            return b.matmul(v, b.dagger(v))
+        if rows == 1:
+            return b.matmul(b.dagger(v), v)
+        if rows != cols:
+            raise CalcError(f'{name}() needs a state or a square density matrix')
+        return v
+
+    def qubits(v):
+        n = b.shape(v)[0]
+        count = n.bit_length() - 1
+        if n < 2 or 1 << count != n:
+            raise CalcError(f'{name}() needs a size that is a power of 2 (qubits)')
+        return count
+    if name in ('dm', 'density'):
+        need(1)
+        return density(args[0])
+    if name == 'expect':
+        need(2)
+        operator, state = args
+        if not b.is_matrix(operator) or b.shape(operator)[0] != b.shape(operator)[1]:
+            raise CalcError('expect(O, ψ) needs an operator first')
+        if b.is_matrix(state) and b.shape(state)[1] == 1:
+            if b.shape(state)[0] != b.shape(operator)[0]:
+                raise CalcError('expect(O, ψ): the operator and the state have different sizes')
+            return self._scalar_if_1x1(b.matmul(b.dagger(state), b.matmul(operator, state)))
+        return b.trace(b.matmul(density(state), operator))
+    if name == 'ptrace':
+        need(2)
+        rho = density(args[0])
+        n = qubits(rho)
+        q = self._whole_number(args[1], 'ptrace(ρ, q): q is the qubit to trace out (0 is the leftmost)')
+        if not 0 <= q < n:
+            raise CalcError(f'ptrace(ρ, q): q must be 0 to {n - 1} for {n} qubits')
+        if n == 1:
+            raise CalcError('ptrace() needs at least two qubits')
+        dim, keep = 1 << n, n - 1
+        out = [[0] * (1 << keep) for _ in range(1 << keep)]
+        entries = b.entries(rho)
+        for r in range(dim):
+            for c in range(dim):
+                if (r >> (n - 1 - q)) & 1 != (c >> (n - 1 - q)) & 1:
+                    continue
+                drop = lambda i: ((i >> (n - q)) << (n - 1 - q)) | (i & ((1 << (n - 1 - q)) - 1))   # noqa: E731
+                out[drop(r)][drop(c)] = out[drop(r)][drop(c)] + entries[r][c]
+        return b.matrix(out)
+    if name == 'purity':
+        need(1)
+        rho = density(args[0])
+        return b.trace(b.matmul(rho, rho))
+    if name in ('eig', 'eigen'):
+        need(1)
+        m = args[0]
+        if not b.is_matrix(m) or b.shape(m)[0] != b.shape(m)[1]:
+            raise CalcError('eig() needs a square matrix')
+        return Special('eigen', self._eigen(m))
+    if name == 'entropy':
+        need(1)
+        rho = density(args[0])
+        values = [value for value, _ in self._eigen(rho, vectors=False)]
+        if exact:
+            sp = b.sp
+            return sp.simplify(-sum(v * sp.log(v, 2) for v in values if sp.simplify(v) != 0))
+        return float(-sum(v.real * np.log2(v.real) for v in map(complex, values) if v.real > 1e-12))
+    if name == 'fidelity':
+        need(2)
+        a, c = args
+        pure = lambda v: b.is_matrix(v) and b.shape(v)[1] == 1                     # noqa: E731
+        if pure(a) and pure(c):
+            overlap = self._scalar_if_1x1(b.matmul(b.dagger(a), c))
+            return b.scalar_function('abs', overlap) ** 2
+        if pure(a) or pure(c):
+            state, rho = (a, density(c)) if pure(a) else (c, density(a))
+            return self._scalar_if_1x1(b.matmul(b.dagger(state), b.matmul(rho, state)))
+        if exact:
+            raise CalcError('fidelity() of two mixed states is computed in digits mode only')
+        from scipy.linalg import sqrtm
+        root = sqrtm(a)
+        return float(np.real(np.trace(sqrtm(root @ c @ root))) ** 2)
+    if name == 'bloch':
+        need(1)
+        rho = density(args[0])
+        if b.shape(rho) != (2, 2):
+            raise CalcError('bloch() needs one qubit')
+        lib = self.library()
+        return Special('bloch', [self._real_part(b.trace(b.matmul(rho, lib[p]))) for p in 'XYZ'])
+    if name == 'pauli':
+        need(1)
+        m = args[0]
+        if not b.is_matrix(m) or b.shape(m)[0] != b.shape(m)[1]:
+            raise CalcError('pauli() needs a square matrix')
+        n = qubits(m)
+        if n > 4:
+            raise CalcError('pauli() is limited to 4 qubits (256 Pauli strings)')
+        import itertools
+        lib = self.library()
+        terms = []
+        for word in itertools.product('IXYZ', repeat=n):
+            op = lib[word[0]]
+            for letter in word[1:]:
+                op = b.kron(op, lib[letter])
+            coefficient = b.trace(b.matmul(op, m)) / (1 << n)
+            coefficient = b.simplify(coefficient) if exact else complex(coefficient)
+            if (coefficient != 0) if exact else abs(coefficient) > 1e-12:
+                terms.append((''.join(word), coefficient))
+        return Special('pauli', terms)
+    return None
+
+
+def _real_part(self, z):
+    b = self.backend
+    return b.sp.simplify(b.sp.re(z)) if b.name == 'exact' else float(complex(z).real)
+
+
+def _eigen(self, m, vectors=True):
+    """[(eigenvalue, normalized eigenvector or None)], sorted by eigenvalue."""
+    b = self.backend
+    if b.name == 'exact':
+        sp = b.sp
+        if m.rows > EXACT_LIMIT:
+            raise CalcError(f'Exact eigenvalues are limited to {EXACT_LIMIT}×{EXACT_LIMIT}; use digits mode')
+        pairs = []
+        if not vectors:
+            for value, multiplicity in m.eigenvals().items():
+                pairs += [(sp.simplify(value), None)] * multiplicity
+        else:
+            for value, _, basis in m.eigenvects():
+                for v in basis:
+                    norm = sp.sqrt(sp.simplify(sum(sp.Abs(e) ** 2 for e in v)))
+                    v = (v / norm).applyfunc(sp.simplify)
+                    first = next(e for e in v if sp.simplify(e) != 0)       # the same phase as digits mode:
+                    v = (v * sp.conjugate(first) / sp.Abs(first)).applyfunc(sp.simplify)   # first entry > 0
+                    pairs.append((sp.simplify(value), v))
+        return sorted(pairs, key=lambda p: (complex(sp.N(p[0])).real if not p[0].free_symbols else 0,
+                                            complex(sp.N(p[0])).imag if not p[0].free_symbols else 0))
+    hermitian = np.allclose(m, m.conj().T, atol=1e-12)
+    if hermitian:
+        values, vecs = np.linalg.eigh(m)
+    else:
+        values, vecs = np.linalg.eig(m)
+        order = np.lexsort((values.imag, values.real))
+        values, vecs = values[order], vecs[:, order]
+    out = []
+    for k, value in enumerate(values):
+        v = vecs[:, [k]] / np.linalg.norm(vecs[:, k])
+        first = v[np.flatnonzero(np.abs(v) > 1e-12)[0], 0]           # a fixed global phase: first entry > 0
+        v = v * (abs(first) / first)
+        out.append((value.real if hermitian or abs(value.imag) < 1e-12 else value, v if vectors else None))
+    return out
+
+
+Calculator._quantum = _quantum
+Calculator._real_part = _real_part
+Calculator._eigen = _eigen

@@ -107,3 +107,63 @@ def test_symbolic_display():
     c = Calculator('exact')
     assert F.summary(c.evaluate('RY(θ)|0⟩').value, 'exact') == 'cos(θ/2)|0⟩ + sin(θ/2)|1⟩'
     assert F.summary(c.evaluate('e').value, 'exact') == 'e'
+
+
+# ---- 20b: the quantum functions -------------------------------------------------------------------
+BELL = 'CNOT (H ⊗ I)|00⟩'
+
+
+def special_numbers(value):
+    """A Special result as numbers, for comparing the modes."""
+    if value.kind == 'eigen':
+        return [(complex(numeric(v)), numeric(vec)) for v, vec in value.data]
+    if value.kind == 'bloch':
+        return [complex(numeric(x)) for x in value.data]
+    return [(word, complex(numeric(c))) for word, c in value.data]
+
+
+@pytest.mark.parametrize('text', ['eig(X)', 'eig(Y)', 'eig(H)', 'eig(Z ⊗ Z)', 'bloch(|i⟩)', 'bloch(RY(pi/3)|0⟩)',
+                                  'pauli(CNOT)', 'pauli(SWAP)', 'pauli(H)'])
+def test_special_results_agree_between_modes(text):
+    a = special_numbers(Calculator('exact').evaluate(text).value)
+    b = special_numbers(Calculator('digits').evaluate(text).value)
+    assert len(a) == len(b)
+    for x, y in zip(a, b):
+        if isinstance(x, tuple):
+            assert x[0] == y[0] or np.allclose(x[0], y[0])
+            assert np.allclose(x[1], y[1], atol=1e-12)                       # the same vectors, same phase
+        else:
+            assert np.isclose(x, y)
+
+
+@pytest.mark.parametrize('mode', ['exact', 'digits'])
+def test_quantum_functions(mode):
+    c = Calculator(mode)
+    value = lambda text: numeric(c.evaluate(text).value)                     # noqa: E731
+    assert np.allclose(value(f'ptrace({BELL}, 1)'), np.eye(2) / 2)        # each half of a Bell pair is mixed
+    assert np.isclose(value(f'entropy(ptrace({BELL}, 0))'), 1)            # one bit of entanglement
+    assert np.isclose(value(f'purity(ptrace({BELL}, 1))'), 0.5)
+    assert np.isclose(value(f'expect(X ⊗ X, {BELL})'), 1) and np.isclose(value('expect(Z, |1⟩)'), -1)
+    assert np.isclose(value('fidelity(|0⟩, |+⟩)'), 0.5) and np.isclose(value('fidelity(|0⟩, dm(|0⟩))'), 1)
+    assert np.isclose(value('entropy(Id(2)/2)'), 1) and np.isclose(value('entropy(dm(|0⟩))'), 0)
+    assert np.allclose(value('ptrace(|0⟩ ⊗ |+⟩, 0)'), np.full((2, 2), 0.5))  # q0 traced out: |+⟩⟨+| is left
+    assert np.allclose(value('ptrace(|0⟩ ⊗ |+⟩, 1)'), np.diag([1, 0]))     # q1 traced out: |0⟩⟨0| is left
+    bloch = c.evaluate('bloch(RY(pi/3)|0⟩)').value.data
+    assert np.allclose([complex(numeric(x)) for x in bloch], [np.sqrt(3) / 2, 0, 0.5])
+    assert F.summary(c.evaluate('pauli(CNOT)').value, mode) == '1/2 II + 1/2 IX + 1/2 ZI - 1/2 ZX'
+    assert F.summary(c.evaluate('pauli(SWAP)').value, mode) == '1/2 II + 1/2 XX + 1/2 YY + 1/2 ZZ'
+    assert F.summary(c.evaluate('eig(Y)').value, mode) == 'λ = -1:  (1/√2)|0⟩ - (i/√2)|1⟩; λ = 1:  (1/√2)|0⟩ + (i/√2)|1⟩'
+    assert F.summary(c.evaluate('bloch(|i⟩)').value, mode) == '(0, 1, 0)'
+
+
+def test_quantum_function_errors():
+    c = Calculator('digits')
+    for bad, words in (('ptrace(|0⟩, 0)', 'at least two'), ('ptrace(dm(|00⟩), 2)', 'must be 0 to 1'),
+                       ('bloch(|00⟩)', 'one qubit'), ('eig([1, 2])', 'square'), ('eig(X) + 1', 'not computed with'),
+                       ('pauli(Id(3))', 'power of 2'), ('expect(Z, |00⟩)', 'different sizes')):
+        with pytest.raises(CalcError, match=words):
+            c.evaluate(bad)
+    with pytest.raises(CalcError, match='cannot be given a name'):
+        c.evaluate('v = eig(X)')
+    with pytest.raises(CalcError, match='digits mode only'):
+        Calculator('exact').evaluate('fidelity(Id(2)/2, dm(|0⟩)/2 + dm(|1⟩)/2)')

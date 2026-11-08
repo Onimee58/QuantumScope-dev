@@ -169,8 +169,30 @@ def dirac(value, mode):
     return out
 
 
+def special_lines(value, mode):
+    """An eigensystem, Bloch vector or Pauli decomposition, as lines of text."""
+    if value.kind == 'bloch':
+        return ['(' + ', '.join(number_text(x, mode) for x in value.data) + ')']
+    if value.kind == 'pauli':
+        out = ''
+        for k, (word, c) in enumerate(value.data):
+            text = number_text(c, mode)
+            sign, body = ('-', text[1:]) if text.startswith('-') and not _top(text[1:], ' +-') else ('+', text)
+            body = '' if body == '1' else f'({body}) ' if _top(body, ' +-') else f'{body} '
+            out += (('-' if sign == '-' else '') if k == 0 else f' {sign} ') + f'{body}{word}'
+        return [out or '0']
+    lines = []
+    for eigenvalue, vector in value.data:                       # eigensystem
+        state = dirac(vector, mode) if vector is not None and kind(vector) == 'ket' else (
+            '[' + ', '.join(row[0] for row in entries(vector, mode)) + ']' if vector is not None else '')
+        lines.append(f'λ = {number_text(eigenvalue, mode)}' + (f':  {state}' if state else ''))
+    return lines
+
+
 def summary(value, mode):
     """One line: the number, the Dirac form of a state, or the matrix's size."""
+    if type(value).__name__ == 'Special':
+        return '; '.join(special_lines(value, mode))
     k = kind(value)
     if k == 'number':
         return number_text(value, mode)
