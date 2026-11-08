@@ -109,6 +109,8 @@ class OptimizeDialog(QDialog):
 
     def _stop(self):
         self.stopped = True
+        if getattr(self, 'run_handle', None) is not None:
+            self.run_handle.cancel()
 
     def configure(self, method, steps, starts=1):
         """Reuse this window for a new run (the panel's current method, step limit and starts)."""
@@ -118,35 +120,95 @@ class OptimizeDialog(QDialog):
         self.chart.set_data([], None)
         self.summary.setText('Optimizing…')
 
-    def run(self):
-        model = self.workspace.model
-        exact = V.Evaluator(model).exact_minimum()
-        energies = []
+    def start(self, on_finished=None):
+        """Optimize in the background, on a copy of the circuit; returns the run. The result is applied
+        to the circuit when the run finishes, as one undo step, unless the circuit changed meanwhile."""
+        import copy
+        from quantumscope.gui.background import Run
+        if getattr(self, 'run_handle', None) is not None and self.run_handle.running():
+            return self.run_handle
+        workspace = self.workspace
+        model = copy.deepcopy(workspace.model)                  # the worker's own circuit
+        key = workspace._path_key()
+        method, steps, starts = self.method, self.steps, getattr(self, 'starts', 1)
 
-        def progress(iteration, values, energy):
-            if energies and iteration == len(energies) - 1:        # a heartbeat, not a new step
-                QApplication.processEvents()
-                return not self.stopped
-            energies.append(energy)
-            if len(energies) % 2 == 1 or iteration < 5:
-                self.chart.set_data(energies, exact)
-                self.summary.setText(f'Iteration {iteration}: ⟨H⟩ = {energy:.6f}' +
-                                     (f'   (exact minimum {exact:.6f})' if exact is not None else ''))
-                QApplication.processEvents()
-            return not self.stopped
-        starts = getattr(self, 'starts', 1)
-        best_index, finals = 0, []
-        if starts > 1:
-            def begin(k, total):
-                energies.clear()
-                self.summary.setText(f'Start {k + 1} of {total}' + (' (your current parameters)' if k == 0 else
-                                                                    ' (random parameters)') + '…')
-                QApplication.processEvents()
-            self.history, best_index, finals = V.best_of(model, starts, self.method, self.steps,
-                                                         callback=progress, on_start=begin)
-            self.history.evaluations = getattr(self.history, 'evaluations', 0)
+        def work(report, cancelled):                            # the worker: no widgets here
+            exact = V.Evaluator(model).exact_minimum()
+            report(('exact', exact))
+            energies = []
+
+            def progress(iteration, values, energy):
+                if energies and iteration == len(energies) - 1:   # a heartbeat, not a new step
+                    return not cancelled()
+                energies.append(energy)
+                report(('step', iteration, energy))
+                return not cancelled()
+            if starts > 1:
+                def begin(k, total):
+                    energies.clear()
+                    report(('start', k, total))
+                history, best_index, finals = V.best_of(model, starts, method, steps, callback=progress,
+                                                        on_start=begin)
+                history.evaluations = getattr(history, 'evaluations', 0)
+            else:
+                history, best_index, finals = V.optimize(model, method, steps, callback=progress), 0, []
+            return dict(history=history, best_index=best_index, finals=finals, exact=exact)
+
+        self._exact, self._energies = None, []
+        workspace.opt_button.setEnabled(False)
+        self.run_handle = Run(work, owner=self, on_progress=self._progress,
+                              on_done=lambda r: self._finish(r, key, on_finished),
+                              on_error=self._failed).start()
+        return self.run_handle
+
+    def wait(self):
+        """For scripts and tests: wait for the run and return the history."""
+        if getattr(self, 'run_handle', None) is not None:
+            self.run_handle.wait()
+        return self.history
+
+    def waited(self):
+        """For scripts and tests: wait for the run and return this window (chainable)."""
+        self.wait()
+        return self
+
+    def closeEvent(self, event):
+        if getattr(self, 'run_handle', None) is not None:
+            self.run_handle.cancel()                            # closing the window stops the optimizer
+        super().closeEvent(event)
+
+    def _progress(self, value):
+        kind = value[0]
+        if kind == 'exact':
+            self._exact = value[1]
+        elif kind == 'start':
+            k, total = value[1], value[2]
+            self._energies = []
+            self.summary.setText(f'Start {k + 1} of {total}' + (' (your current parameters)' if k == 0 else
+                                                                ' (random parameters)') + '…')
         else:
-            self.history = V.optimize(model, self.method, self.steps, callback=progress)
+            iteration, energy = value[1], value[2]
+            self._energies.append(energy)
+            exact = self._exact
+            self.chart.set_data(self._energies, exact)
+            self.summary.setText(f'Iteration {iteration}: ⟨H⟩ = {energy:.6f}' +
+                                 (f'   (exact minimum {exact:.6f})' if exact is not None else ''))
+
+    def _failed(self, exc, details):
+        self.workspace.opt_button.setEnabled(True)
+        self.stop_button.setEnabled(False)
+        self.summary.setText(f'The optimization failed: {exc}')
+
+    def _finish(self, r, key, on_finished):
+        self.workspace.opt_button.setEnabled(True)
+        self.stopped = self.stopped or self.run_handle.cancel_requested
+        self.history, best_index, finals, exact = r['history'], r['best_index'], r['finals'], r['exact']
+        model = self.workspace.model
+        if self.workspace._path_key() != key:                   # the circuit was edited meanwhile
+            self.stop_button.setEnabled(False)
+            self.summary.setText('The circuit changed while optimizing, so the result was not applied. '
+                                 'Press Optimize again to optimize the new circuit.')
+            return
         values, energy = self.history[-1]
         model.snapshot()                                      # the whole optimization is one undo step
         values = V.wrap_safely(model, values)                 # back into −π…π where that changes nothing
@@ -188,7 +250,8 @@ class OptimizeDialog(QDialog):
                                  f'⟨H⟩ went from {start:.6f} to {energy:.6f}'
                                  + (f' (exact minimum {exact:.6f})' if exact is not None else '') + verdict)
         self.stop_button.setEnabled(False)
-        return self.history
+        if on_finished is not None:
+            on_finished(self.history)
 
 
 def _colour(t):
@@ -342,6 +405,10 @@ class LandscapeDialog(QDialog):
             box.blockSignals(False)
 
     def draw(self):
+        """Compute the landscape in the background on a copy of the circuit; returns the run
+        (run.wait() returns the data). Only the latest request is shown when several overlap."""
+        import copy
+        from quantumscope.gui.background import Run
         model = self.workspace.model
         if not model.parameters or not model.observable:
             return None
@@ -350,18 +417,32 @@ class LandscapeDialog(QDialog):
         a, b = self.first.currentText(), self.second.currentData()
         if b == a:
             b = None
-        from PySide6.QtGui import QGuiApplication
-        QGuiApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        try:
-            data = V.landscape(model, a, b, points=41 if b else 121)
-        finally:
-            QGuiApplication.restoreOverrideCursor()
+        snapshot = copy.deepcopy(model)
         names = list(model.parameters)
         current = (model.parameters[a], model.parameters[b] if b else 0.0)
         path = None
         if b and self.path_history:
             ia, ib = names.index(a), names.index(b)
-            wrap = lambda v: (v + math.pi) % (2 * math.pi) - math.pi
+            wrap = lambda v: (v + math.pi) % (2 * math.pi) - math.pi        # noqa: E731
             path = [(wrap(v[ia]), wrap(v[ib])) for v, _ in self.path_history]
-        self.view.set_data(data, (a, b or ''), current, path)
-        return data
+        self._token = getattr(self, '_token', 0) + 1
+        token = self._token
+        previous = getattr(self, '_run', None)
+        if previous is not None and previous.running():
+            previous.cancel()                                    # a newer request replaces it
+        self.setWindowTitle('Energy landscape — computing…')
+
+        def done(data):
+            if token != self._token:                              # an older request: ignore
+                return
+            self.setWindowTitle('Energy landscape')
+            self.view.set_data(data, (a, b or ''), current, path)
+        self._run = Run(lambda report, cancelled: V.landscape(snapshot, a, b, points=41 if b else 121),
+                        owner=self, on_done=done).start()
+        return self._run
+
+    def waited(self):
+        """For scripts and tests: wait for the latest landscape and return this window (chainable)."""
+        if getattr(self, '_run', None) is not None:
+            self._run.wait()
+        return self

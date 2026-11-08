@@ -55,7 +55,7 @@ def test_quantum_ml_and_vqls_charts(app):
     v = Q.VariationalExperiment()
     v.data.source.setCurrentIndex(v.data.source.findData('moons'))
     v.steps.setValue(5)
-    v.train()                                                          # scatter plots now on the chart
+    v.train().wait()                                                          # scatter plots now on the chart
     for widget in (Q.DatasetsExperiment(), Q.KernelExperiment(), v):
         _check(_plot_items(widget))
     w = CircuitWorkspace()
@@ -72,7 +72,7 @@ def test_save_image_copy_image_and_save_data(app, tmp_path):
     v.show()
     v.data.source.setCurrentIndex(v.data.source.findData('moons'))
     v.steps.setValue(5)
-    v.train()
+    v.train().wait()
     app.processEvents()
     plots.tidy(v.regions)                                              # tidying twice is harmless
     for plot in (v.regions, v.curve):                                  # an image with scatter, and lines

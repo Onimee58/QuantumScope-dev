@@ -827,13 +827,16 @@ class CircuitWorkspace(QWidget):
         dialog.configure(self.opt_method.currentData(),self.opt_steps.value(),
                          self.opt_starts.value() if self.opt_multi.isChecked() else 1)
         dialog.show();dialog.raise_();dialog.activateWindow()
-        self._last_path=dialog.run()
+        dialog.start(on_finished=self._optimized)               # in the background; the window stays live
+        return dialog
+    def _optimized(self,history):
+        """The optimization finished and its result was applied."""
+        self._last_path=history
         self._last_path_for=self._path_key()
         self._refresh_parameter_panel()
         landscape=getattr(self,'_landscape_dialog',None)
         if landscape is not None and landscape.isVisible():     # the open landscape shows the new path
             landscape.refresh_names();landscape.draw()
-        return dialog
     def _path_key(self):
         """What an optimization path belongs to: drawn only while the circuit still matches."""
         m=self.model

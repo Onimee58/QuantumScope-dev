@@ -88,7 +88,7 @@ def test_parameter_columns_dice_randomize_and_best_of(app):
     assert w.model.parameters['γ0'] != before['γ0'] and w.model.parameters['β0'] == before['β0']
     w.opt_multi.setChecked(True)
     w.opt_starts.setValue(3)
-    dialog = w.optimize_parameters()
+    dialog = w.optimize_parameters().waited()
     assert dialog.summary.text().startswith('Best of 3 starts')
 
 

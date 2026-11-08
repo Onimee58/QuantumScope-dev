@@ -43,13 +43,13 @@ def test_kernel_classifier_trains_with_and_without_shot_noise(app):
     k = Q.KernelExperiment()
     k.data.source.setCurrentIndex(k.data.source.findData('circles'))
     k.feature_map.setCurrentIndex(k.feature_map.findData('angle'))
-    exact = k.train()
+    exact = k.train().wait()
     assert exact['test'] >= 0.9 and 'support vectors' in k.result.text()
     k.shots.setValue(200)
-    noisy = k.train()
+    noisy = k.train().wait()
     assert 'shots' in k.result.text() and noisy['test'] >= 0.7
     k.method.setCurrentIndex(k.method.findData('ridge'))
-    assert k.train()['test'] >= 0.7
+    assert k.train().wait()['test'] >= 0.7
 
 
 def test_variational_classifier_trains_and_stops(app):
@@ -57,25 +57,18 @@ def test_variational_classifier_trains_and_stops(app):
     v = Q.VariationalExperiment()
     v.data.source.setCurrentIndex(v.data.source.findData('circles'))
     v.steps.setValue(40)
-    result = v.train()
+    result = v.train().wait()
     assert result['test'] >= 0.8 and v.open_circuit.isEnabled()
     assert len(v.loss_line.getData()[0]) == len(result['history'])
     v.method.setCurrentIndex(v.method.findData('Adam'))
-    v._stop = False
-    original = v.model.__class__.train
-
-    def stop_early(model, *args, callback=None, **kwargs):              # press Stop after three steps
-        def wrapped(index, *rest):
-            if index == 3:
-                v._stop = True
-            return callback(index, *rest)
-        return original(model, *args, callback=wrapped, **kwargs)
-    v.model.__class__.train = stop_early
-    try:
-        v.train()
-    finally:
-        v.model.__class__.train = original
-    assert 'Stopped after 3 steps' in v.result.text()
+    v.steps.setValue(1000)
+    run = v.train()
+    while len(v._history) < 3 and run.running():                       # let a few steps arrive …
+        app.processEvents()
+    v.stop_button.click()                                              # … then press Stop
+    result = run.wait()
+    assert result['stopped'] and len(result['history']) < 1000 and 'Stopped after' in v.result.text()
+    assert v.train_button.isEnabled() and not v.stop_button.isEnabled()
 
 
 def test_decision_regions_for_any_number_of_features_and_concentration_hint(app):
@@ -86,7 +79,7 @@ def test_decision_regions_for_any_number_of_features_and_concentration_hint(app)
     for name, qubits in (('circles', 2), ('mnist', 4), ('wine', 6), ('iris', 1)):
         k.data.source.setCurrentIndex(k.data.source.findData(name))
         k.data.qubits.setValue(qubits)
-        k.train()
+        k.train().wait()
         items = k.regions.getPlotItem().items
         assert any(isinstance(i, pg.ImageItem) for i in items), name                  # regions always drawn
         assert any(isinstance(c, pg.IsocurveItem) for i in items for c in i.childItems()), name   # and the boundary
@@ -96,10 +89,10 @@ def test_decision_regions_for_any_number_of_features_and_concentration_hint(app)
     k.data.qubits.setValue(6)
     k.reps.setValue(1)
     k.feature_map.setCurrentIndex(k.feature_map.findData('zz'))
-    k.train()
+    k.train().wait()
     assert 'kernel concentration' in k.result.text()
     k.bandwidth.setValue(0.1)
-    k.train()
+    k.train().wait()
     assert 'kernel concentration' not in k.result.text()                              # a smaller bandwidth helps
 
 
@@ -128,7 +121,7 @@ def test_vqls_example_check_and_live_solution_view(app):
     assert w.solution_button.isVisibleTo(w) and 'Optimize' in w.verify_status.text()
     dialog = w.show_vqls_solution()
     before = dialog.values[2]
-    w.optimize_parameters()
+    w.optimize_parameters().waited()
     w.verify_circuit()
     assert dialog.values[2] > 0.999 > before and 'prepares the solution' in w.verify_status.text()
     assert np.allclose(dialog.values[0], dialog.values[1], atol=1e-3)            # the bars meet
@@ -148,10 +141,10 @@ def test_quantum_ml_lab_steps_tick_as_the_experiments_run(app):
     k = Q.KernelExperiment()
     k.data.source.setCurrentIndex(k.data.source.findData('circles'))
     k.feature_map.setCurrentIndex(k.feature_map.findData('angle'))
-    k.train()
+    k.train().wait()
     assert learn._lab_steps() == {0: True, 1: False}                             # step 1 done, live
     k.feature_map.setCurrentIndex(k.feature_map.findData('zz'))
-    k.train()
+    k.train().wait()
     assert all(learn._lab_steps().values())
     learn.open_lesson('qml/91-lab-mnist-pixels-to-qubits')
     d = Q.DatasetsExperiment()
@@ -180,3 +173,39 @@ def test_classifiers_choose_the_classes_of_a_many_class_dataset(app):
     for key in ('circles', 'breast_cancer', 'store'):                                       # two classes, or prepared
         picker.source.setCurrentIndex(picker.source.findData(key))
         assert not picker.class_row.isVisibleTo(k), key
+
+
+def test_training_runs_in_the_background(app):
+    import shiboken6
+    import time
+    from quantumscope.gui import qml_experiments as Q
+    v = Q.VariationalExperiment()
+    v.data.source.setCurrentIndex(v.data.source.findData('breast_cancer'))
+    v.data.qubits.setValue(8)
+    v.steps.setValue(60)
+    run = v.train()
+    assert not v.train_button.isEnabled() and v.stop_button.isEnabled()
+    assert v.train() is run                                            # no second run while one is going
+    turns, start = 0, time.perf_counter()
+    while run.running():                                               # the event loop keeps turning
+        app.processEvents()
+        turns += 1
+    elapsed = time.perf_counter() - start
+    assert turns > 20 * elapsed, (turns, elapsed)                      # many turns per second: no freezing
+    k = Q.KernelExperiment()
+    k.data.source.setCurrentIndex(k.data.source.findData('mnist'))
+    k.data.qubits.setValue(8)
+    run = k.train()
+    k.cancel_button.click()                                            # Cancel
+    run.wait()
+    assert k.result.text() in ('Cancelled.',) or 'accuracy' in k.result.text()   # cancelled, or already done
+    v2 = Q.VariationalExperiment()
+    v2.data.source.setCurrentIndex(v2.data.source.findData('moons'))
+    v2.steps.setValue(2000)
+    v2.method.setCurrentIndex(v2.method.findData('Adam'))
+    run = v2.train()
+    while len(v2._history) < 2:
+        app.processEvents()
+    shiboken6.delete(v2)                                               # the experiment is closed mid-run
+    run.wait()
+    assert run.cancel_requested and len(run.result['model'].theta) > 0

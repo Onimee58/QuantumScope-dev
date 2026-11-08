@@ -47,7 +47,7 @@ def test_quantum_ml_area_and_trained_circuit_in_the_simulator(window):
     assert w.workspaces['qml'].indexOf(v) >= 0
     v.data.source.setCurrentIndex(v.data.source.findData('moons'))
     v.steps.setValue(20)
-    v.train()
+    v.train().wait()
     x = v.open_in_circuit()
     circuit = w.circuit_widget
     assert w.categories.currentWidget() is w.workspaces['circuits'] and circuit.n == 2

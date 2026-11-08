@@ -398,12 +398,10 @@ class _DataPicker(QGroupBox):
         return p
 
 
-def _regions(plot, decision, X_train, y_train, X_test=None, y_test=None, predicted=None):
-    """Decision regions for any number of features. With two features the plane is the data's own;
-    with more, it is the plane of the two leading principal components of the training data (a
-    slice through the n-dimensional feature space: each grid point is mapped back into it)."""
-    import pyqtgraph as pg
-    plot.clear()
+def region_plane(X_train, X_test=None):
+    """The 2-D view for decision regions (no Qt: safe in a worker). With two features the plane is
+    the data's own; with more, the plane of the two leading principal components of the training
+    data, a slice through the n-dimensional feature space (each grid point is mapped back into it)."""
     n = X_train.shape[1]
     if n == 1:                                                   # one feature: a line, shown flat
         to_plane = lambda X: np.c_[X[:, 0], np.zeros(len(X))]       # noqa: E731
@@ -419,10 +417,6 @@ def _regions(plot, decision, X_train, y_train, X_test=None, y_test=None, predict
         to_plane = lambda X: (X - mean) @ basis.T                    # noqa: E731
         from_plane = lambda P: mean + P @ basis                      # noqa: E731
         labels = ('principal component 1', 'principal component 2')
-    plot.setLabel('bottom', labels[0])
-    plot.setLabel('left', labels[1])
-    plot.setTitle('Decision regions' + ('' if n <= 2 else f' in the plane of the first two principal components '
-                                          f'(a slice through {n}-D)') + ': training ●, test ▲, mistakes ✕')
     P_train = to_plane(X_train)
     P_all = P_train if X_test is None or not len(X_test) else np.r_[P_train, to_plane(X_test)]
     lo, hi = P_all.min(axis=0), P_all.max(axis=0)
@@ -430,17 +424,35 @@ def _regions(plot, decision, X_train, y_train, X_test=None, y_test=None, predict
     lo, hi = lo - pad, hi + pad
     if n == 1:
         lo[1], hi[1] = -1.0, 1.0
-    if decision is not None:
-        res = 90 if n <= 4 else 70 if n <= 6 else 50             # 2ⁿ amplitudes per grid point
-        gx, gy = np.linspace(lo[0], hi[0], res), np.linspace(lo[1], hi[1], res)
-        grid = np.array([(a, b) for b in gy for a in gx])
-        values = np.concatenate([decision(from_plane(chunk)) for chunk in np.array_split(grid, max(1, len(grid) // 1500))])
-        f = values.reshape(res, res)                             # rows: y, columns: x
+    res = 90 if n <= 4 else 70 if n <= 6 else 50                 # 2ⁿ amplitudes per grid point
+    gx, gy = np.linspace(lo[0], hi[0], res), np.linspace(lo[1], hi[1], res)
+    grid = from_plane(np.array([(a, b) for b in gy for a in gx]))
+    title = 'Decision regions' + ('' if n <= 2 else f' in the plane of the first two principal components '
+                                                  f'(a slice through {n}-D)') + ': training ●, test ▲, mistakes ✕'
+    return dict(n=n, to_plane=to_plane, labels=labels, title=title, lo=lo, hi=hi, res=res, grid=grid)
+
+
+def region_values(decision, plane):
+    """The decision function on the plane's grid, as res × res (rows: y). No Qt: safe in a worker."""
+    grid = plane['grid']
+    values = np.concatenate([decision(chunk) for chunk in np.array_split(grid, max(1, len(grid) // 1500))])
+    return values.reshape(plane['res'], plane['res'])
+
+
+def draw_regions(plot, plane, f, X_train, y_train, X_test=None, y_test=None, predicted=None):
+    """Draw decision regions (f from region_values, or None for points only) on the interface thread."""
+    import pyqtgraph as pg
+    plot.clear()
+    plot.setLabel('bottom', plane['labels'][0])
+    plot.setLabel('left', plane['labels'][1])
+    plot.setTitle(plane['title'])
+    lo, hi, to_plane = plane['lo'], plane['hi'], plane['to_plane']
+    if f is not None:
         scale = max(1e-9, float(np.percentile(np.abs(f), 95)))
         strength = np.clip(np.abs(f) / scale, 0, 1)
         plus, minus = np.array((90, 230, 255), float), np.array((255, 154, 90), float)
         base = np.where((f >= 0)[..., None], plus, minus)
-        rgba = np.empty((res, res, 4), np.uint8)
+        rgba = np.empty(f.shape + (4,), np.uint8)
         rgba[..., :3] = base.astype(np.uint8)
         rgba[..., 3] = (30 + 110 * strength).astype(np.uint8)     # confidence: deeper colour
         image = pg.ImageItem(np.transpose(rgba, (1, 0, 2)))       # ImageItem wants (x, y)
@@ -449,7 +461,7 @@ def _regions(plot, decision, X_train, y_train, X_test=None, y_test=None, predict
         boundary = pg.IsocurveItem(f.T, level=0.0, pen=pg.mkPen('#ffffff', width=2))
         boundary.setParentItem(image)                             # follows the image's placement
         image.setZValue(-10)
-    _scatter_points(plot, P_train, y_train, size=7)
+    _scatter_points(plot, to_plane(X_train), y_train, size=7)
     if X_test is not None and len(X_test):
         P_test = to_plane(X_test)
         wrong = predicted != y_test
@@ -459,6 +471,13 @@ def _regions(plot, decision, X_train, y_train, X_test=None, y_test=None, predict
                                             brush=pg.mkBrush('#ff4d4d'), pen=pg.mkPen('#ff4d4d', width=2)))
     plot.disableAutoRange()
     plot.setRange(xRange=(lo[0], hi[0]), yRange=(lo[1], hi[1]), padding=0)
+
+
+def _regions(plot, decision, X_train, y_train, X_test=None, y_test=None, predicted=None):
+    """Compute and draw in one go (on the interface thread), for quick, small cases."""
+    plane = region_plane(X_train, X_test)
+    draw_regions(plot, plane, None if decision is None else region_values(decision, plane),
+                 X_train, y_train, X_test, y_test, predicted)
 
 
 # ============================================================================================
@@ -509,8 +528,12 @@ class KernelExperiment(QWidget):
         self.strength.setValue(1.0)
         self.strength.setToolTip('SVM: C (larger fits the training data harder). Ridge: λ (larger is smoother)')
         mv.addRow('C or λ', self.strength)
-        self.train_button = QPushButton('Train')
-        mv.addRow(self.train_button)
+        self.train_button, self.cancel_button = QPushButton('Train'), QPushButton('Cancel')
+        self.cancel_button.setEnabled(False)
+        row = QHBoxLayout()
+        row.addWidget(self.train_button)
+        row.addWidget(self.cancel_button)
+        mv.addRow(row)
         form.addWidget(model)
         self.result = QLabel('Press Train.')
         self.result.setWordWrap(True)
@@ -524,47 +547,91 @@ class KernelExperiment(QWidget):
         right.addWidget(self.heatmap, 2)
         root.addLayout(right, 1)
         self.train_button.clicked.connect(self.train)
+        self.cancel_button.clicked.connect(lambda: self.run.cancel() if getattr(self, 'run', None) else None)
 
     def train(self):
-        import pyqtgraph as pg
+        """Train in the background; returns the run (run.wait() returns the result, for scripts)."""
+        if getattr(self, 'run', None) is not None and self.run.running():
+            return self.run
         p = self.data.prepared()
         if p is None:
             return None
         if p.X_train.shape[1] > D.MAX_QUBITS:
             self.result.setText('Too many features for the qubits: reduce them in the Datasets tab.')
             return None
-        kind, reps, bandwidth = self.feature_map.currentData(), self.reps.value(), self.bandwidth.value()
-        rng = np.random.default_rng(0)
-        exact_train = K.kernel(p.X_train, kind=kind, reps=reps, bandwidth=bandwidth)
-        Ktr = K.estimate(exact_train, self.shots.value(), rng, symmetric=True)
-        Kte = K.estimate(K.kernel(p.X_test, p.X_train, kind=kind, reps=reps, bandwidth=bandwidth), self.shots.value(), rng)
-        if self.method.currentData() == 'svm':
-            model = K.SVM(C=self.strength.value()).fit(Ktr, p.y_train)
-            extra = f', {len(model.support)} support vectors'
-        else:
-            model = K.KernelRidge(self.strength.value()).fit(Ktr, p.y_train)
-            extra = ''
-        train_acc = K.accuracy(p.y_train, model.predict(Ktr))
-        predicted = model.predict(Kte)
-        test_acc = K.accuracy(p.y_test, predicted)
-        noise = '' if not self.shots.value() else f' Kernel estimated from {self.shots.value()} shots per entry ' \
-            f'(typical error {float(np.abs(Ktr - exact_train).mean()):.3f}).'
-        off = float((exact_train.sum() - len(exact_train)) / max(1, len(exact_train) * (len(exact_train) - 1)))
-        hint = '' if off >= 0.05 else (f' The kernel is close to 0 for different points (average {off:.3f}): '
-                                       f'kernel concentration, common for entangling maps on many qubits. '
-                                       f'Try a smaller bandwidth.')
-        self.result.setText(f'Training accuracy {train_acc:.0%}, test accuracy {test_acc:.0%}{extra}.{noise}{hint}')
+        settings = dict(kind=self.feature_map.currentData(), reps=self.reps.value(), bandwidth=self.bandwidth.value(),
+                        shots=self.shots.value(), method=self.method.currentData(), strength=self.strength.value(),
+                        dataset=self.data.key())
+        plane = region_plane(p.X_train, p.X_test)
 
-        def decision(points):
-            return model.decision(K.kernel(points, p.X_train, kind=kind, reps=reps, bandwidth=bandwidth))
-        _regions(self.regions, decision, p.X_train, p.y_train, p.X_test, p.y_test, predicted)
-        order = np.argsort(-p.y_train, kind='stable')
+        def work(report, cancelled):                              # the worker: no widgets here
+            kind, reps, bandwidth = settings['kind'], settings['reps'], settings['bandwidth']
+            rng = np.random.default_rng(0)
+            report(f'Computing the {len(p.y_train)}×{len(p.y_train)} training kernel…')
+            exact_train = K.kernel(p.X_train, kind=kind, reps=reps, bandwidth=bandwidth)
+            Ktr = K.estimate(exact_train, settings['shots'], rng, symmetric=True)
+            if cancelled():
+                return None
+            report('Computing the test kernel…')
+            Kte = K.estimate(K.kernel(p.X_test, p.X_train, kind=kind, reps=reps, bandwidth=bandwidth),
+                             settings['shots'], rng)
+            if cancelled():
+                return None
+            report('Training the classifier…')
+            if settings['method'] == 'svm':
+                model = K.SVM(C=settings['strength']).fit(Ktr, p.y_train)
+            else:
+                model = K.KernelRidge(settings['strength']).fit(Ktr, p.y_train)
+            predicted = model.predict(Kte)
+            if cancelled():
+                return None
+            report('Drawing the decision regions…')
+
+            def decision(points):
+                return model.decision(K.kernel(points, p.X_train, kind=kind, reps=reps, bandwidth=bandwidth))
+            f = region_values(decision, plane)
+            order = np.argsort(-p.y_train, kind='stable')
+            off = float((exact_train.sum() - len(exact_train)) / max(1, len(exact_train) * (len(exact_train) - 1)))
+            return dict(train=K.accuracy(p.y_train, model.predict(Ktr)), test=K.accuracy(p.y_test, predicted),
+                        model=model, prepared=p, predicted=predicted, f=f, heat=Ktr[np.ix_(order, order)],
+                        error=float(np.abs(Ktr - exact_train).mean()), off=off)
+
+        self.train_button.setEnabled(False)
+        self.cancel_button.setEnabled(True)
+        self.result.setText('Starting…')
+        from quantumscope.gui.background import Run
+        self.run = Run(work, on_progress=self.result.setText, owner=self,
+                       on_done=lambda r: self._trained(r, settings, plane),
+                       on_error=self._failed).start()
+        return self.run
+
+    def _failed(self, exc, details):
+        self.train_button.setEnabled(True)
+        self.cancel_button.setEnabled(False)
+        self.result.setText(f'Training failed: {exc}')
+
+    def _trained(self, r, settings, plane):
+        import pyqtgraph as pg
+        self.train_button.setEnabled(True)
+        self.cancel_button.setEnabled(False)
+        if r is None:
+            self.result.setText('Cancelled.')
+            return
+        p = r['prepared']
+        extra = f', {len(r["model"].support)} support vectors' if settings['method'] == 'svm' else ''
+        noise = '' if not settings['shots'] else (f' Kernel estimated from {settings["shots"]} shots per entry '
+                                                 f'(typical error {r["error"]:.3f}).')
+        hint = '' if r['off'] >= 0.05 else (f' The kernel is close to 0 for different points (average {r["off"]:.3f}): '
+                                            f'kernel concentration, common for entangling maps on many qubits. '
+                                            f'Try a smaller bandwidth.')
+        self.result.setText(f'Training accuracy {r["train"]:.0%}, test accuracy {r["test"]:.0%}{extra}.{noise}{hint}')
+        draw_regions(self.regions, plane, r['f'], p.X_train, p.y_train, p.X_test, p.y_test, r['predicted'])
         self.heatmap.clear()
-        image = pg.ImageItem(Ktr[np.ix_(order, order)])
+        image = pg.ImageItem(r['heat'])
         image.setLookupTable(pg.colormap.get('viridis').getLookupTable(0, 1, 256))
         image.setLevels((0, 1))
         self.heatmap.addItem(image)
-        size = len(order)
+        size = len(r['heat'])
         self.heatmap.setAspectLocked(False)                      # fill the panel
         self.heatmap.disableAutoRange()
         self.heatmap.setRange(xRange=(0, size), yRange=(0, size), padding=0)
@@ -573,11 +640,10 @@ class KernelExperiment(QWidget):
                      pg.InfiniteLine(split, angle=0, pen=pg.mkPen('#ffffff', width=1, style=Qt.PenStyle.DashLine))):
             line.setZValue(10)                                   # above the image
             self.heatmap.addItem(line)
-        self.last = dict(train=train_acc, test=test_acc, model=model, prepared=p)
+        self.last = r
         from quantumscope.ml import progress
-        progress.trained('kernel', train=train_acc, test=test_acc, map=kind, bandwidth=bandwidth,
-                         shots=self.shots.value(), dataset=self.data.key())
-        return self.last
+        progress.trained('kernel', train=r['train'], test=r['test'], map=settings['kind'],
+                         bandwidth=settings['bandwidth'], shots=settings['shots'], dataset=settings['dataset'])
 
 
 # ============================================================================================
@@ -643,12 +709,14 @@ class VariationalExperiment(QWidget):
         right.addWidget(self.curve, 2)
         root.addLayout(right, 1)
         self.model = None
-        self._stop = False
         self.train_button.clicked.connect(self.train)
-        self.stop_button.clicked.connect(lambda: setattr(self, '_stop', True))
+        self.stop_button.clicked.connect(lambda: self.run.cancel() if getattr(self, 'run', None) else None)
         self.open_circuit.clicked.connect(self.open_in_circuit)
 
     def train(self):
+        """Train in the background; returns the run (run.wait() returns the result, for scripts)."""
+        if getattr(self, 'run', None) is not None and self.run.running():
+            return self.run
         p = self.data.prepared()
         if p is None:
             return None
@@ -656,39 +724,65 @@ class VariationalExperiment(QWidget):
             self.result.setText('Too many features for the qubits: reduce them in the Datasets tab.')
             return None
         self.prepared = p
-        self.model = V.Classifier(p.X_train.shape[1], layers=self.layers.value(),
-                                  feature_map=self.feature_map.currentData(), seed=self.seed.value())
-        losses, accuracies = [], []
-        self._stop = False
+        model = V.Classifier(p.X_train.shape[1], layers=self.layers.value(),
+                             feature_map=self.feature_map.currentData(), seed=self.seed.value())
+        settings = dict(method=self.method.currentData(), steps=self.steps.value(), layers=self.layers.value(),
+                        map=self.feature_map.currentData(), dataset=self.data.key())
+        plane = region_plane(p.X_train, p.X_test)
+        self._history = []
+
+        def work(report, cancelled):                              # the worker: no widgets here
+            def step(index, loss, accuracy):
+                regions = None
+                if index % 5 == 0:                                # fresh regions now and then
+                    regions = (region_values(model.decision, plane), model.predict(p.X_test))
+                report((index, loss, accuracy, regions))
+                return not cancelled()
+            model.train(p.X_train, p.y_train, method=settings['method'], steps=settings['steps'], callback=step)
+            predicted = model.predict(p.X_test)
+            return dict(model=model, predicted=predicted, test=float(np.mean(predicted == p.y_test)),
+                        f=region_values(model.decision, plane), stopped=cancelled())
+
         self.train_button.setEnabled(False)
         self.stop_button.setEnabled(True)
+        self.open_circuit.setEnabled(False)
+        self.result.setText('Starting…')
+        from quantumscope.gui.background import Run
+        self.run = Run(work, owner=self, on_progress=lambda v: self._step(v, plane),
+                       on_done=lambda r: self._trained(r, settings, plane), on_error=self._failed).start()
+        return self.run
 
-        def step(index, loss, accuracy):
-            losses.append(loss)
-            accuracies.append(accuracy)
-            self.loss_line.setData(list(range(len(losses))), losses)
-            self.acc_line.setData(list(range(len(accuracies))), accuracies)
-            self.result.setText(f'Step {index}: loss {loss:.4f}, training accuracy {accuracy:.0%}')
-            if index % 5 == 0:
-                self._draw()
-            QApplication.processEvents()
-            return not self._stop
-        try:
-            self.model.train(p.X_train, p.y_train, method=self.method.currentData(), steps=self.steps.value(),
-                             callback=step)
-        finally:
-            self.train_button.setEnabled(True)
-            self.stop_button.setEnabled(False)
-        test_acc = float(np.mean(self.model.predict(p.X_test) == p.y_test))
-        self.result.setText(f'{"Stopped" if self._stop else "Done"} after {len(losses) - 1} steps: training accuracy '
-                            f'{accuracies[-1]:.0%}, test accuracy {test_acc:.0%}, final loss {losses[-1]:.4f}.')
-        self._draw()
+    def _step(self, value, plane):
+        index, loss, accuracy, regions = value
+        self._history.append((loss, accuracy))
+        steps = list(range(len(self._history)))
+        self.loss_line.setData(steps, [h[0] for h in self._history])
+        self.acc_line.setData(steps, [h[1] for h in self._history])
+        self.result.setText(f'Step {index}: loss {loss:.4f}, training accuracy {accuracy:.0%}')
+        if regions is not None:
+            p = self.prepared
+            draw_regions(self.regions, plane, regions[0], p.X_train, p.y_train, p.X_test, p.y_test, regions[1])
+
+    def _failed(self, exc, details):
+        self.train_button.setEnabled(True)
+        self.stop_button.setEnabled(False)
+        self.result.setText(f'Training failed: {exc}')
+
+    def _trained(self, r, settings, plane):
+        self.train_button.setEnabled(True)
+        self.stop_button.setEnabled(False)
+        self.model, p = r['model'], self.prepared
+        losses = [h[0] for h in self._history] or [float('nan')]
+        accuracies = [h[1] for h in self._history] or [0.0]
+        self.result.setText(f'{"Stopped" if r["stopped"] else "Done"} after {len(self._history) - 1} steps: training '
+                            f'accuracy {accuracies[-1]:.0%}, test accuracy {r["test"]:.0%}, final loss {losses[-1]:.4f}.')
+        draw_regions(self.regions, plane, r['f'], p.X_train, p.y_train, p.X_test, p.y_test, r['predicted'])
         self.open_circuit.setEnabled(True)
-        self.last = dict(train=accuracies[-1], test=test_acc, history=list(zip(losses, accuracies)))
+        self.last = dict(train=accuracies[-1], test=r['test'], history=list(self._history), stopped=r['stopped'])
+        r.update(self.last)
         from quantumscope.ml import progress
-        progress.trained('variational', train=accuracies[-1], test=test_acc, map=self.feature_map.currentData(),
-                         layers=self.layers.value(), dataset=self.data.key())
-        return self.last
+        progress.trained('variational', train=accuracies[-1], test=r['test'], map=settings['map'],
+                         layers=settings['layers'], dataset=settings['dataset'])
 
     def _draw(self):
         p, model = self.prepared, self.model

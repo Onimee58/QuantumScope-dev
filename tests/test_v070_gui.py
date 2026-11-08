@@ -189,15 +189,15 @@ def test_optimize_and_landscape_from_the_panel(app):
     w.load_library('vqe', {'problem': 'h2', 'layers': 1})
     assert w.opt_button.isEnabled() and w.param_panel.isVisibleTo(w)
     before = dict(w.model.parameters)
-    dialog = w.optimize_parameters()
+    dialog = w.optimize_parameters().waited()
     assert 'ground state is reached' in dialog.summary.text()
     assert w.model.expectation() == pytest.approx(-1.137306, abs=1e-6)
     w.undo()                                                     # the whole optimization is one undo step
     assert w.model.parameters == pytest.approx(before)
-    landscape = w.show_landscape()
+    landscape = w.show_landscape().waited()
     assert landscape.view.data is not None and len(landscape.view.data) == 3
     landscape.second.setCurrentIndex(0)
-    assert len(landscape.draw()) == 2                            # one parameter: a curve
+    assert len(landscape.draw().wait()) == 2                     # one parameter: a curve
     w.observable_edit.setText('')
     w._observable_edited()
     assert not w.opt_button.isEnabled()
@@ -240,10 +240,10 @@ def test_convergence_summary_and_chart_range(app):
     w.model.set_parameter('θ', 3.141592653589793)
     w.observable_edit.setText('Z0')
     w._observable_edited()
-    dialog = w.optimize_parameters()
+    dialog = w.optimize_parameters().waited()
     assert 'already at the exact minimum' in dialog.summary.text()
     w.model.set_parameter('θ', 0.3)
-    dialog = w.optimize_parameters()
+    dialog = w.optimize_parameters().waited()
     import re
     text = dialog.summary.text()
     steps = int(re.search(r'after (\d+) step', text).group(1))
@@ -263,7 +263,7 @@ def test_maxcut_graph_window_follows_the_circuit(app):
     assert w.graph_button.isVisibleTo(w)
     graph = w.show_maxcut_graph()
     before = graph.summary.text()
-    w.optimize_parameters().close()
+    w.optimize_parameters().waited().close()
     assert graph.summary.text() != before and 'ratio 0.750' in graph.summary.text()   # updated live
     graph.view.grab()
     w.clear()
@@ -280,7 +280,7 @@ def test_optimizer_results_land_inside_the_slider_range(app):
     w.load_library('qaoa', {'graph': 'ring4', 'layers': 1})
     w.model.set_parameter('γ0', 9.0)                              # far outside −π…π
     w.opt_method.setCurrentIndex(w.opt_method.findData('gradient'))
-    w.optimize_parameters().close()
+    w.optimize_parameters().waited().close()
     assert all(-math.pi <= v < math.pi for v in w.model.parameters.values())
     slider, _ = w._param_widgets['γ0']
     assert slider.minimum() < slider.value() < slider.maximum()   # not pinned at an end
@@ -293,8 +293,8 @@ def test_zero_step_optimization_is_explained(app):
     w.load_library('qaoa', {'graph': 'ring5', 'layers': 1})
     w.observable_edit.setText('Z0 Z1')
     w._observable_edited()
-    w.optimize_parameters().close()                               # reach the circuit's best (−0.6)
-    dialog = w.optimize_parameters()                              # nothing left to improve
+    w.optimize_parameters().waited().close()                               # reach the circuit's best (−0.6)
+    dialog = w.optimize_parameters().waited()                              # nothing left to improve
     text = dialog.summary.text()
     assert text.startswith('No step lowered') and 'circuit evaluations' in text and 'symmetry' in text
     assert len(dialog.chart.energies) == 1
@@ -330,16 +330,17 @@ def test_optimize_and_landscape_windows_are_reused_and_follow_the_path(app):
     w.model.set_parameter('γ0', 0.15)
     w.model.set_parameter('β0', 1.0)
     w._changed()
-    landscape = w.show_landscape()
+    landscape = w.show_landscape().waited()
     assert landscape.view.path is None                            # nothing optimized yet
-    first = w.optimize_parameters()
+    first = w.optimize_parameters().waited()
+    landscape.waited()                                            # the redraw it triggers runs in the background
     assert landscape.view.path is not None and len(landscape.view.path) > 2     # redrawn with the new path
     assert landscape.view.path[0] == pytest.approx((0.15, 1.0))
-    landscape.draw()
+    landscape.draw().wait()
     assert landscape.view.path is not None                        # Draw keeps the latest path
-    assert w.optimize_parameters() is first and w.show_landscape() is landscape   # no new windows
+    assert w.optimize_parameters().waited() is first and w.show_landscape() is landscape   # no new windows
     w.load_library('vqe', {'problem': 'h2', 'layers': 1})
-    again = w.show_landscape()
+    again = w.show_landscape().waited()
     assert again is landscape and again.view.path is None          # a stale path is never drawn
     assert [again.first.itemText(i) for i in range(again.first.count())] == ['θ0', 'θ1', 'θ2', 'θ3']
 

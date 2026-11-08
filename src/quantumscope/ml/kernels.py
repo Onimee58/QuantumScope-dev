@@ -67,23 +67,27 @@ def states(X, kind='zz', reps=2, bandwidth=1.0):
     if kind != 'zz':
         raise ValueError(f'Unknown feature map {kind!r}')
     z = _z_values(n)
-    phase = X @ z                                                        # Σᵢ xᵢ zᵢ
-    for i in range(n):
-        for j in range(i + 1, n):
-            phase += np.outer((math.pi - X[:, i]) * (math.pi - X[:, j]), z[i] * z[j])
+    i, j = np.triu_indices(n, 1)                                         # every pair i < j at once:
+    pairs = (math.pi - X)[:, i] * (math.pi - X)[:, j]                    # (π − xᵢ)(π − xⱼ) …
+    phase = X @ z + pairs @ (z[i] * z[j])                                # … times zᵢzⱼ, as one product
     diagonal = np.exp(1j * phase)                                        # samples × 2ⁿ
-    hadamard = np.ones((2 ** n, 2 ** n))
-    for k in range(n):                                                   # H⊗ⁿ: (−1)^(popcount(i & j))
-        bit = 1 << (n - 1 - k)
-        rows = (np.arange(2 ** n)[:, None] & bit) > 0
-        cols = (np.arange(2 ** n)[None, :] & bit) > 0
-        hadamard *= np.where(rows & cols, -1.0, 1.0)
-    hadamard /= math.sqrt(2 ** n)
-    state = np.zeros((samples, 2 ** n), complex)
-    state[:, 0] = 1
-    for _ in range(max(1, int(reps))):
-        state = (state @ hadamard.T) * diagonal
+    state = diagonal / math.sqrt(2 ** n)                                 # H⊗ⁿ|0…0⟩ is uniform: no transform
+    for _ in range(max(1, int(reps)) - 1):
+        state = hadamard_all(state, n) * diagonal
     return state
+
+
+def hadamard_all(states, n):
+    """H on every qubit of each state (rows): the fast Walsh–Hadamard transform, n·2ⁿ operations per
+    state instead of the 4ⁿ of multiplying by the full H⊗ⁿ matrix (about 100× fewer at 10 qubits)."""
+    out = np.array(states, complex)
+    samples = len(out)
+    for k in range(n):                                                   # one butterfly layer per qubit
+        view = out.reshape(samples, 2 ** k, 2, 2 ** (n - k - 1))
+        zero, one = view[:, :, 0, :].copy(), view[:, :, 1, :]
+        view[:, :, 0, :] += one
+        view[:, :, 1, :] = zero - one
+    return out / math.sqrt(2 ** n)
 
 
 def kernel(A, B=None, kind='zz', reps=2, bandwidth=1.0):
