@@ -145,16 +145,13 @@ class SVM:
     """
 
     def __init__(self, C=1.0, tolerance=1e-4, max_passes=200, seed=0):
-        self.C, self.tolerance, self.max_passes, self.seed = float(C), tolerance, max_passes, seed
-
-    def _f(self, i):
-        return float((self.alpha * self.y) @ self.K[:, i] + self.b)
+        self.C, self.tolerance, self.max_passes, self.seed = float(C), tolerance, max_passes, seed   # seed: kept for compatibility
 
     def _step(self, i, j):
+        """Optimize the pair (αᵢ, αⱼ) analytically; update the error cache E (fᵢ − yᵢ for every point)."""
         if i == j:
             return False
-        C, K, y, a = self.C, self.K, self.y, self.alpha
-        Ei, Ej = self._f(i) - y[i], self._f(j) - y[j]
+        C, K, y, a, E = self.C, self.K, self.y, self.alpha, self.E
         if y[i] != y[j]:
             low, high = max(0.0, a[j] - a[i]), min(C, C + a[j] - a[i])
         else:
@@ -164,40 +161,41 @@ class SVM:
         eta = K[i, i] + K[j, j] - 2 * K[i, j]
         if eta <= 1e-12:                                                 # flat direction: skip this pair
             return False
-        aj = float(np.clip(a[j] + y[j] * (Ei - Ej) / eta, low, high))
+        aj = float(np.clip(a[j] + y[j] * (E[i] - E[j]) / eta, low, high))
         if abs(aj - a[j]) < 1e-10:
             return False
         ai = a[i] + y[i] * y[j] * (a[j] - aj)
-        b1 = self.b - Ei - y[i] * (ai - a[i]) * K[i, i] - y[j] * (aj - a[j]) * K[i, j]
-        b2 = self.b - Ej - y[i] * (ai - a[i]) * K[i, j] - y[j] * (aj - a[j]) * K[j, j]
-        self.alpha[i], self.alpha[j] = ai, aj
-        self.b = b1 if 0 < ai < C else b2 if 0 < aj < C else (b1 + b2) / 2
+        snap = 1e-12 * max(1.0, C)                                       # rounding leftovers sit on the bound
+        ai = 0.0 if ai < snap else C if ai > C - snap else ai
+        aj = 0.0 if aj < snap else C if aj > C - snap else aj
+        di, dj = ai - a[i], aj - a[j]
+        b1 = self.b - E[i] - y[i] * di * K[i, i] - y[j] * dj * K[i, j]
+        b2 = self.b - E[j] - y[i] * di * K[i, j] - y[j] * dj * K[j, j]
+        b_new = b1 if 0 < ai < C else b2 if 0 < aj < C else (b1 + b2) / 2
+        E += y[i] * di * K[i] + y[j] * dj * K[j] + (b_new - self.b)       # O(N) instead of recomputing
+        a[i], a[j], self.b = ai, aj, b_new
         return True
 
     def fit(self, K, y):
+        """SMO with the maximal-violating-pair choice (as in LIBSVM): each iteration picks, in one
+        vectorized search, the two points that most violate the optimality conditions, and stops when
+        even that pair violates them by less than the tolerance."""
         self.K, self.y = np.asarray(K, float), np.asarray(y, float)
         m = len(self.y)
         self.alpha, self.b = np.zeros(m), 0.0
-        rng = np.random.default_rng(self.seed)
-        tol, C = self.tolerance, self.C
-        for _ in range(self.max_passes):
-            changed = 0
-            for i in rng.permutation(m):
-                Ei = self._f(i) - self.y[i]
-                r = Ei * self.y[i]
-                if (r < -tol and self.alpha[i] < C) or (r > tol and self.alpha[i] > 0):
-                    errors = (self.alpha * self.y) @ self.K + self.b - self.y
-                    order = np.argsort(-np.abs(errors - Ei))                 # the largest step first
-                    for j in order[:5]:
-                        if self._step(i, int(j)):
-                            changed += 1
-                            break
-                    else:
-                        for j in rng.permutation(m):
-                            if self._step(i, int(j)):
-                                changed += 1
-                                break
-            if changed == 0:
+        self.E = -self.y.copy()                                         # f = 0 at the start
+        C, y, a = self.C, self.y, self.alpha
+        for _ in range(self.max_passes * m):
+            eps = 1e-12 * max(1.0, C)
+            up = ((y > 0) & (a < C - eps)) | ((y < 0) & (a > eps))      # αᵢyᵢ can increase
+            low = ((y < 0) & (a < C - eps)) | ((y > 0) & (a > eps))     # αⱼyⱼ can decrease
+            if not up.any() or not low.any():
+                break
+            i = int(np.flatnonzero(up)[np.argmin(self.E[up])])
+            j = int(np.flatnonzero(low)[np.argmax(self.E[low])])
+            if self.E[j] - self.E[i] < 2 * self.tolerance:              # optimal within the tolerance
+                break
+            if not self._step(i, j) and not self._step(j, i):           # no progress possible on this pair
                 break
         self.support = np.flatnonzero(self.alpha > 1e-8)
         free = [k for k in self.support if self.alpha[k] < C - 1e-8]
