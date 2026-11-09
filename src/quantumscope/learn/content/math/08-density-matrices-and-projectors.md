@@ -49,6 +49,8 @@ The pair is in a definite pure state, yet each qubit on its own is **completely 
 
 [Try it: each half of a Bell pair is completely random](qs:open/entanglement)
 
+[Try it in the calculator: ptrace(CNOT (H ⊗ I)|00⟩, 1)](qs:calc?expr=ptrace%28CNOT%20%28H%20%E2%8A%97%20I%29%7C00%E2%9F%A9%2C%201%29)
+
 ## Check your understanding
 
 ```quiz

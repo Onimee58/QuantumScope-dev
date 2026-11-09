@@ -14,6 +14,8 @@
     qs:open/<view>                   (circuits, converter, orbital, dynamics2d, dynamics3d,
                                       doubleslit, superposition, entanglement)
     qs:lesson/<key>                  (another lesson, e.g. circuits/02-single-qubit-gates)
+    qs:calc?expr=<expression>[&mode=exact|digits]   (the calculator, with the expression evaluated;
+                                      %-encoded; mode=exact for expressions with symbols such as θ)
 
 Gates in circuit links: NAME:q[,q…][:angle[,phi,lam]] separated by ';'.
 Angles accept expressions such as pi/2. Parsing is pure, so every link in
@@ -27,7 +29,7 @@ from quantumscope.physics.expressions import parse_angle
 from quantumscope.physics.initial_states import PRESETS, InitialState
 
 VIEWS = ('circuits', 'converter', 'orbital', 'dynamics2d', 'dynamics3d', 'doubleslit', 'superposition', 'entanglement',
-         'teleportation', 'qec', 'qml_datasets', 'qml_kernel', 'qml_variational')
+         'teleportation', 'qec', 'qml_datasets', 'qml_kernel', 'qml_variational', 'calculator')
 
 
 @dataclass(frozen=True)
@@ -157,4 +159,17 @@ def parse(link):
         if not target:
             raise ValueError('lesson needs a key')
         return Action('lesson', target)
+    if kind == 'calc':
+        expression = params.get('expr', '').strip()
+        if not expression:
+            raise ValueError('calc needs an expression: qs:calc?expr=…')
+        from quantumscope.calc.parser import CalcError, parse as parse_expression
+        try:
+            parse_expression(expression)                     # a broken link fails the tests, not a student
+        except CalcError as exc:
+            raise ValueError(f'calc expression: {exc}') from None
+        mode = params.get('mode')
+        if mode not in (None, 'exact', 'digits'):
+            raise ValueError('calc mode must be exact or digits')
+        return Action('calc', expression, {'mode': mode} if mode else {})
     raise ValueError(f'Unknown action {kind}')

@@ -7,7 +7,7 @@
 
   An open-source, cross-platform quantum visualization and circuit simulation studio built with Python and PySide6.
 
-  [![Version](https://img.shields.io/badge/version-v0.8.5-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
+  [![Version](https://img.shields.io/badge/version-v0.9.0-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
   [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
   [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
   [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-555)](https://github.com/Onimee58/QuantumScope/releases)
@@ -45,6 +45,15 @@ Use it for self-study, classroom demonstrations, coursework or experimenting wit
 - **Quantum Gate Explorer**: double-click a gate in the *left palette* for its definition, circuit symbol, matrix/operation and basic state transformations. Double-clicking a placed parameterized gate opens its parameter editor instead.
 
 **Supported operations:** `H`, `X`, `Y`, `Z`, `S`, `T`, `Sdg`, `Tdg`, `SX`, `RX`, `RY`, `RZ`, `U`/`U3`, `P`, `CX`, `CZ`, `SWAP`, `CCX`, `CSWAP`, and terminal `M`.
+
+## What's new in v0.9.0?
+
+**The Math tab: a quantum calculator.**
+
+- **Quantum mathematics in Dirac notation:** kets, bras, ⊗, †, gates and your own matrices, with eigenvalues, partial traces, entropy, Bloch vectors, Pauli decompositions and more.
+- **Exact or in digits:** exact answers keep √2, i, π and symbols such as θ; digits mode computes numbers.
+- **See the working:** every step, the matrix, and a Bloch sphere for single-qubit states; send a state to the circuit simulator.
+- **Try it from the lessons:** every Mathematics lesson opens the calculator with its example.
 
 ## What's new in v0.8.5?
 

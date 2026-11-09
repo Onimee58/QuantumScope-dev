@@ -488,9 +488,13 @@ class MainWindow(QMainWindow):
                               lambda parent: CalculatorView(parent, send_state=self.send_state_to_circuit))
         return self._open_experiments["calculator"]
 
-    def open_calculator(self, expression=None):
-        """Open the calculator, optionally with an expression evaluated (lesson "Try it" links)."""
+    def open_calculator(self, expression=None, mode=None):
+        """Open the calculator, optionally with an expression evaluated (lesson "Try it" links);
+        mode ('exact' or 'digits') switches first, for expressions that need one."""
         view = self._launch_calculator()
+        if mode in ('exact', 'digits') and view.calculator.mode != mode:
+            (view.exact_button if mode == 'exact' else view.digits_button).setChecked(True)
+            view.calculator.set_mode(mode)
         if expression:
             return view.set_expression(expression, evaluate=True)
         return None

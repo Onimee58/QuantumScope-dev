@@ -43,6 +43,8 @@ The Bell state $\frac{1}{\sqrt{2}}(|00\rangle + |11\rangle)$ has $w = z = \frac{
 
 [Try it: H then CNOT makes a Bell pair](qs:circuit?n=2&gates=H:0;CX:0,1)
 
+[Try it in the calculator: CNOT (H ⊗ I)|00⟩](qs:calc?expr=CNOT%20%28H%20%E2%8A%97%20I%29%7C00%E2%9F%A9)
+
 ## Check your understanding
 
 ```quiz

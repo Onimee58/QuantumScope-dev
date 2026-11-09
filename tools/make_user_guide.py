@@ -229,6 +229,13 @@ def screenshots():
     settle(app, 0.4)
     save(w, 'qml-search.png', scale=0.75)
     kernel.views.setCurrentWidget(kernel.heatmap)
+    calculator = w._launch_calculator()                       # v0.9.0: the Math tab
+    run = calculator.set_expression('CNOT (H ⊗ I)|00⟩', evaluate=True)
+    while run.running():
+        app.processEvents()
+    settle(app, 0.4)
+    save(w, 'math-calculator.png', scale=0.75)
+    w._select_category('qml')
     import numpy as _np
     from quantumscope.ml import datasets as _D
     digits = _D.load('mnist')                                 # predict on new images with the saved model

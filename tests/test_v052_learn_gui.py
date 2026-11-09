@@ -27,7 +27,17 @@ def setup(app, tmp_path, monkeypatch):
     from quantumscope.gui.learn_window import LearnWindow
     monkeypatch.setattr(QtWidgets.QDialog, 'exec', lambda self: 0)      # Gate Explorer opens modally
     workspace = CircuitWorkspace()
-    window = LearnWindow(workspace=workspace)
+
+    class Host:                                                         # records calculator links (v0.9.0)
+        def __init__(self):
+            self.calculations = []
+
+        def open_calculator(self, expression, mode=None):
+            self.calculations.append((expression, mode))
+
+        def launch_view(self, view):
+            pass
+    window = LearnWindow(host=Host(), workspace=workspace)
     window.show()
     return window, workspace
 
@@ -39,6 +49,11 @@ def test_every_builtin_try_it_link_runs(setup):
         for link in re.findall(r'\]\((qs:[^)\s]+)\)', lesson.body):
             window._link(QUrl(link))
             assert not window.status.text().startswith('Could not'), (lesson.key, link, window.status.text())
+    from quantumscope.learn import actions                           # every calculator link reached the host
+    expected = [(a.target, a.params.get('mode')) for a in
+                (actions.parse(link) for lesson in builtin_lessons()
+                 for link in re.findall(r'\]\((qs:calc[^)\s]+)\)', lesson.body))]
+    assert len(expected) == 12 and window.host.calculations == expected
 
 
 def test_try_it_sets_up_the_circuit(setup):

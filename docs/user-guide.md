@@ -1,8 +1,8 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.8.5** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.0** · Quantum Visualization Studio · MIT licensed
 
-QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits and quantum machine learning, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
+QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
 ## 1. Installing and updating
 
@@ -31,10 +31,10 @@ Nothing is downloaded or installed without your confirmation, and a download tha
 
 ![The QuantumScope window, here with the Double-Slit experiment](images/main-window.png)
 
-- **Areas:** the four tabs under the title, **Hydrogen**, **Quantum Principles**, **Quantum Circuits** and **Quantum ML**, are the four areas of the app.
+- **Areas:** the five tabs under the title, **Hydrogen**, **Quantum Principles**, **Quantum Circuits**, **Quantum ML** and **Math**, are the five areas of the app.
 - **Experiment tabs:** each area holds experiment tabs. Open more with **+** on the right of the tab bar, or with **+ New Experiment** at the top. Every tab can be closed with its **×**. A closed tab is only hidden, so opening it again brings it back exactly as you left it. An area with no open tabs shows a **Start** page with its experiments as buttons.
-- **📖 Learn** opens the lessons for the current area (chapter 7).
-- **⚙** opens **Settings** (chapter 8). **ⓘ** shows **About QuantumScope**, including **Check for updates…** and **User guide**, which opens this document.
+- **📖 Learn** opens the lessons for the current area (chapter 8).
+- **⚙** opens **Settings** (chapter 9). **ⓘ** shows **About QuantumScope**, including **Check for updates…** and **User guide**, which opens this document.
 - **Charts:** right-click any chart for **View All**, the axis options, **Save image…** (PNG or JPEG at twice the screen resolution), **Copy image** and **Save data (CSV)…**.
 - **Long computations** (training, **Optimize**, **Best of N**, the landscape) run in the background with their progress shown, so the window never freezes; **Stop** or **Cancel** ends them early.
 
@@ -249,7 +249,52 @@ Both classifiers have a **Model** panel. After training, **Save model…** store
 - **Train** shows the loss and the training accuracy step by step, and the decision regions as they change; **Stop** ends training early.
 - **Open in circuit simulator** loads the trained circuit for one test point into Quantum Circuits, with the observable Z0.
 
-## 7. Learn
+## 7. Math
+
+The **Math** area holds the **Quantum Calculator**: the mathematics behind every other part of the app, in Dirac notation, worked out exactly or in digits. Open it with **+** → **Quantum Calculator**, or from a Mathematics lesson's **Try it in the calculator** link, which opens it with the lesson's example already worked out.
+
+![The Quantum Calculator: the Bell state in Dirac form, as a matrix, and step by step](images/math-calculator.png)
+
+### Typing expressions
+
+Type an expression and press **Enter**; **↑** and **↓** recall earlier ones. The buttons under the input insert symbols and functions at the cursor, and **Examples…** lists ten to start from. Every symbol also has a keyboard form:
+
+| Write | As | Keyboard |
+|---|---|---|
+| A ket, a bra | \|0⟩, \|+⟩, \|01⟩; ⟨0\| | \|0>, <0\| |
+| An inner product, a matrix element | ⟨0\|1⟩, ⟨0\|X\|1⟩ | <0\|1>, <0\|X\|1> |
+| A product | H\|0⟩ or H * \|0⟩ | |
+| A tensor product | X ⊗ Y | X (x) Y |
+| The adjoint | H† | H' |
+| A power, a matrix | X^2; [1, 0; 0, -1] or [[1, 0], [0, -1]] | |
+| A name | ψ = H\|0⟩, then ⟨ψ\|Z\|ψ⟩ | |
+
+The states |0⟩, |1⟩, |+⟩, |−⟩, |i⟩ and |−i⟩ are built in, as are the gates I, X, Y, Z, H, S, T, CNOT, CZ and SWAP and the rotations RX, RY, RZ, P and U. **⊗ binds more tightly than products written side by side:** H ⊗ I |00⟩ is (H ⊗ I)|00⟩. To combine two prepared states, use brackets: (RY(θ)\|0⟩) ⊗ \|1⟩. If a product does not fit, the message says so and suggests the brackets.
+
+### Exact and Digits
+
+- **Exact** keeps √2, i and π, and leaves names without values, such as θ, as symbols: exp(−i θ X / 2) gives the rotation matrix in terms of θ.
+- **Digits** computes numbers, and still shows familiar values exactly (1/√2, √3/2, i/√2).
+
+The same expression means the same in both modes; switching recalculates the current one.
+
+### Functions
+
+**exp** (of a matrix: the matrix exponential), **sqrt**, **sin**, **cos**, **tr**, **det**, **inv**, **norm**, **normalize**, **kron**, **comm** and **acomm** (commutators), **eig** (eigenvalues and eigenvectors), **dm** (the density matrix of a state), **ptrace** (the partial trace; qubit 0 is the leftmost), **expect** (an expectation value), **fidelity**, **purity**, **entropy** (von Neumann, in bits), **bloch** (a qubit's Bloch vector) and **pauli** (the decomposition into Pauli strings).
+
+### Reading the result
+
+- **The answer** is shown on one line, states in Dirac form; an operator also appears as a **matrix**, labelled by basis states.
+- **Working, step by step** lists every operation with its result.
+- **The Bloch sphere** shows any single-qubit state, Bloch vector or one-qubit density matrix; a mixed state points inside the sphere.
+- **Named values** and **History** keep earlier results; double-click a name, or click a history line, to use it again.
+- An error explains the problem and puts the cursor where it is.
+
+### Send to circuit simulator
+
+**Send to circuit simulator** starts the circuit simulator from the current state. A product of single-qubit states becomes each qubit's starting state exactly (**Undo** reverts it). An entangled state, such as a Bell state, cannot be written one qubit at a time; build it with gates instead.
+
+## 8. Learn
 
 **📖 Learn** opens QuantumScope's course: lectures and labs for every area, plus **Mathematics**.
 
@@ -266,7 +311,7 @@ Both classifiers have a **Model** panel. After training, **Save model…** store
 
 **For teachers: My course.** **My course folder…** adds your own lessons and labs, written in the same simple format. They appear under **My course**, with glossary links and **Math you need** like the built-in ones. The file LEARN.md in the project describes the format.
 
-## 8. Settings
+## 9. Settings
 
 **⚙** opens **Settings**. Changes apply at once, except where noted; **Restart now** restarts when needed, and **Restore defaults** resets everything (your recent files are kept).
 
@@ -286,7 +331,7 @@ Both classifiers have a **Model** panel. After training, **Save model…** store
   - **Recent circuits**, with **Clear recent list**.
 - **Updates:** the current version and **Check for updates…**.
 
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 **The 3-D view is blank, black or very slow.** Open **⚙ → Graphics**. Try **3D volume rendering: CPU**, which works on any computer. On a laptop with two graphics chips, try the other **Graphics device**, then restart. **Refresh** shows which renderer is actually in use; include it if you report a problem.
 
@@ -300,7 +345,7 @@ Both classifiers have a **Model** panel. After training, **Save model…** store
 
 **Reporting a problem.** Open an issue on GitHub (github.com/Onimee58/QuantumScope). Describe what you did, what happened, your system, and the version shown in **ⓘ**.
 
-## 10. Mouse and keyboard reference
+## 11. Mouse and keyboard reference
 
 | Where | Action | Result |
 |---|---|---|

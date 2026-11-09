@@ -43,6 +43,8 @@ The Bell-test meter in the Entanglement experiment shows its result as $|S| \pm$
 
 [Try it: a |+⟩ qubit — press Run shots a few times and watch the counts vary around 512](qs:circuit?n=1&gates=H:0)
 
+[Try it in the calculator: abs(⟨0|H|0⟩)^2](qs:calc?expr=abs%28%E2%9F%A80%7CH%7C0%E2%9F%A9%29%5E2)
+
 ## Check your understanding
 
 ```quiz

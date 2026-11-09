@@ -43,6 +43,8 @@ and how error-correcting codes describe their stabilizers, such as $Z_0 Z_1$ and
 
 [Try it: the observable Z0 Z1 on a Bell pair](qs:circuit?n=2&gates=H:0;CX:0,1&observable=Z0%20Z1)
 
+[Try it in the calculator: pauli(SWAP)](qs:calc?expr=pauli%28SWAP%29)
+
 ## Check your understanding
 
 ```quiz

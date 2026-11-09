@@ -60,6 +60,8 @@ Multiplying by $e^{i\varphi}$ therefore **rotates** a number by $\varphi$ withou
 
 [Try it: change the phase φ of a qubit and watch the Bloch arrow turn](qs:open/superposition)
 
+[Try it in the calculator: exp(i*pi/4)](qs:calc?expr=exp%28i%2Api%2F4%29)
+
 ## Check your understanding
 
 ```quiz

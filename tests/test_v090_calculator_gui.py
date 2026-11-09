@@ -116,3 +116,45 @@ def test_lesson_links_open_the_calculator(window):
         QtWidgets.QApplication.instance().processEvents()
     QtWidgets.QApplication.instance().processEvents()
     assert w._open_experiments['calculator'].answer.text() == '1/2 II + 1/2 XX + 1/2 YY + 1/2 ZZ'
+
+
+def test_a_lesson_link_opens_the_calculator_in_its_mode(window):
+    w = window
+    view = w._launch_calculator()
+    view.digits_button.click()
+    QtWidgets.QApplication.instance().processEvents()
+    w.open_learn('math')
+    learn = w._learn
+    from PySide6.QtCore import QUrl
+    learn._link(QUrl('qs:calc?expr=exp(-i%20%CE%B8%20X%20%2F%202)&mode=exact'))
+    run = getattr(view, 'run', None)
+    while run is not None and run.running():
+        QtWidgets.QApplication.instance().processEvents()
+    QtWidgets.QApplication.instance().processEvents()
+    assert view.calculator.mode == 'exact' and view.exact_button.isChecked()
+    assert 'cos(θ/2)' in view.answer.text()
+    learn.close()
+
+
+def test_the_newest_evaluation_wins(window, monkeypatch):
+    """A new expression typed while an older one is still being worked out is not dropped; the older
+    result, arriving later, is discarded."""
+    import time
+    view = window._launch_calculator()
+    original = view.calculator.evaluate
+
+    def slow_for_x(text):
+        if text == 'X':
+            time.sleep(0.6)                                  # the older request finishes last
+        return original(text)
+    monkeypatch.setattr(view.calculator, 'evaluate', slow_for_x)
+    first = view.set_expression('X', evaluate=True)
+    second = view.set_expression('Z', evaluate=True)
+    app = QtWidgets.QApplication.instance()
+    deadline = time.time() + 5
+    while (first.running() or second.running()) and time.time() < deadline:   # until both have finished
+        app.processEvents()
+        time.sleep(0.01)
+    app.processEvents()
+    assert not first.running() and not second.running()
+    assert view.answer.text() == '[[1, 0], [0, -1]]'        # Z, the newest, not X

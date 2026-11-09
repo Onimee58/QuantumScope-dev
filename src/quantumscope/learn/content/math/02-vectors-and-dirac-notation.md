@@ -59,6 +59,8 @@ Measuring "along $x$" means measuring in this basis.
 
 [Try it: inspect amplitudes and probabilities in the State Inspector (a |+⟩ qubit)](qs:circuit?n=1&gates=H:0)
 
+[Try it in the calculator: ⟨+|-⟩](qs:calc?expr=%E2%9F%A8%2B%7C-%E2%9F%A9)
+
 ## Check your understanding
 
 ```quiz

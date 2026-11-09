@@ -2,7 +2,7 @@
 
 Layout is done by Qt (QTextDocument), page by page, so the builder knows exactly where every
 heading and figure lands. That gives:
-  - a title page (the logo and the author), then Contents and List of figures with page numbers;
+  - a painted cover (title, version, author), then Contents and List of figures with page numbers;
   - figures numbered and captioned from their alt text;
   - blank-spot repair: an image that leaves a large gap at the bottom of a page is shrunk to fit
     it (down to 60%), and a heading stranded at the bottom of a page moves to the next one;
@@ -107,7 +107,7 @@ def _front(headings, figures, pages):
     table = '<table width="100%" cellspacing="0" cellpadding="3">{}</table>'
     return ('<p style="page-break-after:always;">&nbsp;</p>'            # the cover: painted separately
             '<h1>Contents</h1>' + table.format(''.join(rows)) +
-            '<p style="page-break-after:always;"></p>'
+            '<p style="margin-top:18px;"></p>'                # the figures follow at once: no part-empty page
             '<h1>List of figures</h1>' + table.format(''.join(fig_rows)) +
             '<p style="page-break-after:always;"></p>')
 

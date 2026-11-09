@@ -47,6 +47,8 @@ Because $H$ is Hermitian, $U(t)$ is unitary. An eigenstate of $H$ with energy $E
 
 [Try it: RY(90°) turns |0⟩ into |+⟩](qs:circuit?n=1&gates=RY:0:pi/2)
 
+[Try it in the calculator: exp(-i θ X / 2)](qs:calc?expr=exp%28-i%20%CE%B8%20X%20%2F%202%29&mode=exact)
+
 ## Check your understanding
 
 ```quiz

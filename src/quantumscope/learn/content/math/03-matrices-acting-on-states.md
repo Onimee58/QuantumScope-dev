@@ -47,6 +47,8 @@ so "Z then X" and "X then Z" are different gates; here they differ only by a sig
 
 [Try it: H twice is the identity (the qubit returns to |0⟩)](qs:circuit?n=1&gates=H:0;H:0)
 
+[Try it in the calculator: H|0⟩](qs:calc?expr=H%7C0%E2%9F%A9)
+
 ## Check your understanding
 
 ```quiz

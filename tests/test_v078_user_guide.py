@@ -45,6 +45,7 @@ def test_the_guide_names_controls_that_exist():
                     'PCA components', 'Shots per entry', 'Trainable layers', 'Open in circuit simulator',
                     'Show the solution', 'Your own system', 'Save model…', 'Load model…', 'Predict on a file…',
                     'Export CSV…', 'Save rotating GIF…', 'Separating axes', 'Kernel map', 'Cross-validate',
-                    'Use best', 'Validation share', 'Early stopping'):
+                    'Use best', 'Validation share', 'Early stopping', 'Quantum Calculator', 'Send to circuit simulator',
+                    'Working, step by step', 'Examples…'):
         assert control in text, control
         assert control in source, control

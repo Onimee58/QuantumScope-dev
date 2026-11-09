@@ -324,6 +324,13 @@ class LearnWindow(QWidget):
             if action.kind == 'lesson':
                 self.open_lesson(action.target)
                 return
+            if action.kind == 'calc':                      # the calculator, with the expression evaluated
+                opener = getattr(self.host, 'open_calculator', None)
+                if opener is None:
+                    raise ValueError('The calculator is not available')
+                opener(action.target, action.params.get('mode'))
+                self.status.setText(f'Opened the calculator: {action.target}')
+                return
             workspace = self.workspace()
             if workspace is None:
                 raise ValueError('The circuit simulator is not available')

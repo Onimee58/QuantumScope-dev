@@ -167,3 +167,31 @@ def test_quantum_function_errors():
         c.evaluate('v = eig(X)')
     with pytest.raises(CalcError, match='digits mode only'):
         Calculator('exact').evaluate('fidelity(Id(2)/2, dm(|0⟩)/2 + dm(|1⟩)/2)')
+
+
+# ---- 20d: the lessons' calculator links -----------------------------------------------------------
+def test_every_math_lesson_has_a_working_calculator_link():
+    import re
+    from quantumscope.learn import actions
+    from quantumscope.learn.lessons import builtin_lessons
+    from quantumscope.learn.render import to_html
+    lessons = [lesson for lesson in builtin_lessons() if lesson.area == 'math']
+    assert len(lessons) == 12
+    for lesson in lessons:
+        links = re.findall(r'<a href="(qs:calc[^"]*)"', to_html(lesson, 'dark'))
+        assert len(links) == 1, lesson.key                                   # rendered (no [ ] in its text)
+        action = actions.parse(links[0].replace('&amp;', '&'))
+        for mode in [action.params['mode']] if action.params.get('mode') else ['exact', 'digits']:
+            Calculator(mode).evaluate(action.target)                         # evaluates without an error
+    shift = actions.parse('qs:calc?expr=' + __import__('urllib.parse').parse.quote(
+        '(expect(Z, RY(pi/3 + pi/2)|0⟩) - expect(Z, RY(pi/3 - pi/2)|0⟩))/2', safe=''))
+    assert F.summary(Calculator('exact').evaluate(shift.target).value, 'exact') == '-√3/2'   # parameter shift
+
+
+def test_calculator_links_are_checked_when_parsed():
+    from quantumscope.learn import actions
+    assert actions.parse('qs:calc?expr=H%7C0%E2%9F%A9').target == 'H|0⟩'
+    assert actions.parse('qs:calc?expr=RX(%CE%B8)&mode=exact').params == {'mode': 'exact'}
+    for bad in ('qs:calc', 'qs:calc?expr=H%7C0', 'qs:calc?expr=X&mode=fast'):
+        with pytest.raises(ValueError):
+            actions.parse(bad)

@@ -267,23 +267,30 @@ class CalculatorView(QWidget):
         text = self.input.text().strip()
         if not text:
             return None
-        running = getattr(self, 'run', None)
-        if running is not None and running.running():
-            return running
         from quantumscope.gui.background import Run
-        self.go.setEnabled(False)
+        previous = getattr(self, 'run', None)
+        if previous is not None and previous.running():
+            previous.cancel()                                   # the newest request wins; an older result
+        self._token = getattr(self, '_token', 0) + 1            # (SymPy cannot stop mid-way) is discarded
+        token = self._token
         self.error.setText('')
         self.answer.setText('Working…')
         calculator, mode = self.calculator, self.calculator.mode
 
         def work(report, cancelled):
             return calculator.evaluate(text)
-        self.run = Run(work, owner=self, on_done=lambda result: self._show(text, result, mode),
-                       on_error=lambda exc, details: self._failed(exc)).start()
+
+        def done(result):
+            if token == self._token:
+                self._show(text, result, mode)
+
+        def failed(exc, details):
+            if token == self._token:
+                self._failed(exc)
+        self.run = Run(work, owner=self, on_done=done, on_error=failed).start()
         return self.run
 
     def _failed(self, exc):
-        self.go.setEnabled(True)
         self.answer.setText('')
         self.error.setText(str(exc))
         if isinstance(exc, CalcError) and exc.at is not None:
@@ -291,7 +298,6 @@ class CalculatorView(QWidget):
         self.input.setFocus()
 
     def _show(self, text, result, mode):
-        self.go.setEnabled(True)
         self.result = result
         value = result.value
         if not self.history_inputs or self.history_inputs[-1] != text:

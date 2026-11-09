@@ -48,6 +48,8 @@ Check it: $\cos(\theta + \frac{\pi}{2}) - \cos(\theta - \frac{\pi}{2}) = -2\sin\
 
 [Try it: VQE for H₂ — press Optimize, then open the landscape](qs:algorithm/vqe?problem=h2&layers=1)
 
+[Try it in the calculator: (expect(Z, RY(pi/3 + pi/2)|0⟩) - expect(Z, RY(pi/3 - pi/2)|0⟩))/2](qs:calc?expr=%28expect%28Z%2C%20RY%28pi%2F3%20%2B%20pi%2F2%29%7C0%E2%9F%A9%29%20-%20expect%28Z%2C%20RY%28pi%2F3%20-%20pi%2F2%29%7C0%E2%9F%A9%29%29%2F2)
+
 ## Check your understanding
 
 ```quiz

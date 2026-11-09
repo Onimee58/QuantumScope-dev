@@ -49,6 +49,8 @@ Eigenvalues matter for unitaries too: since $U$ preserves lengths, its eigenvalu
 
 [Try it: measure |+⟩ along z and along x in the Superposition experiment](qs:open/superposition)
 
+[Try it in the calculator: eig(Y)](qs:calc?expr=eig%28Y%29)
+
 ## Check your understanding
 
 ```quiz

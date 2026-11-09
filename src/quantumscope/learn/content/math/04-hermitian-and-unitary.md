@@ -50,6 +50,8 @@ The Pauli matrices and $H$ are both: they are gates and observables at once.
 
 [Try it: S followed by its inverse SDG returns |+⟩ unchanged](qs:circuit?n=1&gates=H:0;S:0;SDG:0)
 
+[Try it in the calculator: H† H](qs:calc?expr=H%E2%80%A0%20H)
+
 ## Check your understanding
 
 ```quiz

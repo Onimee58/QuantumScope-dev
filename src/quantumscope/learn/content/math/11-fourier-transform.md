@@ -45,6 +45,8 @@ is turned by $F^\dagger$ into a state concentrated on $|k\rangle$ with $k/N \app
 
 [Try it: phase estimation reads φ = 3/8 exactly with 3 counting qubits](qs:algorithm/qpe?t=3&phase=3/8)
 
+[Try it in the calculator: the one-qubit Fourier transform of |0⟩](qs:calc?expr=%5B1%2C%201%3B%201%2C%20-1%5D%2Fsqrt%282%29%20%7C0%E2%9F%A9)
+
 ## Check your understanding
 
 ```quiz

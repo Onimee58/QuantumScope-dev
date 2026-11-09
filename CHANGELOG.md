@@ -1,3 +1,24 @@
+## v0.9.0 — The Math tab: a quantum calculator
+
+### The Quantum Calculator
+- **A fifth area, Math,** with the **Quantum Calculator**: quantum mathematics in Dirac notation.
+- **Two modes, one meaning.** **Exact** (SymPy) keeps √2, i and π, and leaves names without values, such as θ, as symbols: exp(−i θ X / 2) gives the rotation matrix in θ. **Digits** (NumPy) computes numbers, and still shows familiar values exactly. Both evaluate the same parsed expression, and tests compare them.
+- **Notation:** kets, bras and brackets (⟨a|b⟩, ⟨a|M|b⟩), ⊗, †, powers, matrices, named values, and a keyboard form for every symbol (|0>, <0|, (x), ').
+- **Built in:** |0⟩, |1⟩, |±⟩, |±i⟩ and strings of them; I, X, Y, Z, H, S, T, CNOT, CZ, SWAP, RX, RY, RZ, P and U.
+- **Functions:** exp (the matrix exponential), tr, det, inv, norm, normalize, kron, comm, acomm, eig, dm, ptrace, expect, fidelity, purity, entropy, bloch and pauli.
+- **The result:** one line (states in Dirac form), the matrix labelled by basis states, the working step by step, and a Bloch sphere for single-qubit states. Named values and history; errors say what is wrong and where.
+- **Send to circuit simulator:** a product state becomes the circuit's starting state exactly (undoable); an entangled state is explained instead.
+
+### Lessons and guide
+- **Every Mathematics lesson has a Try it in the calculator link** that opens the calculator with the lesson's example worked out, from exp(iπ/4) to the parameter-shift rule, which gives −√3/2 exactly.
+- **A new Math chapter in the user guide.**
+
+### Requirements
+- **SymPy** is now a dependency (loaded only when exact mode is first used, so start-up is unchanged).
+
+### Quality
+- **Tests:** the parser and its errors; the two modes agreeing on over 40 expressions; textbook identities (the Bell state, [X, Y] = 2iZ, HXH = Z, exp(−iθX/2) = RX(θ)); the quantum functions; sending states to the circuit simulator; every calculator link in the lessons.
+
 ## v0.8.5 — The user guide's text is readable again
 
 ### Fixes
