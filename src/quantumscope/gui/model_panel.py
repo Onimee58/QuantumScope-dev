@@ -35,13 +35,17 @@ def describe(model):
     scores = (f'training accuracy {info["train"]:.0%}, test accuracy {info["test"]:.0%}'
               if 'train' in info and 'test' in info else '')
     when = f', {info["created"].replace("T", " ")[:16]}' if info.get('created') else ''
-    return (f'{what}; {model.pipeline.outputs} qubits; {model.classes[0]} (+1) vs {model.classes[1]} (−1); '
+    classes = (f'{model.classes[0]} (+1) vs {model.classes[1]} (−1)' if len(model.classes) == 2 else
+               f'{len(model.classes)} classes ({", ".join(model.classes)}), one-vs-rest')
+    return (f'{what}; {model.pipeline.outputs} qubits; {classes}; '
             f'trained on {data}' + (f'; {scores}' if scores else '') + when + '.')
 
 
 def suggested_name(model):
     method = model.settings.get('method', 'variational') if model.kind == 'kernel' else 'variational'
-    raw = f'{method}-{model.info.get("dataset") or "model"}-{model.classes[0]}-vs-{model.classes[1]}'
+    which = (f'{model.classes[0]}-vs-{model.classes[1]}' if len(model.classes) == 2 else
+             f'{len(model.classes)}-classes')
+    raw = f'{method}-{model.info.get("dataset") or "model"}-{which}'
     return re.sub(r'[^A-Za-z0-9._-]+', '-', raw).strip('-') + '.npz'
 
 
@@ -170,7 +174,8 @@ class PredictionDialog(QDialog):
             if known:
                 hits = sum(names[i] == data.labels[i] for i in known)
                 self.correct = hits / len(known)
-                text += f' Accuracy on the {len(known)} labelled samples of these two classes: {self.correct:.0%}.'
+                which = 'these two classes' if len(model.classes) == 2 else f'its {len(model.classes)} classes'
+                text += f' Accuracy on the {len(known)} labelled samples of {which}: {self.correct:.0%}.'
             others = len(data.labels) - len(known)
             if others:
                 text += f' {others} samples belong to other classes, which this model cannot recognize.'
@@ -180,7 +185,8 @@ class PredictionDialog(QDialog):
         self.summary.setWordWrap(True)
         layout.addWidget(self.summary)
         labelled = data.labels is not None
-        headers = ['#', 'Prediction', 'Decision value'] + (['True class', 'Correct'] if labelled else [])
+        value_name = 'Decision value' if len(model.classes) == 2 else 'Confidence'
+        headers = ['#', 'Prediction', value_name] + (['True class', 'Correct'] if labelled else [])
         self.table = QTableWidget(len(names), len(headers))
         self.table.setHorizontalHeaderLabels(headers)
         self.table.verticalHeader().setVisible(False)

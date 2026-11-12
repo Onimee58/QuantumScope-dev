@@ -16,7 +16,7 @@ Built-in toy datasets fit a quantum model as they are; real data almost never do
 |---|---|---|
 | more features than qubits | one feature per qubit | **PCA**, or choosing features |
 | many samples | a kernel compares every pair: $N^2$ circuits | balanced **subsampling** |
-| more than two classes | this version separates two | choose **two classes** |
+| more than two classes | the variational classifier separates two | **All classes** (kernel classifier, one-vs-rest), or two |
 | text columns | circuits need numbers | encode as numbers, or drop |
 | missing values | a gap has no angle | drop those samples, or fill with the mean |
 | different scales | angles must lie in $[0, \pi]$ | **scale** each feature |

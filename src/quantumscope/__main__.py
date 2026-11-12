@@ -66,7 +66,8 @@ def _self_test():
         lines.append("User guide: present")
         from quantumscope.ml import datasets
         sizes = {name: len(datasets.load(name).y) for name in datasets.BUILTIN}
-        if sizes != {'iris': 150, 'wine': 178, 'breast_cancer': 569, 'digits': 1797, 'mnist': 2000}:
+        if sizes != {'iris': 150, 'wine': 178, 'breast_cancer': 569, 'digits': 1797, 'mnist': 2000,
+                     'fashion_mnist': 2000, 'penguins': 344, 'seeds': 210, 'glass': 214}:      # v0.9.3: + 4
             raise RuntimeError(f"Bundled datasets incomplete: {sizes}")
         lines.append(f"Datasets: {len(sizes)} bundled ({sum(sizes.values())} samples)")
         lines.append("RESULT: PASS")

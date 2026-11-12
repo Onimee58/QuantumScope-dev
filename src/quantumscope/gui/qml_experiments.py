@@ -19,6 +19,23 @@ from quantumscope.ml import variational as V
 from quantumscope.gui.plots import tidy
 
 CLASS_COLOURS = ('#5ae6ff', '#ff9a5a')                     # +1, −1
+# More classes (v0.9.3): labels 0 … k−1; the first two keep the two-class colours.
+MANY_COLOURS = ('#5ae6ff', '#ff9a5a', '#5ad48a', '#d77aff', '#ffd75a', '#ffb3e6', '#7f8cff', '#b5e35a', '#e8eef5',
+                '#c08a5a')
+ALL = 'all'                                                # the class choice that keeps every class
+
+
+def palette(k):
+    """(label, colour) for every class: (+1, −1) for two classes, else 0 … k−1."""
+    if k <= 2:
+        return list(zip((1, -1), CLASS_COLOURS))
+    return [(c, MANY_COLOURS[c % len(MANY_COLOURS)]) for c in range(k)]
+
+
+def labels_and_colours(y):
+    """palette() for labels whose number of classes is not otherwise known."""
+    y = np.asarray(y)
+    return palette(2 if np.all(np.isin(y, (-1, 1))) else int(np.max(y)) + 1)
 
 
 class DataStore(QObject):
@@ -81,12 +98,16 @@ def _plot(title, x_label='', y_label=''):
     return plot
 
 
-def _scatter_points(plot, X, y, size=8, symbol='o', outline=None):
+def _scatter_points(plot, X, y, size=8, symbol='o', outline=None, palette=None, names=None):
+    """names: class names by position in the palette, for a legend (more than two classes)."""
     import pyqtgraph as pg
-    for label, colour in zip((1, -1), CLASS_COLOURS):
+    for position, (label, colour) in enumerate(palette or labels_and_colours(y)):
         chosen = y == label
+        if not chosen.any():
+            continue
         plot.addItem(pg.ScatterPlotItem(X[chosen, 0], X[chosen, 1], size=size, symbol=symbol,
-                                        brush=pg.mkBrush(colour), pen=pg.mkPen(outline or '#0b1420', width=1)))
+                                        brush=pg.mkBrush(colour), pen=pg.mkPen(outline or '#0b1420', width=1),
+                                        name=None if names is None else str(names[position])))
 
 
 class ImageStrip(QWidget):
@@ -113,18 +134,22 @@ class ImageStrip(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, False)
         row_h = (self.height() - 8) / len(self.rows)
-        size = min(row_h - 6, (self.width() - 90) / max(len(r[1]) for r in self.rows) - 4)
+        font = QFont('Sans', 10 if len(self.rows) <= 4 else 9, QFont.Weight.Bold)
+        p.setFont(font)
+        labels = [f'class {name}' if str(name).isdigit() else str(name) for name, _ in self.rows]
+        label_w = min(150, max(p.fontMetrics().horizontalAdvance(t) for t in labels) + 10)   # names fit
+        size = min(row_h - 4, (self.width() - label_w - 6) / max(len(r[1]) for r in self.rows) - 4)
+        p.setPen(self.palette().windowText().color())           # readable in both themes
         for r, (name, images) in enumerate(self.rows):
             y = 4 + r * row_h
-            p.setPen(QColor('#d8e6f3'))
-            p.setFont(QFont('Sans', 10, QFont.Weight.Bold))
-            p.drawText(QRectF(0, y, 80, row_h), Qt.AlignmentFlag.AlignCenter, f'class {name}')
+            p.drawText(QRectF(0, y, label_w - 6, row_h), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                       labels[r])
             for k, image in enumerate(images):
                 top = max(1e-9, float(image.max()))
                 pixels = (255 * (image / top)).astype(np.uint8).copy()
                 qimage = QImage(pixels.data, pixels.shape[1], pixels.shape[0], pixels.shape[1],
                                 QImage.Format.Format_Grayscale8)
-                p.drawImage(QRectF(86 + k * (size + 4), y + (row_h - size) / 2, size, size), qimage)
+                p.drawImage(QRectF(label_w + k * (size + 4), y + (row_h - size) / 2, size, size), qimage)
         p.end()
 
 
@@ -222,9 +247,11 @@ class DatasetsExperiment(QWidget):
             box.setProperty('pair', True)
         pair = QHBoxLayout()
         pair.addWidget(self.class_a)
-        pair.addWidget(QLabel('vs'))
+        self.vs_label = QLabel('vs')
+        pair.addWidget(self.vs_label)
         pair.addWidget(self.class_b)
         rv.addRow('Classes', pair)
+        self.class_a.setToolTip('Two classes to separate, or All classes (one-vs-rest)')
         self.missing = QComboBox()
         for label, value in (('Keep', 'none'), ('Drop those samples', 'drop'), ('Fill with the mean', 'mean')):
             self.missing.addItem(label, value)
@@ -274,6 +301,7 @@ class DatasetsExperiment(QWidget):
         self.import_button.clicked.connect(self.import_file)
         self.qubits.valueChanged.connect(self._check)
         self.suggest.clicked.connect(self._check)
+        self.class_a.currentIndexChanged.connect(self._class_mode_changed)
         self.prepare_button.clicked.connect(self.prepare)
         self._load_source()
 
@@ -300,14 +328,31 @@ class DatasetsExperiment(QWidget):
         for box in (self.class_a, self.class_b):
             box.blockSignals(True)
             box.clear()
+            if box is self.class_a and len(dataset.classes) > 2:
+                box.addItem(f'All {len(dataset.classes)} classes', ALL)
             for k, name in enumerate(dataset.classes):
                 box.addItem(f'{name} ({int(dataset.counts[k])})', k)
+            box.setCurrentIndex(box.findData(0))                  # a pair first; All classes on request
             box.blockSignals(False)
         self._check()
 
+    def all_classes(self):
+        """True when every class is to be separated at once (v0.9.3)."""
+        return self.class_a.currentData() == ALL
+
+    def _class_mode_changed(self, *_):
+        """Switching between a pair and All classes: the checker's suggestions change with it."""
+        self.vs_label.setVisible(not self.all_classes())
+        self.class_b.setVisible(not self.all_classes())
+        if self.all_classes() or getattr(self, '_was_all', False):
+            self._check()
+        self._was_all = self.all_classes()
+
     def _check(self, *_):
         """Run the checker and fill in its suggested recipe."""
-        verdict, findings, recipe = D.check(self.dataset, qubits=self.qubits.value())
+        everything = self.all_classes()
+        verdict, findings, recipe = D.check(self.dataset, qubits=self.qubits.value(),
+                                            max_classes=None if everything else 2)
         self.recipe = recipe
         colour = {'ready': '#5ad48a', 'preprocess': '#ffba50', 'stop': '#ff7a7a'}[verdict]
         text = {'ready': 'Ready: this data fits as it is.', 'preprocess': 'Usable after preprocessing (suggested below).',
@@ -316,8 +361,14 @@ class DatasetsExperiment(QWidget):
         icon = {'ok': '✓', 'fix': '⚠', 'stop': '✗'}
         self.findings.setText('<br>'.join(f'{icon[f.level]} {f.message}' + (f' <i>{f.suggestion}</i>' if f.suggestion else '')
                                           for f in findings))
-        self.class_a.setCurrentIndex(self.class_a.findData(recipe.classes[0]))
-        self.class_b.setCurrentIndex(self.class_b.findData(recipe.classes[1]))
+        if not everything:
+            for box, value in ((self.class_a, recipe.classes[0]), (self.class_b, recipe.classes[1])):
+                box.blockSignals(True)
+                box.setCurrentIndex(box.findData(value))
+                box.blockSignals(False)
+        self._was_all = everything
+        self.vs_label.setVisible(not everything)
+        self.class_b.setVisible(not everything)
         self.missing.setCurrentIndex(self.missing.findData(recipe.missing))
         self.text.setCurrentIndex(self.text.findData(recipe.text))
         self.per_class.setValue(recipe.per_class)
@@ -329,13 +380,14 @@ class DatasetsExperiment(QWidget):
 
     def current_recipe(self):
         a, b = self.class_a.currentData(), self.class_b.currentData()
-        return D.Recipe(classes=(a, b), missing=self.missing.currentData(), text=self.text.currentData(),
+        classes = tuple(self.recipe.classes) if self.all_classes() else (a, b)
+        return D.Recipe(classes=classes, missing=self.missing.currentData(), text=self.text.currentData(),
                         per_class=self.per_class.value(), components=self.components.value(),
                         scale='pi' if self.scale.isChecked() else 'none', test_fraction=self.test_fraction.value())
 
     def prepare(self):
         recipe = self.current_recipe()
-        if recipe.classes[0] == recipe.classes[1]:
+        if len(set(recipe.classes)) < len(recipe.classes):
             self.steps.setText('Choose two different classes.')
             return None
         try:
@@ -347,13 +399,17 @@ class DatasetsExperiment(QWidget):
             self.steps.setText(f'{prepared.X_train.shape[1]} features remain; reduce them to at most '
                                f'{D.MAX_QUBITS} (PCA components) to use them on qubits.')
         else:
-            self.steps.setText('Prepared: ' + ' '.join(prepared.steps) + '  Both classifiers can now use it.')
+            users = ('Both classifiers can now use it.' if prepared.k == 2 else
+                     'The Quantum Kernel Classifier can now use it (the Variational Classifier separates two classes).')
+            self.steps.setText('Prepared: ' + ' '.join(prepared.steps) + '  ' + users)
             STORE.publish(self.dataset, recipe, prepared)
             from quantumscope.ml import progress
             progress.prepared(self.source_key, prepared.X_train.shape[1], prepared.classes)
         self.plot.clear()
         if prepared.X_train.shape[1] >= 2:
-            _scatter_points(self.plot, prepared.X_train[:, :2], prepared.y_train)
+            named = class_legend(self.plot, prepared.k)
+            _scatter_points(self.plot, prepared.X_train[:, :2], prepared.y_train, palette=palette(prepared.k),
+                            names=prepared.classes if named else None)
             self.plot.setLabel('bottom', prepared.features[0])
             self.plot.setLabel('left', prepared.features[1])
         self.images.show_images(self.dataset, recipe.classes)
@@ -364,9 +420,10 @@ class DatasetsExperiment(QWidget):
 class _DataPicker(QGroupBox):
     """Which data a classifier trains on: from the Datasets tab, or a dataset with its suggested recipe."""
 
-    def __init__(self, max_samples, parent=None):
+    def __init__(self, max_samples, parent=None, allow_all=False):
         super().__init__('Data', parent)
         self.max_samples = max_samples
+        self.allow_all = allow_all                 # offer All classes (one-vs-rest), v0.9.3
         form = QFormLayout(self)
         self.source = QComboBox()
         self.source.addItem('From the Datasets tab', 'store')
@@ -389,7 +446,8 @@ class _DataPicker(QGroupBox):
         pair = QHBoxLayout(self.class_row)
         pair.setContentsMargins(0, 0, 0, 0)
         pair.addWidget(self.class_a)
-        pair.addWidget(QLabel('vs'))
+        self.vs_label = QLabel('vs')
+        pair.addWidget(self.vs_label)
         pair.addWidget(self.class_b)
         self.class_label = QLabel('Classes')
         form.addRow(self.class_label, self.class_row)
@@ -399,6 +457,7 @@ class _DataPicker(QGroupBox):
         form.addRow(self.summary)
         self.source.currentIndexChanged.connect(self._classes_for_source)
         self.source.currentIndexChanged.connect(self._sync)
+        self.class_a.currentIndexChanged.connect(self._pair_visible)
         STORE.changed.connect(self._sync)
         self._classes_for_source()
         self._sync()
@@ -411,6 +470,9 @@ class _DataPicker(QGroupBox):
             return False
         self.source.setCurrentIndex(index)
         self.qubits.setValue(model.pipeline.outputs)
+        if len(model.classes) > 2:
+            self.class_a.setCurrentIndex(max(0, self.class_a.findData(ALL)))
+            return True
         for box, name in ((self.class_a, model.classes[0]), (self.class_b, model.classes[1])):
             at = box.findText(name)
             if at >= 0:
@@ -431,10 +493,18 @@ class _DataPicker(QGroupBox):
         for box, default in ((self.class_a, suggested[0]), (self.class_b, suggested[1])):
             box.blockSignals(True)
             box.clear()
+            if box is self.class_a and self.allow_all:
+                box.addItem(f'All {len(dataset.classes)} classes', ALL)
             for k, name in enumerate(dataset.classes):
                 box.addItem(name, k)
             box.setCurrentIndex(box.findData(default))
             box.blockSignals(False)
+        self._pair_visible()
+
+    def _pair_visible(self, *_):
+        everything = self.class_a.currentData() == ALL
+        self.vs_label.setVisible(not everything)
+        self.class_b.setVisible(not everything)
 
     def _sync(self, *_):
         """From the Datasets tab, the qubit count is the prepared data's: shown, not editable here."""
@@ -468,6 +538,10 @@ class _DataPicker(QGroupBox):
                 self.summary.setText('Nothing prepared yet: open the Datasets experiment and press Prepare.')
                 return None
             p = STORE.prepared
+            if p.k > 2 and not self.allow_all:
+                self.summary.setText(f'The Datasets tab prepared {p.k} classes; this classifier separates two. '
+                                     f'Prepare two classes there, or choose a dataset here.')
+                return None
             self.dataset = STORE.dataset
         else:
             dataset = D.load(key)
@@ -475,7 +549,13 @@ class _DataPicker(QGroupBox):
             if verdict == 'stop':
                 self.summary.setText('This dataset cannot be used.')
                 return None
-            if self.class_row.isVisible() or len(dataset.classes) > 2:
+            if len(dataset.classes) > 2 and self.class_a.currentData() == ALL:
+                verdict, _, recipe = D.check(dataset, qubits=self.qubits.value(), max_samples=self.max_samples,
+                                             max_classes=None)
+                if verdict == 'stop':
+                    self.summary.setText('This dataset cannot be used.')
+                    return None
+            elif self.class_row.isVisible() or len(dataset.classes) > 2:
                 a, b = self.class_a.currentData(), self.class_b.currentData()
                 if a is not None and b is not None:
                     if a == b:
@@ -484,8 +564,9 @@ class _DataPicker(QGroupBox):
                     recipe.classes = (a, b)
             p = D.prepare(dataset, recipe)
             self.dataset = dataset
-        self.summary.setText(f'{p.classes[0]} (+1) vs {p.classes[1]} (−1): {len(p.y_train)} for training, '
-                             f'{len(p.y_test)} for testing, {p.X_train.shape[1]} features on {p.X_train.shape[1]} qubits.')
+        which = (f'{p.classes[0]} (+1) vs {p.classes[1]} (−1)' if p.k == 2 else f'{p.k} classes, one-vs-rest')
+        self.summary.setText(f'{which}: {len(p.y_train)} for training, {len(p.y_test)} for testing, '
+                             f'{p.X_train.shape[1]} features on {p.X_train.shape[1]} qubits.')
         return p
 
 
@@ -524,20 +605,52 @@ def region_plane(X_train, X_test=None):
 
 
 def region_values(decision, plane):
-    """The decision function on the plane's grid, as res × res (rows: y). No Qt: safe in a worker."""
+    """The decision function on the plane's grid, as res × res (rows: y), or res × res × k with one
+    value per class. No Qt: safe in a worker."""
     grid = plane['grid']
     values = np.concatenate([decision(chunk) for chunk in np.array_split(grid, max(1, len(grid) // 1500))])
-    return values.reshape(plane['res'], plane['res'])
+    return values.reshape((plane['res'], plane['res']) + values.shape[1:])
 
 
-def draw_regions(plot, plane, f, X_train, y_train, X_test=None, y_test=None, predicted=None):
-    """Draw decision regions (f from region_values, or None for points only) on the interface thread."""
+def class_legend(plot, k):
+    """A legend for more than two classes (cleared otherwise); returns whether names should be given."""
+    legend = plot.getPlotItem().legend
+    if legend is not None:
+        legend.clear()
+        legend.setVisible(k > 2)
+    if k > 2 and legend is None:
+        plot.addLegend(offset=(-8, 8), brush=(11, 20, 32, 190))
+    return k > 2
+
+
+def draw_regions(plot, plane, f, X_train, y_train, X_test=None, y_test=None, predicted=None, k=2, names=None):
+    """Draw decision regions (f from region_values, or None for points only) on the interface thread.
+    With more classes, each region takes its class's colour, deeper where it wins by more."""
     import pyqtgraph as pg
     plot.clear()
     plot.setLabel('bottom', plane['labels'][0])
     plot.setLabel('left', plane['labels'][1])
     plot.setTitle(plane['title'])
     lo, hi, to_plane = plane['lo'], plane['hi'], plane['to_plane']
+    colours = palette(k)
+    if f is not None and np.ndim(f) == 3:
+        from quantumscope.ml.views import class_margins
+        margins = class_margins(f)
+        winner, lead = margins.argmax(axis=-1), margins.max(axis=-1)
+        scale = max(1e-9, float(np.percentile(lead, 95)))
+        rgb = np.array([QColor(c).getRgb()[:3] for _, c in colours], float)
+        rgba = np.empty(winner.shape + (4,), np.uint8)
+        rgba[..., :3] = rgb[winner].astype(np.uint8)
+        rgba[..., 3] = (30 + 110 * np.clip(lead / scale, 0, 1)).astype(np.uint8)
+        image = pg.ImageItem(np.transpose(rgba, (1, 0, 2)))
+        image.setRect(QRectF(lo[0], lo[1], hi[0] - lo[0], hi[1] - lo[1]))
+        plot.addItem(image)
+        for c in range(f.shape[-1]):                              # each region's edge
+            if (winner == c).any():
+                edge = pg.IsocurveItem(margins[..., c].T, level=0.0, pen=pg.mkPen('#ffffff', width=1.5))
+                edge.setParentItem(image)
+        image.setZValue(-10)
+        f = None                                                  # drawn
     if f is not None:
         scale = max(1e-9, float(np.percentile(np.abs(f), 95)))
         strength = np.clip(np.abs(f) / scale, 0, 1)
@@ -552,11 +665,12 @@ def draw_regions(plot, plane, f, X_train, y_train, X_test=None, y_test=None, pre
         boundary = pg.IsocurveItem(f.T, level=0.0, pen=pg.mkPen('#ffffff', width=2))
         boundary.setParentItem(image)                             # follows the image's placement
         image.setZValue(-10)
-    _scatter_points(plot, to_plane(X_train), y_train, size=7)
+    named = class_legend(plot, k) and names is not None
+    _scatter_points(plot, to_plane(X_train), y_train, size=7, palette=colours, names=names if named else None)
     if X_test is not None and len(X_test):
         P_test = to_plane(X_test)
         wrong = predicted != y_test
-        _scatter_points(plot, P_test[~wrong], y_test[~wrong], size=11, symbol='t', outline='#ffffff')
+        _scatter_points(plot, P_test[~wrong], y_test[~wrong], size=11, symbol='t', outline='#ffffff', palette=colours)
         if wrong.any():
             plot.addItem(pg.ScatterPlotItem(P_test[wrong, 0], P_test[wrong, 1], size=14, symbol='x',
                                             brush=pg.mkBrush('#ff4d4d'), pen=pg.mkPen('#ff4d4d', width=2)))
@@ -564,11 +678,11 @@ def draw_regions(plot, plane, f, X_train, y_train, X_test=None, y_test=None, pre
     plot.setRange(xRange=(lo[0], hi[0]), yRange=(lo[1], hi[1]), padding=0)
 
 
-def _regions(plot, decision, X_train, y_train, X_test=None, y_test=None, predicted=None):
+def _regions(plot, decision, X_train, y_train, X_test=None, y_test=None, predicted=None, k=2):
     """Compute and draw in one go (on the interface thread), for quick, small cases."""
     plane = region_plane(X_train, X_test)
     draw_regions(plot, plane, None if decision is None else region_values(decision, plane),
-                 X_train, y_train, X_test, y_test, predicted)
+                 X_train, y_train, X_test, y_test, predicted, k)
 
 
 # ============================================================================================
@@ -585,7 +699,7 @@ class KernelExperiment(QWidget):
         title.setStyleSheet('font-weight:700;')
         title.setWordWrap(True)
         form.addWidget(title)
-        self.data = _DataPicker(max_samples=200)
+        self.data = _DataPicker(max_samples=200, allow_all=True)
         form.addWidget(self.data)
         model = QGroupBox('Kernel and classifier')
         mv = QFormLayout(model)
@@ -702,11 +816,8 @@ class KernelExperiment(QWidget):
                              settings['shots'], rng)
             if cancelled():
                 return None
-            report('Training the classifier…')
-            if settings['method'] == 'svm':
-                model = K.SVM(C=settings['strength']).fit(Ktr, p.y_train)
-            else:
-                model = K.KernelRidge(settings['strength']).fit(Ktr, p.y_train)
+            report('Training the classifier…' if p.k == 2 else f'Training {p.k} classifiers (one per class)…')
+            model = K.classifier(settings['method'], settings['strength'], p.k).fit(Ktr, p.y_train)
             predicted = model.predict(Kte)
             if cancelled():
                 return None
@@ -715,7 +826,7 @@ class KernelExperiment(QWidget):
             def decision(points):
                 return model.decision(K.kernel(points, p.X_train, kind=kind, reps=reps, bandwidth=bandwidth))
             f = region_values(decision, plane)
-            order = np.argsort(-p.y_train, kind='stable')
+            order = np.argsort(-p.y_train if p.k == 2 else p.y_train, kind='stable')   # grouped by class
             off = float((exact_train.sum() - len(exact_train)) / max(1, len(exact_train) * (len(exact_train) - 1)))
             from quantumscope.ml import views
             map_train, map_test, shown, _ = views.kernel_map(Ktr, Kte)
@@ -741,13 +852,15 @@ class KernelExperiment(QWidget):
         concentrated = r['off'] < 0.05
         plot.setTitle(f'Kernel map: {r["map_shown"]:.0%} of the kernel\'s variance shown'
                       + (' · points scatter apart: kernel concentration' if concentrated else ''))
+        named = class_legend(plot, p.k)
         for which, coords, labels, symbol, size in (('train', r['map_train'], p.y_train, 'o', 8),
                                                     ('test', r['map_test'], p.y_test, 't', 11)):
-            for label, colour in zip((1, -1), CLASS_COLOURS):
+            for label, colour in palette(p.k):
                 chosen = np.flatnonzero(labels == label)
                 if not len(chosen):
                     continue
                 spots = pg.ScatterPlotItem(coords[chosen, 0], coords[chosen, 1], size=size, symbol=symbol,
+                                           name=p.label_name(label) if named and which == 'train' else None,
                                            brush=pg.mkBrush(colour), data=[(which, int(i)) for i in chosen],
                                            pen=pg.mkPen('#ffffff' if which == 'test' else '#0b1420', width=1))
                 spots.sigClicked.connect(lambda item, points, ev=None: self._show_points(points))
@@ -768,10 +881,15 @@ class KernelExperiment(QWidget):
         p = r['prepared']
         rows = p.train_rows if which == 'train' else p.test_rows
         value = (r['decision_train'] if which == 'train' else r['decision_test'])[index]
-        predicted = p.classes[0] if value >= 0 else p.classes[1]
-        truth = p.classes[0] if (p.y_train if which == 'train' else p.y_test)[index] == 1 else p.classes[1]
-        lines = [f'true class {truth}', f'predicted {predicted}' + ('' if predicted == truth else ' ✗'),
-                 f'decision {value:+.3f}']
+        truth = p.label_name((p.y_train if which == 'train' else p.y_test)[index])
+        if p.k == 2:
+            predicted = p.classes[0] if value >= 0 else p.classes[1]
+            detail = f'decision {value:+.3f}'
+        else:                                                     # the most confident of the k classifiers
+            best = int(np.argmax(value))
+            predicted = p.classes[best]
+            detail = f'confidence {value[best]:+.3f} (next {np.sort(value)[-2]:+.3f})'
+        lines = [f'true class {truth}', f'predicted {predicted}' + ('' if predicted == truth else ' ✗'), detail]
         entry = dict(heading=f'{"Training" if which == "train" else "Test"} sample {index + 1}', lines=lines)
         if ds is not None and rows is not None:
             raw = ds.X[rows[index]]
@@ -811,7 +929,7 @@ class KernelExperiment(QWidget):
             return
         a, b, value = cell
         p = self.last['prepared']
-        name = lambda k: p.classes[0] if p.y_train[k] == 1 else p.classes[1]      # noqa: E731
+        name = lambda k: p.label_name(p.y_train[k])                              # noqa: E731
         self.heatmap.setToolTip(f'K = {value:.3f} between training samples {a + 1} ({name(a)}) and {b + 1} ({name(b)})'
                                 '\nClick to see both.')
 
@@ -836,9 +954,9 @@ class KernelExperiment(QWidget):
         def work(report, cancelled):
             folds = E.stratified_folds(p.y_train, k, seed=0)
             Kx = K.kernel(p.X_train, kind=s['kind'], reps=s['reps'], bandwidth=s['bandwidth'])
-            make = (lambda: K.SVM(C=s['strength'])) if s['method'] == 'svm' else (lambda: K.KernelRidge(s['strength']))
             report((1, 2))
-            return E.cross_validate_kernel(Kx, p.y_train, make, folds)
+            return E.cross_validate_kernel(Kx, p.y_train, lambda: K.classifier(s['method'], s['strength'], p.k),
+                                           folds, p.k)
         return Run(work, owner=self, on_progress=on_progress, on_done=on_done,
                    on_error=lambda exc, details: on_done(None, exc)).start()
 
@@ -893,13 +1011,16 @@ class KernelExperiment(QWidget):
             return
         p = r['prepared']
         extra = f', {len(r["model"].support)} support vectors' if settings['method'] == 'svm' else ''
+        if p.k > 2:
+            extra += f' ({p.k} one-vs-rest classifiers; chance is about {1 / p.k:.0%})'
         noise = '' if not settings['shots'] else (f' Kernel estimated from {settings["shots"]} shots per entry '
                                                  f'(typical error {r["error"]:.3f}).')
         hint = '' if r['off'] >= 0.05 else (f' The kernel is close to 0 for different points (average {r["off"]:.3f}): '
                                             f'kernel concentration, common for entangling maps on many qubits. '
                                             f'Try a smaller bandwidth.')
         self.result.setText(f'Training accuracy {r["train"]:.0%}, test accuracy {r["test"]:.0%}{extra}.{noise}{hint}')
-        draw_regions(self.regions, plane, r['f'], p.X_train, p.y_train, p.X_test, p.y_test, r['predicted'])
+        draw_regions(self.regions, plane, r['f'], p.X_train, p.y_train, p.X_test, p.y_test, r['predicted'], p.k,
+                     p.classes)
         self.heatmap.clear()
         image = pg.ImageItem(r['heat'])
         image.setLookupTable(pg.colormap.get('viridis').getLookupTable(0, 1, 256))
@@ -909,11 +1030,15 @@ class KernelExperiment(QWidget):
         self.heatmap.setAspectLocked(False)                      # fill the panel
         self.heatmap.disableAutoRange()
         self.heatmap.setRange(xRange=(0, size), yRange=(0, size), padding=0)
-        split = int((p.y_train == 1).sum())                      # the class border, as thin lines
-        for line in (pg.InfiniteLine(split, angle=90, pen=pg.mkPen('#ffffff', width=1, style=Qt.PenStyle.DashLine)),
-                     pg.InfiniteLine(split, angle=0, pen=pg.mkPen('#ffffff', width=1, style=Qt.PenStyle.DashLine))):
-            line.setZValue(10)                                   # above the image
-            self.heatmap.addItem(line)
+        if p.k == 2:                                              # the class borders, as thin lines
+            splits = [int((p.y_train == 1).sum())]
+        else:
+            splits = list(np.cumsum(np.bincount(p.y_train, minlength=p.k))[:-1])
+        for split in splits:
+            for angle in (90, 0):
+                line = pg.InfiniteLine(int(split), angle=angle, pen=pg.mkPen('#ffffff', width=1, style=Qt.PenStyle.DashLine))
+                line.setZValue(10)                               # above the image
+                self.heatmap.addItem(line)
         self.last = r
         self.dataset = self.data.dataset
         self._draw_kernel_map(r)
@@ -925,7 +1050,8 @@ class KernelExperiment(QWidget):
         self.view3d.set_result(r, trained)
         from quantumscope.ml import progress
         progress.trained('kernel', train=r['train'], test=r['test'], map=settings['kind'],
-                         bandwidth=settings['bandwidth'], shots=settings['shots'], dataset=settings['dataset'])
+                         bandwidth=settings['bandwidth'], shots=settings['shots'], dataset=settings['dataset'],
+                         classes=p.k)
 
 
 # ============================================================================================

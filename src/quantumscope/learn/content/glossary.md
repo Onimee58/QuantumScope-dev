@@ -697,6 +697,18 @@ lesson: qml/06-evaluating-classifiers
 see: Precision, ROC curve
 Of the samples that really are positive, the share a classifier finds: TP / (TP + FN).
 
+### One-vs-rest
+aliases: one-versus-rest, one-vs-all
+lesson: qml/07-more-than-two-classes
+see: Confusion matrix, Macro average
+A way to separate k classes with k binary classifiers, each telling one class from all the others; the prediction is the most confident class. A quantum kernel classifier's k classifiers share one kernel matrix.
+
+### Macro average
+aliases: macro averages, macro-averaged
+lesson: qml/07-more-than-two-classes
+see: One-vs-rest, Recall
+A measure such as precision, recall or F1 computed for each class and then averaged over the classes, so that every class counts equally however many samples it has.
+
 ### ROC curve
 aliases: ROC curves, AUC, area under the curve
 lesson: qml/06-evaluating-classifiers

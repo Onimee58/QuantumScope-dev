@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "quantumscope"
-version = "0.9.2"
+version = "0.9.3"
 description = "Cross-platform, scientifically grounded quantum visualization studio"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -28,4 +28,4 @@ testpaths = ["tests"]
 line-length = 100
 
 [tool.setuptools.package-data]
-quantumscope = ["assets/*.png", "assets/*.svg", "assets/*.ico", "assets/*.pdf", "learn/content/*.md", "learn/content/*/*.md", "learn/content/eq/*.png", "ml/data/*.npz", "ml/data/*.md"]
+quantumscope = ["assets/*.png", "assets/*.svg", "assets/*.ico", "assets/*.pdf", "learn/content/*.md", "learn/content/*/*.md", "learn/content/eq/*.png", "ml/data/*.npz", "ml/data/*.csv", "ml/data/*.md"]

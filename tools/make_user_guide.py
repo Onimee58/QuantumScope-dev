@@ -252,6 +252,17 @@ def screenshots():
     settle(app, 0.2)
     save(dialog, 'qml-predictions.png', scale=0.9)
     dialog.close()
+    kernel.data.source.setCurrentIndex(kernel.data.source.findData('mnist'))   # v0.9.3: all ten digits
+    kernel.data.qubits.setValue(8)
+    kernel.data.class_a.setCurrentIndex(kernel.data.class_a.findData('all'))
+    kernel.bandwidth.setValue(1.0)
+    kernel.train().wait()
+    kernel.views.setCurrentWidget(kernel.evaluation)
+    settle(app, 0.4)
+    from PySide6.QtCore import QPoint as _QPoint
+    corner = kernel.views.mapTo(w, _QPoint(0, 0))                # just the Evaluation tab: wide and short
+    save(w, 'qml-multiclass.png', crop=(corner.x(), corner.y(), kernel.views.width(), kernel.views.height()), scale=0.9)
+    kernel.views.setCurrentWidget(kernel.heatmap)
     w._launch_qml_variational()
     variational = w._open_experiments['qml_variational']
     variational.data.source.setCurrentIndex(variational.data.source.findData('breast_cancer'))

@@ -1,6 +1,6 @@
 """Datasets for quantum machine learning (NumPy only, no Qt): built-in and synthetic data, CSV and
 .npz import, a checker that says whether a dataset fits a quantum model, and the preprocessing
-that makes it fit. v0.8.0 classifies two classes at a time.
+that makes it fit. Two classes since v0.8.0; any number of classes since v0.9.3.
 
 Everything a model learns from the data (column means, PCA, scaling) is fitted on the training
 split only and then applied to the test split, so the test accuracy is honest.
@@ -34,6 +34,23 @@ BUILTIN = {
               'CC BY-SA 3.0',
               'LeCun, Y., Cortes, C., & Burges, C. J. C. The MNIST database of handwritten digits. '
               'Copyright Yann LeCun and Corinna Cortes.'),
+    # v0.9.3: more small multi-class datasets
+    'fashion_mnist': ('Fashion-MNIST (2,000-image subset)', 'The first 200 images of each of ten kinds of clothing '
+                      'from the Fashion-MNIST test set, 28×28: harder than digits.', 'MIT',
+                      'Xiao, H., Rasul, K., & Vollgraf, R. (2017). Fashion-MNIST: a novel image dataset for '
+                      'benchmarking machine learning algorithms. arXiv:1708.07747. Copyright © 2017 Zalando SE.'),
+    'penguins': ('Palmer Penguins', 'Bill, flipper and body measurements of 344 penguins of three species, with '
+                 'the island and sex as text, and some values missing.', 'CC0 1.0',
+                 'Horst, A. M., Hill, A. P., & Gorman, K. B. (2020). palmerpenguins: Palmer Archipelago (Antarctica) '
+                 'penguin data. R package version 0.1.0. https://doi.org/10.5281/zenodo.3960218. Data collected by '
+                 'K. B. Gorman and the Palmer Station Long Term Ecological Research Program.'),
+    'seeds': ('Seeds', 'Seven shape measurements of 210 wheat kernels of three varieties.', 'CC BY 4.0',
+              'Charytanowicz, M., Niewczas, J., Kulczycki, P., Kowalski, P., & Lukasik, S. (2010). Seeds [Dataset]. '
+              'UCI Machine Learning Repository. https://doi.org/10.24432/C5H30K'),
+    'glass': ('Glass Identification', 'The refractive index and chemical composition of 214 glass fragments of six '
+              'unevenly represented types, from forensic science.', 'CC BY 4.0',
+              'German, B. (1987). Glass Identification [Dataset]. UCI Machine Learning Repository. '
+              'https://doi.org/10.24432/C5WW2P'),
 }
 SYNTHETIC = ('moons', 'circles', 'xor', 'blobs')
 
@@ -65,6 +82,11 @@ def load(name, **options):
     if name not in BUILTIN:
         raise ValueError(f'Unknown dataset {name!r}')
     title, description, license_, citation = BUILTIN[name]
+    csv_path = os.path.join(DATA, f'{name}.csv')
+    if os.path.exists(csv_path):                                 # kept as published: text and missing values
+        data = _import_csv(csv_path)
+        data.name, data.description, data.license, data.citation = title, description, license_, citation
+        return data
     with np.load(os.path.join(DATA, f'{name}.npz'), allow_pickle=False) as z:
         shape = tuple(int(v) for v in z['shape']) if 'shape' in z.files else None
         return Dataset(title, z['X'].astype(float), z['y'].astype(int), [str(f) for f in z['features']],
@@ -192,7 +214,7 @@ class Finding:
 @dataclass
 class Recipe:
     """The preprocessing steps, in order. Every step is optional and visible."""
-    classes: tuple = (0, 1)            # the two classes to separate
+    classes: tuple = (0, 1)            # the classes to separate: two, or more (v0.9.3)
     missing: str = 'none'              # 'none', 'drop' rows, or 'mean' (fill with the training mean)
     text: str = 'encode'               # text columns: 'encode' (as category codes) or 'drop'
     per_class: int = 0                 # at most this many samples per class (0 = all)
@@ -203,9 +225,14 @@ class Recipe:
     seed: int = 0
 
 
-def check(dataset, qubits=4, max_samples=200):
+MIN_PER_CLASS = 10                     # fewer samples than this cannot be both learned and tested
+
+
+def check(dataset, qubits=4, max_samples=200, max_classes=2):
     """What stands between this dataset and a quantum classifier on `qubits` qubits, and the recipe
-    that fixes it. Returns (verdict, findings, recipe); verdict is 'ready', 'preprocess' or 'stop'."""
+    that fixes it. Returns (verdict, findings, recipe); verdict is 'ready', 'preprocess' or 'stop'.
+    max_classes=2 suggests the two largest classes; max_classes=None uses every class with enough
+    samples (v0.9.3: one-vs-rest)."""
     X, y = dataset.X, dataset.y
     findings = [Finding('ok', f'{len(X)} samples, {X.shape[1]} features, {len(dataset.classes)} classes.')]
     recipe = Recipe()
@@ -215,14 +242,24 @@ def check(dataset, qubits=4, max_samples=200):
     if len(dataset.classes) < 2:
         return 'stop', findings + [Finding('stop', 'Only one class: there is nothing to separate.')], recipe
     order = np.argsort(-counts, kind='stable')
-    if len(dataset.classes) > 2:
+    if len(dataset.classes) > 2 and max_classes == 2:
         a, b = sorted(int(c) for c in order[:2])
         recipe.classes = (a, b)
-        findings.append(Finding('fix', f'{len(dataset.classes)} classes; this version separates two at a time.',
-                                f'Choose two classes (suggested: {dataset.classes[a]} and {dataset.classes[b]}).'))
-    small = [dataset.classes[c] for c in recipe.classes if counts[c] < 10]
+        findings.append(Finding('fix', f'{len(dataset.classes)} classes: separate two of them, or all at once.',
+                                f'Suggested pair: {dataset.classes[a]} and {dataset.classes[b]}; or choose All classes.'))
+    elif len(dataset.classes) > 2:
+        enough = [c for c in range(len(dataset.classes)) if counts[c] >= MIN_PER_CLASS]
+        left_out = [f'{dataset.classes[c]} ({int(counts[c])})' for c in range(len(dataset.classes)) if counts[c] < MIN_PER_CLASS]
+        if len(enough) >= 2:
+            recipe.classes = tuple(enough)
+            findings.append(Finding('ok', f'{len(dataset.classes)} classes, all separated at once (one-vs-rest).'))
+            if left_out:
+                findings.append(Finding('fix', f'Too few samples (under {MIN_PER_CLASS}) to learn and test: '
+                                               f'{", ".join(left_out)}.', 'Leave those classes out.'))
+    small = [dataset.classes[c] for c in recipe.classes if counts[c] < MIN_PER_CLASS]
     if small:
-        return 'stop', findings + [Finding('stop', f'Too few samples (under 10) in: {", ".join(small)}.')], recipe
+        return 'stop', findings + [Finding('stop', f'Too few samples (under {MIN_PER_CLASS}) in: '
+                                                   f'{", ".join(small)}.')], recipe
     missing = int(np.isnan(X).sum())
     if missing:
         rows = int(np.isnan(X).any(axis=1).sum())
@@ -244,13 +281,17 @@ def check(dataset, qubits=4, max_samples=200):
         findings.append(Finding('fix', f'{usable} features but {qubits} qubits (one feature per qubit).',
                                 f'Reduce to {qubits} features with PCA (principal component analysis).'))
     total = int(sum(counts[c] for c in recipe.classes))
-    if total > max_samples:
-        recipe.per_class = max_samples // 2
+    per_class = max(max_samples // len(recipe.classes), 40)      # enough of each class to learn from
+    if total > max_samples and per_class < max(counts[c] for c in recipe.classes):
+        recipe.per_class = per_class
         findings.append(Finding('fix', f'{total} samples: a quantum kernel compares every pair (N² circuits).',
-                                f'Use {recipe.per_class} samples per class, chosen at random.'))
-    ratio = min(counts[c] for c in recipe.classes) / max(counts[c] for c in recipe.classes)
-    if ratio < 0.5 and not recipe.per_class:
-        findings.append(Finding('ok', f'The two classes are unbalanced ({ratio:.0%}); accuracy alone can mislead.'))
+                                f'Use at most {recipe.per_class} samples per class, chosen at random.'))
+    kept = [min(counts[c], recipe.per_class or counts[c]) for c in recipe.classes]
+    ratio = min(kept) / max(kept)
+    if ratio < 0.5:
+        which = 'two classes are' if len(recipe.classes) == 2 else 'classes are'
+        findings.append(Finding('ok', f'The {which} unbalanced (the smallest has {ratio:.0%} of the largest\'s samples); '
+                                      f'accuracy alone can mislead: see the balanced accuracy.'))
     with np.errstate(all='ignore'):
         lo, hi = np.nanmin(X[chosen], axis=0), np.nanmax(X[chosen], axis=0)
     if np.nanmin(lo) < 0 or np.nanmax(hi) > math.pi or np.nanmax(hi - lo) > 10 * max(1e-12, np.nanmin(hi - lo)):
@@ -269,7 +310,7 @@ class Pipeline:
     means (a sample to be predicted cannot be dropped)."""
     features: list                     # raw feature names, in the dataset's column order
     text_columns: dict                 # raw column → its categories (codes are positions in this list)
-    classes: tuple                     # (name of +1, name of −1)
+    classes: tuple                     # (name of +1, name of −1), or all k names in label order
     keep: np.ndarray                   # raw columns used (text columns may be dropped)
     means: np.ndarray                  # training means of the kept columns
     fill: bool                         # the recipe fills missing values with the means
@@ -334,14 +375,25 @@ class Pipeline:
 class Prepared:
     X_train: np.ndarray
     X_test: np.ndarray
-    y_train: np.ndarray                # ±1 (+1 = the first chosen class)
+    y_train: np.ndarray                # two classes: ±1 (+1 = the first); more: 0 … k−1 (v0.9.3)
     y_test: np.ndarray
     features: list
-    classes: tuple                     # (name of +1, name of −1)
+    classes: tuple                     # class names: (name of +1, name of −1), or in label order
     steps: list                        # what was done, in words
     pipeline: Pipeline = None          # the fitted steps, to prepare new data the same way
     train_rows: np.ndarray = None      # which dataset rows went into training and testing
     test_rows: np.ndarray = None
+
+    @property
+    def k(self):
+        """The number of classes."""
+        return len(self.classes)
+
+    def label_name(self, label):
+        """The class name for a label (±1, or 0 … k−1)."""
+        if self.k == 2:
+            return self.classes[0] if label == 1 else self.classes[1]
+        return self.classes[int(label)]
 
 
 def prepare(dataset, recipe):
@@ -349,9 +401,15 @@ def prepare(dataset, recipe):
     The fitted steps are kept in a Pipeline, which prepares new raw data the same way."""
     import warnings
     rng = np.random.default_rng(recipe.seed)
-    a, b = recipe.classes
-    steps = [f'Classes: {dataset.classes[a]} (+1) and {dataset.classes[b]} (−1).']
-    rows = np.flatnonzero(np.isin(dataset.y, (a, b)))                # dataset rows still in play
+    chosen_classes = tuple(int(c) for c in recipe.classes)
+    if len(set(chosen_classes)) != len(chosen_classes) or len(chosen_classes) < 2:
+        raise ValueError('Choose at least two different classes')
+    names_of = tuple(dataset.classes[c] for c in chosen_classes)
+    if len(chosen_classes) == 2:
+        steps = [f'Classes: {names_of[0]} (+1) and {names_of[1]} (−1).']
+    else:
+        steps = [f'{len(chosen_classes)} classes: {", ".join(names_of)}.']
+    rows = np.flatnonzero(np.isin(dataset.y, chosen_classes))       # dataset rows still in play
     X, y = dataset.X[rows].copy(), dataset.y[rows]
     keep = np.arange(dataset.X.shape[1])
     if recipe.text == 'drop' and dataset.text_columns:
@@ -366,11 +424,11 @@ def prepare(dataset, recipe):
         steps.append(f'Dropped {int((~good).sum())} samples with missing values.')
         X, y, rows = X[good], y[good], rows[good]
     if recipe.per_class:
-        chosen = np.concatenate([rng.permutation(np.flatnonzero(y == c))[:recipe.per_class] for c in (a, b)])
+        chosen = np.concatenate([rng.permutation(np.flatnonzero(y == c))[:recipe.per_class] for c in chosen_classes])
         X, y, rows = X[chosen], y[chosen], rows[chosen]
         steps.append(f'Kept at most {recipe.per_class} samples per class.')
     test = np.zeros(len(y), bool)                              # stratified split
-    for c in (a, b):
+    for c in chosen_classes:
         members = rng.permutation(np.flatnonzero(y == c))
         test[members[:int(round(recipe.test_fraction * len(members)))]] = True
     Xtr, Xte = X[~test], X[test]
@@ -379,8 +437,7 @@ def prepare(dataset, recipe):
         warnings.simplefilter('ignore', RuntimeWarning)
         means = np.nanmean(Xtr, axis=0) if len(Xtr) else np.zeros(Xtr.shape[1])
     means = np.where(np.isnan(means), 0.0, means)
-    pipe = Pipeline(list(dataset.features), dict(dataset.text_columns), (dataset.classes[a], dataset.classes[b]),
-                    keep, means, recipe.missing == 'mean')
+    pipe = Pipeline(list(dataset.features), dict(dataset.text_columns), names_of, keep, means, recipe.missing == 'mean')
     if recipe.missing == 'mean' and (np.isnan(Xtr).any() or np.isnan(Xte).any()):   # either split
         Xtr = np.where(np.isnan(Xtr), means, Xtr)
         Xte = np.where(np.isnan(Xte), means, Xte)
@@ -408,9 +465,13 @@ def prepare(dataset, recipe):
         pipe.lo, pipe.span = lo, span
     pipe.names = list(names)
     pipe.label_name = dataset.label_name
-    to_pm = lambda v: np.where(v == a, 1, -1)                  # noqa: E731
-    return Prepared(Xtr, Xte, to_pm(y[~test]), to_pm(y[test]), names,
-                    (dataset.classes[a], dataset.classes[b]), steps, pipe, rows[~test], rows[test])
+    if len(chosen_classes) == 2:
+        to_label = lambda v: np.where(v == chosen_classes[0], 1, -1)                      # noqa: E731
+    else:
+        position = {c: i for i, c in enumerate(chosen_classes)}
+        to_label = lambda v: np.array([position[int(c)] for c in v], int)                 # noqa: E731
+    return Prepared(Xtr, Xte, to_label(y[~test]), to_label(y[test]), names, names_of, steps, pipe,
+                    rows[~test], rows[test])
 
 
 @dataclass

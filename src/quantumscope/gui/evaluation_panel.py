@@ -26,6 +26,10 @@ def _numbers(text, field='Values', example='0.25, 0.5, 1', whole=False):
     return values
 
 
+CV_HINT = ('Cross-validation trains on k − 1 parts of the training data and checks the remaining part, k times: '
+           'a steadier estimate than one test score.')
+
+
 class EvaluationPanel(QWidget):
     """Test-set metrics, confusion matrix and ROC curve; Cross-validate on the training data."""
 
@@ -56,8 +60,7 @@ class EvaluationPanel(QWidget):
         row.addWidget(self.cv_button)
         row.addWidget(self.cv_cancel)
         left.addLayout(row)
-        self.cv_result = QLabel('Cross-validation trains on k − 1 parts of the training data and checks the '
-                                'remaining part, k times: a steadier estimate than one test score.')
+        self.cv_result = QLabel(CV_HINT)
         self.cv_result.setWordWrap(True)
         self.cv_result.setObjectName('muted')
         left.addWidget(self.cv_result)
@@ -72,17 +75,32 @@ class EvaluationPanel(QWidget):
         for side in ('left', 'bottom'):
             self.roc_plot.getAxis(side).enableAutoSIPrefix(False)
         layout.addWidget(self.roc_plot, 1)
+        self.confusion_plot = tidy(pg.PlotWidget(title='Confusion matrix'))     # many classes (v0.9.3)
+        self.confusion_plot.setLabel('bottom', 'predicted class')
+        self.confusion_plot.setLabel('left', 'true class')
+        self.confusion_plot.setVisible(False)
+        layout.addWidget(self.confusion_plot, 1)
         self.cv_button.clicked.connect(self.run_cross_validation)
         self.cv_cancel.clicked.connect(lambda: self.cv_run.cancel() if getattr(self, 'cv_run', None) else None)
         self.cv_button.setEnabled(False)
 
     def show_results(self, y_test, decision, classes):
-        """The test set's true labels (±1), decision values and class names (+1 first)."""
+        """The test set's true labels (±1), decision values and class names (+1 first); with more
+        than two classes, labels 0 … k−1 and one decision column per class."""
         import pyqtgraph as pg
         y_test, decision = np.asarray(y_test), np.asarray(decision, float)
+        self.cv_result.setText(CV_HINT)                          # an earlier model's cross-validation no longer applies
+        self.cv_last = None
+        if decision.ndim == 2:
+            return self._show_many(y_test, decision, list(classes))
+        self.confusion.setVisible(True)
+        self.confusion_plot.setVisible(False)
+        self.confusion.setMaximumHeight(96)
         predicted = np.where(decision >= 0, 1, -1)
         m = E.metrics(y_test, predicted)
         self.metrics, self.classes = m, classes
+        self.confusion.setRowCount(2)
+        self.confusion.setColumnCount(2)
         try:
             fpr, tpr, _ = E.roc(y_test, decision)
             self.auc = E.auc(y_test, decision)
@@ -103,12 +121,86 @@ class EvaluationPanel(QWidget):
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.confusion.setItem(i, j, item)
         self.roc_plot.clear()
+        legend = self.roc_plot.getPlotItem().legend
+        if legend is not None:                                    # left over from a many-class result
+            legend.clear()
         self.roc_plot.plot([0, 1], [0, 1], pen=pg.mkPen('#6b7a8f', style=Qt.PenStyle.DashLine))   # chance
         if fpr is not None:
             self.roc_plot.plot(fpr, tpr, pen=pg.mkPen('#5ae6ff', width=2), stepMode=None)
             self.roc_plot.setTitle(f'ROC curve (test set): AUC {self.auc:.3f}')
         self.roc_plot.setRange(xRange=(0, 1), yRange=(0, 1), padding=0.02)
         self.cv_button.setEnabled(self.cross_validate is not None)
+
+    def _show_many(self, y_test, decision, classes):
+        """k classes: accuracy, balanced accuracy and macro averages; the k × k confusion matrix,
+        drawn as a picture; a one-vs-rest ROC curve per class."""
+        import pyqtgraph as pg
+        from quantumscope.gui.qml_experiments import MANY_COLOURS
+        k = len(classes)
+        m = E.multi_metrics(y_test, decision.argmax(axis=1), k)
+        curves = E.roc_by_class(y_test, decision)
+        self.metrics, self.classes = m, classes
+        self.auc = float(np.mean([c[2] for c in curves.values()])) if curves else None
+        auc = '—' if self.auc is None else f'{self.auc:.3f}'
+        worst = int(np.argmin(np.where(m.confusion.sum(axis=1) > 0, m.recalls, np.inf)))
+        self.summary.setText(
+            f'<b>Test set ({m.total} samples, {k} classes)</b><br>accuracy {m.accuracy:.1%} · balanced accuracy '
+            f'{m.balanced_accuracy:.1%}<br>macro precision {m.macro_precision:.1%} · macro recall '
+            f'{m.macro_recall:.1%}<br>macro F1 {m.macro_f1:.3f} · mean one-vs-rest AUC {auc}<br>'
+            f'hardest class: {classes[worst]} (recall {m.recalls[worst]:.0%})<br>'
+            f'<span style="color:gray">Macro: the average over the classes, each counting equally. In the '
+            f'confusion matrix, each row is a true class: green where it was recognized, red where it was '
+            f'taken for another class.</span>')
+        short = [name if len(name) <= 10 else name[:9] + '…' for name in classes]
+        self.confusion.setVisible(False)                          # drawn as a picture: k × k is too big for a table
+        self.confusion_plot.setVisible(True)
+        self.draw_confusion(m.confusion, short)
+        self.roc_plot.clear()
+        legend = self.roc_plot.addLegend(offset=(-8, -8))
+        legend.clear()
+        self.roc_plot.plot([0, 1], [0, 1], pen=pg.mkPen('#6b7a8f', style=Qt.PenStyle.DashLine))
+        for c, (fpr, tpr, area) in curves.items():
+            self.roc_plot.plot(fpr, tpr, pen=pg.mkPen(MANY_COLOURS[c % len(MANY_COLOURS)], width=2),
+                               name=f'{short[c]} {area:.2f}')
+        self.roc_plot.setTitle(f'ROC, one-vs-rest: mean AUC {auc}')
+        self.roc_plot.setRange(xRange=(0, 1), yRange=(0, 1), padding=0.02)
+        self.cv_button.setEnabled(self.cross_validate is not None)
+
+    def draw_confusion(self, confusion, names):
+        """The k × k confusion matrix as a picture: counts in the cells, shaded by the share of each
+        true class (green on the diagonal, red elsewhere)."""
+        import pyqtgraph as pg
+        from PySide6.QtGui import QColor
+        plot, k = self.confusion_plot, len(confusion)
+        plot.clear()
+        rows = np.maximum(confusion.sum(axis=1, keepdims=True), 1)
+        share = confusion / rows
+        rgba = np.zeros((k, k, 4), np.uint8)
+        for i in range(k):
+            for j in range(k):
+                colour = QColor('#2f9a60' if i == j else '#c04848')
+                rgba[i, j, :3] = colour.getRgb()[:3]
+                rgba[i, j, 3] = int(255 * min(1.0, 0.12 + 0.88 * share[i, j])) if confusion[i, j] else 18
+        image = pg.ImageItem(np.transpose(rgba[::-1], (1, 0, 2)))   # row 0 (first class) at the top
+        image.setRect(0, 0, k, k)
+        plot.addItem(image)
+        size = 9 if k > 6 else 11
+        for i in range(k):
+            for j in range(k):
+                if confusion[i, j]:
+                    text = pg.TextItem(str(int(confusion[i, j])), anchor=(0.5, 0.5), color='#ffffff')
+                    font = text.textItem.font()
+                    font.setPointSize(size)
+                    text.setFont(font)
+                    text.setPos(j + 0.5, k - i - 0.5)
+                    plot.addItem(text)
+        plot.getAxis('bottom').setTicks([[(j + 0.5, names[j]) for j in range(k)]])
+        plot.getAxis('left').setTicks([[(k - i - 0.5, names[i]) for i in range(k)]])
+        plot.setTitle(f'Confusion matrix: {int(np.trace(confusion))} of {int(confusion.sum())} right')
+        plot.setAspectLocked(False)
+        plot.disableAutoRange()
+        plot.setRange(xRange=(0, k), yRange=(0, k), padding=0)
+        self.shown_confusion, self.shown_names = confusion, list(names)
 
     def run_cross_validation(self):
         if self.cross_validate is None:

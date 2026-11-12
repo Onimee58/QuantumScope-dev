@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.2** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.3** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -209,34 +209,37 @@ For MaxCut and number partitioning, flipping every spin gives the same answer, s
 
 ## 6. Quantum ML
 
-The **Quantum ML** area turns data into quantum states and learns from them. Its three experiments open from **+**: **Datasets**, **Quantum Kernel Classifier** and **Variational Classifier**. Everything runs offline; the five built-in datasets are part of the app.
+The **Quantum ML** area turns data into quantum states and learns from them. Its three experiments open from **+**: **Datasets**, **Quantum Kernel Classifier** and **Variational Classifier**. Everything runs offline; the nine built-in datasets are part of the app.
 
 ### Datasets
 
 ![Datasets: MNIST checked, prepared to four features, with example images of the two classes](images/qml-datasets.png)
 
-- **Dataset** picks a built-in dataset (Iris, Wine, Breast Cancer Wisconsin, Digits 8×8 and a 2,000-image MNIST subset) or a synthetic one (moons, circles, XOR, blobs). **Import CSV or .npz…** reads your own data: a CSV with a label column (named label, target, class … or the last column), or a NumPy file with arrays named X and y.
+- **Dataset** picks a built-in dataset (Iris, Wine, Breast Cancer Wisconsin, Digits 8×8, a 2,000-image MNIST subset, a 2,000-image Fashion-MNIST subset, Palmer Penguins, Seeds and Glass Identification) or a synthetic one (moons, circles, XOR, blobs). **Import CSV or .npz…** reads your own data: a CSV with a label column (named label, target, class … or the last column), or a NumPy file with arrays named X and y.
 - **Qubits (= features)** is how many features the prepared data will have: each classifier encodes one feature per qubit.
-- **The checker** gives a verdict (ready, usable after preprocessing, or cannot be used) and lists what stands in the way, each with a suggested fix: too many features, too many samples, more than two classes, text columns, missing values, or features on different scales.
-- **Preprocessing** shows every step and lets you change it: **Classes**, **Missing values**, **Text columns**, **Samples per class**, **PCA components**, scaling to [0, π] and the **Test share**. **Apply suggestions** restores the checker's recipe, and **Prepare** prepares the data and shares it with both classifiers.
+- **The checker** gives a verdict (ready, usable after preprocessing, or cannot be used) and lists what stands in the way, each with a suggested fix: too many features, too many samples, more than two classes, classes too small to learn from, text columns, missing values, or features on different scales.
+- **Preprocessing** shows every step and lets you change it: **Classes** (two to separate, or **All classes**, which only the Quantum Kernel Classifier can use), **Missing values**, **Text columns**, **Samples per class**, **PCA components**, scaling to [0, π] and the **Test share**. **Apply suggestions** restores the checker's recipe, and **Prepare** prepares the data and shares it with both classifiers.
 - The data is split into training and test sets first, and every learned step (means, PCA, scaling) is fitted on the training part only, so the test accuracy is honest.
-- The plot shows the prepared training data; for Digits and MNIST, example images of the two chosen classes appear below it.
+- The plot shows the prepared training data, with a legend when there are more than two classes; for Digits, MNIST and Fashion-MNIST, example images of the chosen classes appear below it.
+- **Licences:** every built-in dataset is public and redistributed under its own licence (CC BY 4.0, CC BY-SA 3.0, CC0 or MIT), listed with its citation in the app's `ml/data/DATASETS.md`.
 
 ### Quantum Kernel Classifier
 
+- **Data:** choose **From the Datasets tab**, or any dataset directly; it is then prepared with the checker's suggested recipe. For a dataset with more than two classes, **Classes** chooses the pair to separate, or **All classes**: one classifier per class, each telling its class from all the others (one-vs-rest), all sharing one kernel matrix. The prediction is the most confident class.
+- **Feature map:** **Angle encoding** (RY on each qubit) or the entangling **ZZ feature map**, with its **Repetitions**. **Bandwidth** scales the data before encoding: smaller values make the kernel smoother.
+
 ![Quantum Kernel Classifier: decision regions and the training kernel](images/qml-kernel.png)
 
-- **Data:** choose **From the Datasets tab**, or any dataset directly; it is then prepared with the checker's suggested recipe. For a dataset with more than two classes, **Classes** chooses the pair to separate.
-- **Feature map:** **Angle encoding** (RY on each qubit) or the entangling **ZZ feature map**, with its **Repetitions**. **Bandwidth** scales the data before encoding: smaller values make the kernel smoother.
 - **Shots per entry** estimates each kernel value from that many shots, as a quantum computer would; **exact** computes it exactly.
 - **Classifier:** a **Support vector machine** or **Kernel ridge**, with its strength **C or λ**. **Train** builds the kernel and the classifier in the background, so the window stays responsive; **Cancel** stops it.
-- **The decision regions** show the predicted class behind the points, deeper where the classifier is more confident, with the boundary as a white line. Training points are dots, test points triangles, and mistakes are marked ✕. With more than two features, the regions are drawn in the plane of the two leading principal components, a slice through the data.
-- **3-D view** (the tab beside **Decision regions**): the points along three axes, **Principal components** or **Separating axes** (the first runs from one class's centre to the other's), with the decision boundary as a surface and, for a support vector machine, the **Margins**. Support vectors have a soft halo; test points are cubes and mistakes are red. Drag to rotate, scroll to zoom, Shift-drag to pan, or use **Front**, **Top**, **Side**, **Isometric** and **Reset**; click a point to see its sample. With more than three features the view is a slice, and the caption says how often the slice agrees with the classifier. **Save image…** and **Save rotating GIF…** (a full turn, for slides) keep the view.
+
+- **The decision regions** show the predicted class behind the points, deeper where the classifier is more confident, with the boundary as a white line. With more classes, each region has its class's colour and a legend names them. Training points are dots, test points triangles, and mistakes are marked ✕. With more than two features, the regions are drawn in the plane of the two leading principal components, a slice through the data.
+- **3-D view** (the tab beside **Decision regions**): the points along three axes, **Principal components** or **Separating axes** (the first runs from one class's centre to the other's), with the decision boundary as a surface and, for a support vector machine, the **Margins**. With more than two classes, each class's region has its own coloured surface, and **Separating axes** follow the spread of the class centres. Support vectors have a soft halo; test points are cubes and mistakes are red. Drag to rotate, scroll to zoom, Shift-drag to pan, or use **Front**, **Top**, **Side**, **Isometric** and **Reset**; click a point to see its sample. With more than three features the view is a slice, and the caption says how often the slice agrees with the classifier. **Save image…** and **Save rotating GIF…** (a full turn, for slides) keep the view.
 - **Below the decision regions,** two tabs show the kernel itself (drag the divider to give either part more room):
   - **Kernel matrix:** the training kernel sorted by class. Hover over a cell to see its value and the two samples' classes; click it to see both samples beside the tabs (for Digits and MNIST, the images).
   - **Kernel map:** the data as the kernel sees it (kernel PCA): points the kernel finds similar lie close together. Click a point to see that sample, its prediction and its decision value. If the points scatter apart with no structure, the kernel has concentrated.
 - If the kernel is close to 0 for different points (kernel concentration), the result says so and suggests a smaller bandwidth.
-- **Evaluation** (a tab beside the kernel views): the test set's accuracy, balanced accuracy, precision, recall, specificity, F1 and AUC, the confusion matrix and the ROC curve. **Cross-validate** trains on k − 1 parts of the training data and checks the remaining part, k times, for a steadier estimate than a single test score.
+- **Evaluation** (a tab beside the kernel views): the test set's accuracy, balanced accuracy, precision, recall, specificity, F1 and AUC, the confusion matrix and the ROC curve. With more than two classes: accuracy, balanced accuracy, macro-averaged precision, recall and F1, the hardest class, a k × k confusion matrix (green where a class was recognized, red where it was taken for another) and a one-vs-rest ROC curve per class with their mean AUC. **Cross-validate** trains on k − 1 parts of the training data and checks the remaining part, k times, for a steadier estimate than a single test score.
 - **Search:** choose the feature maps, classifiers, bandwidths, repetitions and C or λ values to try, and the number of folds. **Search** cross-validates every combination on the training data (the test set stays untouched), lists them best first, and **Use best** applies the winner and trains it.
 
 ![The kernel map: MNIST 3s and 8s as the kernel sees them, with a misclassified sample shown beside it](images/qml-kernel-map.png)
@@ -245,11 +248,13 @@ The **Quantum ML** area turns data into quantum states and learns from them. Its
 
 ![The Evaluation tab: test-set metrics, the confusion matrix, the ROC curve and a 5-fold cross-validation](images/qml-evaluation.png)
 
+![All ten MNIST digits on 8 qubits: the Evaluation tab's per-class ROC curves and 10 × 10 confusion matrix](images/qml-multiclass.png)
+
 ![The Search tab: kernel settings cross-validated on the training data and ranked, best first](images/qml-search.png)
 
 ### Saving and using a model
 
-Both classifiers have a **Model** panel. After training, **Save model…** stores the model as a small `.npz` file: the classifier, its settings, and the preprocessing it was trained with (the classes, PCA, scaling and so on), so new data is prepared exactly like the training data. **Load model…** opens a saved model and sets the controls to match it. **Predict on a file…** predicts every sample in a `.csv` or `.npz` file with the same raw features as the training data: CSV columns are matched by name, and a label column is optional. The results show each sample's prediction and decision value, and, when the file has labels, the true class, whether the prediction was correct, and the accuracy. **Export CSV…** saves them. Model files are never run as code, so they are safe to share.
+Both classifiers have a **Model** panel. After training, **Save model…** stores the model as a small `.npz` file: the classifier, its settings, and the preprocessing it was trained with (the classes, PCA, scaling and so on), so new data is prepared exactly like the training data. **Load model…** opens a saved model and sets the controls to match it. **Predict on a file…** predicts every sample in a `.csv` or `.npz` file with the same raw features as the training data: CSV columns are matched by name, and a label column is optional. The results show each sample's prediction and decision value, and, when the file has labels, the true class, whether the prediction was correct, and the accuracy. **Export CSV…** saves them. A model of more than two classes shows each sample's predicted class and its confidence (the winning classifier's decision value). Model files are never run as code, so they are safe to share; a two-class model saved by this version still opens in older versions.
 
 ![Predictions for 300 new MNIST images from a saved 3-vs-8 model: accuracy on its two classes, and each sample's result](images/qml-predictions.png)
 
@@ -257,7 +262,7 @@ Both classifiers have a **Model** panel. After training, **Save model…** store
 
 ![Variational Classifier: a trained circuit's decision regions and its training curve](images/qml-variational.png)
 
-- The circuit is the feature map followed by **Trainable layers** of RY gates and CNOTs; its output is ⟨Z₀⟩ plus a bias.
+- The circuit is the feature map followed by **Trainable layers** of RY gates and CNOTs; its output is ⟨Z₀⟩ plus a bias. It separates two classes: for a dataset with more, choose the pair under **Classes**.
 - **Optimizer:** **BFGS**, with exact gradients, or **Adam**. Set the **Steps** and the **Starting point (seed)**.
 - **Loss:** mean squared error, hinge (as an SVM) or cross-entropy. With Adam, set the **Learning rate** and a **Batch size** (each step on a random batch).
 - **Validation share** holds out part of the training data; its loss and accuracy appear as dashed curves. **Early stopping** then ends training when the validation loss stops improving, and keeps the best step.

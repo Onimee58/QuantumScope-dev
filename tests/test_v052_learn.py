@@ -212,6 +212,7 @@ LAB_SOLUTIONS = {
     'qml/91-lab-mnist-pixels-to-qubits': ('qml', [('prepare', 'mnist', 4), ('kernel', 'store', 4, 'angle', 1.0),
                                                   ('kernel', 'store', 4, 'angle', 0.5)]),
     'qml/92-lab-train-a-circuit': ('qml', [('variational', 'moons', 2), ('observable Z0',)]),
+    'qml/93-lab-ten-digits': ('qml', [('all', 'iris', 4), ('all', 'mnist', 8), ('all', 'fashion_mnist', 8)]),   # v0.9.3
     # v0.9.2: annealing, done with the real annealing code, recorded as the experiment does
     'circuits/110-lab-anneal-fast-and-slow': ('anneal',),
 }
@@ -276,6 +277,16 @@ def test_lab_solution_completes_every_step(key):
                 progress.trained('kernel', train=K.accuracy(p.y_train, svm.predict(Ktr)),
                                  test=K.accuracy(p.y_test, svm.predict(Kte)), map=kind, bandwidth=bandwidth, shots=0,
                                  dataset=progress.STATE['dataset'] if name == 'store' else name)
+            elif action[0] == 'all':                         # every class, one-vs-rest (v0.9.3), as the lab says
+                _, name, qubits = action
+                ds = D.load(name)
+                p = D.prepare(ds, D.check(ds, qubits=qubits, max_classes=None)[2])
+                model = K.classifier('svm', 1.0, p.k).fit(K.kernel(p.X_train, kind='angle'), p.y_train)
+                progress.trained('kernel', train=1.0, test=K.accuracy(p.y_test, model.predict(
+                    K.kernel(p.X_test, p.X_train, kind='angle'))), map='angle', bandwidth=1.0, shots=0, dataset=name,
+                    classes=p.k)
+                steps_now = labs.progress(m, steps_of(lesson.body))
+                assert steps_now[[a[1] for a in LAB_SOLUTIONS[key][1]].index(name)], (name, progress.STATE)
             elif action[0] == 'variational':
                 _, name, qubits = action
                 p = D.prepare(D.load(name), D.check(D.load(name), qubits=qubits)[2])
@@ -369,7 +380,7 @@ def test_grover_table_matches_the_formula():
 def test_every_area_has_lessons():
     areas = {l.area for l in LESSONS}
     assert areas == {'circuits', 'principles', 'hydrogen', 'math', 'qml'}     # Mathematics 0.7.7, Quantum ML 0.8.0
-    assert sum(l.kind == 'lab' for l in LESSONS) == 24 and len(LESSONS) == 85        # + annealing lecture and lab (0.9.2)
+    assert sum(l.kind == 'lab' for l in LESSONS) == 25 and len(LESSONS) == 87        # + annealing (0.9.2), many classes (0.9.3)
 
 
 def test_png_size_matches_the_image_and_needs_no_qt():

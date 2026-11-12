@@ -1,7 +1,12 @@
 """Evaluating classifiers (v0.8.3, no Qt): metrics, cross-validation and hyperparameter search.
 
-Labels are ±1 (+1 is the first chosen class). Decision values are the classifier's real-valued
-output f(x), whose sign is the prediction; the ROC curve sweeps a threshold over them.
+Two classes: labels are ±1 (+1 is the first chosen class). Decision values are the classifier's
+real-valued output f(x), whose sign is the prediction; the ROC curve sweeps a threshold over them.
+
+More classes (v0.9.3): labels are 0 … k−1 and decision values have one column per class. The
+confusion matrix is k × k; precision, recall and F1 are per class and averaged over the classes
+("macro" averages, so every class counts equally however many samples it has); each class has a
+one-vs-rest ROC curve.
 """
 import itertools
 from dataclasses import dataclass, field
@@ -59,6 +64,87 @@ def metrics(y_true, y_pred):
     y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
     return Metrics(int(np.sum((y_true == 1) & (y_pred == 1))), int(np.sum((y_true == 1) & (y_pred != 1))),
                    int(np.sum((y_true != 1) & (y_pred == 1))), int(np.sum((y_true != 1) & (y_pred != 1))))
+
+
+@dataclass
+class MultiMetrics:
+    """Metrics for k classes from the k × k confusion matrix (rows: true class, columns: predicted)."""
+    confusion: np.ndarray
+
+    @property
+    def k(self):
+        return len(self.confusion)
+
+    @property
+    def total(self):
+        return int(self.confusion.sum())
+
+    @property
+    def accuracy(self):
+        return float(np.trace(self.confusion) / self.total) if self.total else 0.0
+
+    @property
+    def recalls(self):
+        """Per class: of its samples, the share predicted as it."""
+        rows = self.confusion.sum(axis=1)
+        return np.divide(np.diag(self.confusion), rows, out=np.zeros(self.k), where=rows > 0)
+
+    @property
+    def precisions(self):
+        """Per class: of the samples predicted as it, the share that are it."""
+        cols = self.confusion.sum(axis=0)
+        return np.divide(np.diag(self.confusion), cols, out=np.zeros(self.k), where=cols > 0)
+
+    @property
+    def f1s(self):
+        p, r = self.precisions, self.recalls
+        return np.divide(2 * p * r, p + r, out=np.zeros(self.k), where=(p + r) > 0)
+
+    @property
+    def balanced_accuracy(self):
+        """The mean recall over the classes present: fair when the classes are unbalanced."""
+        present = self.confusion.sum(axis=1) > 0
+        return float(self.recalls[present].mean()) if present.any() else 0.0
+
+    @property
+    def macro_precision(self):
+        return float(self.precisions.mean())
+
+    @property
+    def macro_recall(self):
+        return float(self.recalls.mean())
+
+    @property
+    def macro_f1(self):
+        return float(self.f1s.mean())
+
+    def matrix(self):
+        return self.confusion
+
+
+def multi_metrics(y_true, y_pred, k):
+    """MultiMetrics for labels 0 … k−1."""
+    confusion = np.zeros((k, k), int)
+    np.add.at(confusion, (np.asarray(y_true, int), np.asarray(y_pred, int)), 1)
+    return MultiMetrics(confusion)
+
+
+def score(y_true, y_pred, k=2):
+    """Metrics (two classes, ±1 labels) or MultiMetrics (k > 2, labels 0 … k−1)."""
+    return metrics(y_true, y_pred) if k <= 2 else multi_metrics(y_true, y_pred, k)
+
+
+def roc_by_class(y_true, scores):
+    """One-vs-rest ROC curves for labels 0 … k−1 and scores with one column per class:
+    {class: (fpr, tpr, auc)} for every class that has samples of its own and of the others."""
+    y, s = np.asarray(y_true), np.atleast_2d(np.asarray(scores, float))
+    curves = {}
+    for c in range(s.shape[1]):
+        target = np.where(y == c, 1, -1)
+        if 0 < np.sum(target == 1) < len(target):
+            fpr, tpr, _ = roc(target, s[:, c])
+            curves[c] = (fpr, tpr, auc(target, s[:, c]))
+    return curves
 
 
 def roc(y_true, scores):
@@ -123,15 +209,18 @@ class CrossValidation:
         return float(np.std(self.scores))
 
 
-def cross_validate_kernel(K, y, make_model, folds):
+def cross_validate_kernel(K, y, make_model, folds, k=None):
     """Cross-validate a kernel classifier on a precomputed training kernel K (n × n): a fold's kernels
-    are rows and columns of K, so no new kernel values are needed."""
+    are rows and columns of K, so no new kernel values are needed. k: the number of classes (from the
+    labels if omitted)."""
+    from quantumscope.ml.kernels import classes_in
     y = np.asarray(y)
+    k = k or classes_in(y)
     result = CrossValidation([])
     for train, valid in folds:
         model = make_model().fit(K[np.ix_(train, train)], y[train])
         predicted = model.predict(K[np.ix_(valid, train)])
-        m = metrics(y[valid], predicted)
+        m = score(y[valid], predicted, k)
         result.scores.append(m.accuracy)
         result.metrics.append(m)
     return result
@@ -170,6 +259,7 @@ def search_kernel(X, y, grid, k=5, seed=0, kernel=None, progress=None, cancelled
     classifier settings. Returns (rows sorted best first, best row); None if cancelled."""
     from quantumscope.ml import kernels as K
     kernel = kernel or K.kernel
+    classes = K.classes_in(y)
     folds = stratified_folds(y, k, seed)
     groups = kernel_settings(grid)
     total = sum(len(c) for _, c in groups)
@@ -180,9 +270,8 @@ def search_kernel(X, y, grid, k=5, seed=0, kernel=None, progress=None, cancelled
         Kx = kernel(X, kind=kernel_settings_['feature_map'], reps=kernel_settings_['reps'],
                     bandwidth=kernel_settings_['bandwidth'])
         for c in classifiers:
-            make = (lambda c=c: K.SVM(C=c['strength'])) if c['method'] == 'svm' else \
-                (lambda c=c: K.KernelRidge(c['strength']))
-            rows.append(SearchRow(dict(kernel_settings_, **c), cross_validate_kernel(Kx, y, make, folds)))
+            make = lambda c=c: K.classifier(c['method'], c['strength'], classes)   # noqa: E731
+            rows.append(SearchRow(dict(kernel_settings_, **c), cross_validate_kernel(Kx, y, make, folds, classes)))
             done += 1
             if progress is not None:
                 progress(done, total)

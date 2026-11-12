@@ -1,3 +1,33 @@
+## v0.9.3 — More than two classes, and four more datasets
+
+### Multi-class quantum kernel classification
+- **All classes at once:** under Classes, the Quantum Kernel Classifier (and the Datasets tab) now offers **All classes** beside a pair. One-vs-rest: one SVM or kernel ridge per class, each telling its class from the rest, all sharing one kernel matrix, so no extra circuits are needed; the prediction is the most confident class.
+- **The checker** uses every class with at least 10 samples (smaller ones are left out, and it says which) and keeps at least 40 samples per class when it subsamples. A pair stays the default, so existing labs and scripts behave as before.
+- **Decision regions** in each class's colour, with every region's edge and a legend; the **kernel matrix** sorted by class with all class borders; the **kernel map** coloured by class with a legend; the **sample viewer** gives the winning class's confidence and the runner-up.
+- **The 3-D view** draws each class's region as a coloured surface; **Separating axes** follow the spread of the class centres (completed by the data's own directions).
+- **Evaluation:** accuracy, balanced accuracy, macro-averaged precision, recall and F1, the hardest class, a k × k confusion matrix drawn as a picture (green where a class was recognized, red where it was taken for another), and a one-vs-rest ROC curve per class with the mean AUC. **Cross-validation** and the **hyperparameter search** work with many classes.
+- **Saved models** of more than two classes (file version 2) store one weight column and offset per class over the points any classifier uses; **Predict on a file** shows each prediction's confidence. Two-class models are still saved as version 1, so older versions of QuantumScope open them.
+- **The Variational Classifier** still separates two classes, and says so if the Datasets tab prepared more.
+
+### Four more datasets (offline, with their licences in DATASETS.md)
+- **Fashion-MNIST** (MIT): the first 200 images of each of ten kinds of clothing from the official test set, checked against its published checksums. Harder than digits.
+- **Palmer Penguins** (CC0): 344 penguins of three species, kept as published, with text columns and missing values for the checker to handle.
+- **Seeds** (CC BY 4.0): 210 wheat kernels of three varieties.
+- **Glass Identification** (CC BY 4.0): 214 fragments of six unevenly represented types, for learning about imbalance.
+- Seeds and Glass come from copies of the UCI files and were checked against UCI's published sample and class counts.
+
+### Lessons
+- **A new lecture, "More than two classes":** one-vs-rest and one-vs-one, regions, chance at 1/k, the k × k confusion matrix, macro averages and balanced accuracy, per-class ROC curves, unbalanced classes, and easy and hard datasets.
+- **A new lab, "From three species to ten digits",** whose steps tick as you train (a new `qml kernel classes` check).
+- **Two glossary terms** (125 in total): one-vs-rest, macro average. "Preparing real data" now mentions All classes.
+- **The guide** covers the new datasets, All classes, many-class evaluation and models, with a new screenshot.
+
+### Quality
+- **Tests:** the new datasets against their published counts; one-vs-rest equal to k separate SVMs on one kernel; ten digits on eight qubits; many-class metrics by hand and the two-class metrics as a special case; per-class ROC areas against the rank statistic; cross-validation and search; saving, loading and predicting with many classes, and damaged files refused; the 3-D view's axes, grid and agreement; and in the window, every many-class view, the pair choice, the Datasets tab's sharing, and the 3-D view.
+- **The Evaluation tab clears an earlier model's cross-validation result** when a new model is trained, so the shown result always belongs to the current model.
+- **The self-test** checks all nine bundled datasets, so a build missing the new CSV file fails it.
+- **Example images** are labelled with full class names, in the theme's text colour.
+
 ## v0.9.2 — Quantum annealing
 
 ### The Quantum annealing experiment

@@ -7,7 +7,7 @@
 
   An open-source, cross-platform quantum visualization and circuit simulation studio built with Python and PySide6.
 
-  [![Version](https://img.shields.io/badge/version-v0.9.2-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
+  [![Version](https://img.shields.io/badge/version-v0.9.3-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
   [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
   [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
   [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-555)](https://github.com/Onimee58/QuantumScope/releases)
@@ -30,7 +30,7 @@ Use it for self-study, classroom demonstrations, coursework or experimenting wit
 | **Hydrogen** | Hydrogen Orbital Explorer; coherent-state Hydrogen Dynamics in 2D and 3D; probability density, amplitude and phase visualization; available image/data exports |
 | **Quantum Principles** | Double-Slit Experiment; interactive quantum superposition and Bloch sphere; quantum entanglement demonstrations |
 | **Quantum Circuits** | Drag-and-drop circuit editor, statevector simulation, simulation stepping, Bloch spheres for every qubit, measurements, example circuits, verification, QASM Converter and PDF export |
-| **Quantum ML** | Datasets (five built-in, offline, plus your own CSV or .npz) with a checker and visible preprocessing; Quantum Kernel Classifier (angle and ZZ feature maps, bandwidth, shot noise, SVM or kernel ridge, decision regions); Variational Classifier (live training, open the trained circuit in the simulator) |
+| **Quantum ML** | Datasets (nine built-in, offline, plus your own CSV or .npz) with a checker and visible preprocessing; Quantum Kernel Classifier (angle and ZZ feature maps, bandwidth, shot noise, SVM or kernel ridge, two classes or all of them, decision regions); Variational Classifier (live training, open the trained circuit in the simulator) |
 
 ### Quantum circuit studio
 
@@ -45,6 +45,15 @@ Use it for self-study, classroom demonstrations, coursework or experimenting wit
 - **Quantum Gate Explorer**: double-click a gate in the *left palette* for its definition, circuit symbol, matrix/operation and basic state transformations. Double-clicking a placed parameterized gate opens its parameter editor instead.
 
 **Supported operations:** `H`, `X`, `Y`, `Z`, `S`, `T`, `Sdg`, `Tdg`, `SX`, `RX`, `RY`, `RZ`, `U`/`U3`, `P`, `CX`, `CZ`, `SWAP`, `CCX`, `CSWAP`, and terminal `M`.
+
+## What's new in v0.9.3?
+
+**More than two classes, and four more datasets.**
+
+- **The Quantum Kernel Classifier separates all classes at once** (one-vs-rest, sharing one kernel matrix): all ten MNIST digits, three penguin species, six kinds of glass.
+- **Evaluation for many classes:** a k × k confusion matrix, macro-averaged precision, recall and F1, balanced accuracy, and a ROC curve per class. Saved models, the 3-D view and predictions on new files handle many classes too.
+- **Four new built-in datasets,** with their licences: a Fashion-MNIST subset, Palmer Penguins, Seeds and Glass Identification.
+- **A new lecture and lab** on multi-class classification, and two glossary terms.
 
 ## What's new in v0.9.2?
 
