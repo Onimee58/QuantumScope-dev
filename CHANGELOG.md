@@ -1,3 +1,23 @@
+## v0.9.4 — One circuit, many classes
+
+### The Variational Classifier, for any number of classes
+- **All classes** now works in the Variational Classifier (and the Datasets tab shares many-class data with both classifiers).
+- **One circuit, one outcome per class:** the first r = ⌈log₂ k⌉ qubits are measured; outcome c, in binary on q0 … q(r−1), is class c (2 qubits for three classes, 4 for ten). Outcomes that name no class are discarded and the rest renormalized, with a learned offset per class: P(c | x) = p_c e^(b_c) / Σ p_c′ e^(b_c′).
+- **Training** lowers the cross-entropy with exact gradients (adjoint, or the parameter-shift rule as on hardware), with BFGS or Adam, mini-batches, validation and early stopping, exactly as for two classes. The Loss list switches to cross-entropy while all classes are chosen, and returns to your choice afterwards.
+- **Results:** decision regions in each class's colour, the many-class Evaluation tab (confusion matrix, macro averages, per-class ROC), cross-validation, saved models (file version 2, with one offset per class) and predictions on new files, which give each prediction's probability.
+- **Open in circuit simulator** loads the trained circuit for a test sample with its readout qubits measured, and says which outcome is which class.
+- **Too few qubits** to name the classes (such as ten digits on 3 qubits) is explained instead of failing.
+- **Typical results** (test accuracy; chance in brackets): Iris 92% (33%), Wine 89%, Penguins 87%, Digits on 6 qubits 65% (10%), MNIST on 8 qubits about 50% (10%). The kernel classifier scores higher on the harder datasets: a small circuit must separate every class at once.
+
+### Lessons
+- **"More than two classes"** has a new section, "One circuit, many outcomes", and a quiz on readout qubits; **"Variational classifiers"** points to it.
+- **The lab "From three species to ten digits"** has a fourth step: three species with one circuit, read on two qubits in the simulator.
+- **The guide** describes All classes and the readout in the Variational Classifier.
+
+### Quality
+- **Tests:** the readout's qubit count and outcome order; outcome probabilities against the circuit simulator, gate by gate; the class probabilities by hand; adjoint and parameter-shift gradients against finite differences (angles and offsets); three species with BFGS and Adam; ten digits far above chance; validation and early stopping; cross-validation; two-class training unchanged; saving, loading, predicting and refusing damaged files; and in the whole window, training, the loss switch, evaluation, the model summary, the circuit in the simulator with its outcome probabilities, and the too-few-qubits message.
+- **The variational model's code** now has one readout hook, shared by two and many classes, so both use the same training loop.
+
 ## v0.9.3 — More than two classes, and four more datasets
 
 ### Multi-class quantum kernel classification

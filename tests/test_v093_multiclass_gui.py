@@ -91,7 +91,7 @@ def test_ten_digits_search_and_saved_model(app, tmp_path):
     assert names == [p.classes[c] for c in k.last['predicted']]
 
 
-def test_the_datasets_tab_prepares_all_classes_for_the_kernel_classifier_only(app):
+def test_the_datasets_tab_prepares_all_classes_for_the_kernel_classifier(app):
     from quantumscope.gui import qml_experiments as Q
     d = Q.DatasetsExperiment()
     d.show()
@@ -99,10 +99,7 @@ def test_the_datasets_tab_prepares_all_classes_for_the_kernel_classifier_only(ap
     d.class_a.setCurrentIndex(d.class_a.findData(Q.ALL))
     assert not d.class_b.isVisible() and 'one-vs-rest' in d.findings.text()
     prepared = d.prepare()
-    assert prepared.k == 3 and Q.STORE.prepared is prepared and 'Kernel Classifier can now use it' in d.steps.text()
-    variational = Q.VariationalExperiment()
-    variational.data.source.setCurrentIndex(variational.data.source.findData('store'))
-    assert variational.train() is None and 'this classifier separates two' in variational.data.summary.text()
+    assert prepared.k == 3 and Q.STORE.prepared is prepared and 'Both classifiers can now use it' in d.steps.text()
     kernel = Q.KernelExperiment()
     kernel.data.source.setCurrentIndex(kernel.data.source.findData('store'))
     kernel.train().wait()

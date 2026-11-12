@@ -293,14 +293,16 @@ def stratified_split(y, fraction, seed=0):
 def cross_validate_variational(X, y, make_model, folds, train_options=None, progress=None, cancelled=None):
     """Cross-validate a variational classifier: a fresh model trained per fold (costly: k trainings).
     progress(fold, folds) after each fold; returns None if cancelled."""
+    from quantumscope.ml.kernels import classes_in
     X, y = np.asarray(X, float), np.asarray(y)
+    classes = classes_in(y)
     result = CrossValidation([])
     for k, (train, valid) in enumerate(folds):
         if cancelled is not None and cancelled():
             return None
         model = make_model()
         model.train(X[train], y[train], **(train_options or {}))
-        m = metrics(y[valid], model.predict(X[valid]))
+        m = score(y[valid], model.predict(X[valid]), classes)
         result.scores.append(m.accuracy)
         result.metrics.append(m)
         if progress is not None:

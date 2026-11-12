@@ -3,12 +3,12 @@ title: More than two classes
 area: qml
 kind: lecture
 order: 7
-objectives: Build a k-class classifier from binary ones (one-vs-rest) | Read a k × k confusion matrix and macro-averaged measures | Judge a multi-class score against chance and class imbalance
+objectives: Build a k-class classifier from binary ones (one-vs-rest) | Read k classes from one circuit's measurement outcomes | Read a k × k confusion matrix and macro-averaged measures | Judge a multi-class score against chance and class imbalance
 math: 06-probability
 ---
 # More than two classes
 
-An SVM answers a yes-or-no question: which side of a boundary is a point on? Many real questions have more answers: which of ten digits, which of three penguin species, which of six kinds of glass. QuantumScope's **Quantum Kernel Classifier** handles them by choosing **All classes** under Classes.
+An SVM answers a yes-or-no question: which side of a boundary is a point on? Many real questions have more answers: which of ten digits, which of three penguin species, which of six kinds of glass. Both of QuantumScope's classifiers handle them: choose **All classes** under Classes.
 
 ## One-vs-rest
 
@@ -19,6 +19,16 @@ $$\hat{y}(x) = \mathrm{argmax}_c \, f_c(x)$$
 For a quantum kernel this costs almost nothing extra. The kernel $K(x, x')$ depends only on the data, not on the labels, so all $k$ classifiers share **one** kernel matrix: the circuits are run once, and only the cheap classical training is repeated $k$ times.
 
 An alternative, **one-vs-one**, trains a classifier for every pair of classes, $k(k-1)/2$ of them (45 for ten digits), and lets them vote. Each is trained on less data, but there are many more of them.
+
+## One circuit, many outcomes
+
+A variational circuit can name the classes itself. Measuring $r$ qubits gives one of $2^r$ outcomes, so $r = \lceil \log_2 k \rceil$ qubits are enough for $k$ classes: 2 qubits for three penguin species, 4 for ten digits. Outcome $c$, written in binary on the first $r$ qubits, stands for class $c$; outcomes with no class (such as 11 for three classes) are discarded, and the rest renormalized. With a learned offset $b_c$ for each class:
+
+$$P(c \mid x) = \frac{p_c(x)\, e^{b_c}}{\sum_{c'} p_{c'}(x)\, e^{b_{c'}}}$$
+
+where $p_c(x)$ is the probability of outcome $c$. Training lowers the **cross-entropy**, the average of $-\log P(y_i \mid x_i)$ over the training data, with the same exact gradients as for two classes. On hardware, $p_c$ is estimated by measuring many times; **Open in circuit simulator** shows the trained circuit with its readout qubits measured.
+
+Unlike one-vs-rest, this is a single quantum model, and the number of measured qubits grows only like $\log_2 k$. But a small circuit must now separate every class at once, so it usually needs more layers, and it scores below the kernel classifier on the harder datasets.
 
 ## Regions and boundaries
 
@@ -52,7 +62,7 @@ In the **Glass** dataset, building windows have 70 and 76 samples, while tablewa
 
 With one feature per qubit, more qubits keep more of an image's variation after PCA, and accuracy on ten classes rises with them.
 
-[Try it: classify all three penguin species](qs:open/qml_kernel)
+[Try it: classify all three penguin species](qs:open/qml_kernel) · [with one circuit](qs:open/qml_variational)
 
 ## Check your understanding
 
@@ -78,6 +88,14 @@ Q: In the confusion matrix, the row for digit 9 has 5 of its 10 samples in the c
 - Five true 7s were predicted to be 9s
 - The classifier never predicts 9
 E: Rows are true classes and columns are predictions. Whether 9 is ever predicted is read from its column, not its row.
+```
+
+```quiz
+Q: A variational classifier reads ten digit classes from its measurement outcomes. How many qubits must be measured?
+- Ten, one per class
+* Four: 2⁴ = 16 outcomes are enough for 10 classes
+- One, as for two classes
+E: r measured qubits give 2ʳ outcomes; ⌈log₂ 10⌉ = 4. The six unused outcomes are discarded.
 ```
 
 ```quiz

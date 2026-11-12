@@ -35,8 +35,13 @@ def describe(model):
     scores = (f'training accuracy {info["train"]:.0%}, test accuracy {info["test"]:.0%}'
               if 'train' in info and 'test' in info else '')
     when = f', {info["created"].replace("T", " ")[:16]}' if info.get('created') else ''
-    classes = (f'{model.classes[0]} (+1) vs {model.classes[1]} (−1)' if len(model.classes) == 2 else
-               f'{len(model.classes)} classes ({", ".join(model.classes)}), one-vs-rest')
+    if len(model.classes) == 2:
+        classes = f'{model.classes[0]} (+1) vs {model.classes[1]} (−1)'
+    else:
+        from quantumscope.ml.variational import readout_qubits
+        how = ('one-vs-rest' if model.kind == 'kernel' else
+               f'read from {readout_qubits(len(model.classes))} qubits, one outcome per class')
+        classes = f'{len(model.classes)} classes ({", ".join(model.classes)}), {how}'
     return (f'{what}; {model.pipeline.outputs} qubits; {classes}; '
             f'trained on {data}' + (f'; {scores}' if scores else '') + when + '.')
 

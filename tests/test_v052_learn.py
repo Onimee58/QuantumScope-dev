@@ -212,7 +212,8 @@ LAB_SOLUTIONS = {
     'qml/91-lab-mnist-pixels-to-qubits': ('qml', [('prepare', 'mnist', 4), ('kernel', 'store', 4, 'angle', 1.0),
                                                   ('kernel', 'store', 4, 'angle', 0.5)]),
     'qml/92-lab-train-a-circuit': ('qml', [('variational', 'moons', 2), ('observable Z0',)]),
-    'qml/93-lab-ten-digits': ('qml', [('all', 'iris', 4), ('all', 'mnist', 8), ('all', 'fashion_mnist', 8)]),   # v0.9.3
+    'qml/93-lab-ten-digits': ('qml', [('all', 'iris', 4), ('all', 'mnist', 8), ('all', 'fashion_mnist', 8),   # v0.9.3
+                                      ('circuit_all', 'iris', 4)]),                                          # v0.9.4
     # v0.9.2: annealing, done with the real annealing code, recorded as the experiment does
     'circuits/110-lab-anneal-fast-and-slow': ('anneal',),
 }
@@ -287,6 +288,14 @@ def test_lab_solution_completes_every_step(key):
                     classes=p.k)
                 steps_now = labs.progress(m, steps_of(lesson.body))
                 assert steps_now[[a[1] for a in LAB_SOLUTIONS[key][1]].index(name)], (name, progress.STATE)
+            elif action[0] == 'circuit_all':                 # one variational circuit, every class (v0.9.4)
+                _, name, qubits = action
+                ds = D.load(name)
+                p = D.prepare(ds, D.check(ds, qubits=qubits, max_samples=300, max_classes=None)[2])
+                model = V.MultiClassifier(qubits, p.k, layers=3, seed=0)
+                history = model.train(p.X_train, p.y_train, method='BFGS', steps=80)     # the app's defaults
+                progress.trained('variational', train=history[-1][2], dataset=name, classes=p.k,
+                                 test=float(np.mean(model.predict(p.X_test) == p.y_test)))
             elif action[0] == 'variational':
                 _, name, qubits = action
                 p = D.prepare(D.load(name), D.check(D.load(name), qubits=qubits)[2])

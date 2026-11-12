@@ -399,9 +399,7 @@ class DatasetsExperiment(QWidget):
             self.steps.setText(f'{prepared.X_train.shape[1]} features remain; reduce them to at most '
                                f'{D.MAX_QUBITS} (PCA components) to use them on qubits.')
         else:
-            users = ('Both classifiers can now use it.' if prepared.k == 2 else
-                     'The Quantum Kernel Classifier can now use it (the Variational Classifier separates two classes).')
-            self.steps.setText('Prepared: ' + ' '.join(prepared.steps) + '  ' + users)
+            self.steps.setText('Prepared: ' + ' '.join(prepared.steps) + '  Both classifiers can now use it.')
             STORE.publish(self.dataset, recipe, prepared)
             from quantumscope.ml import progress
             progress.prepared(self.source_key, prepared.X_train.shape[1], prepared.classes)
@@ -420,10 +418,11 @@ class DatasetsExperiment(QWidget):
 class _DataPicker(QGroupBox):
     """Which data a classifier trains on: from the Datasets tab, or a dataset with its suggested recipe."""
 
-    def __init__(self, max_samples, parent=None, allow_all=False):
+    def __init__(self, max_samples, parent=None, allow_all=False, many='one-vs-rest'):
         super().__init__('Data', parent)
         self.max_samples = max_samples
-        self.allow_all = allow_all                 # offer All classes (one-vs-rest), v0.9.3
+        self.allow_all = allow_all                 # offer All classes (v0.9.3)
+        self.many = many                           # how this classifier separates many classes, in words
         form = QFormLayout(self)
         self.source = QComboBox()
         self.source.addItem('From the Datasets tab', 'store')
@@ -564,7 +563,7 @@ class _DataPicker(QGroupBox):
                     recipe.classes = (a, b)
             p = D.prepare(dataset, recipe)
             self.dataset = dataset
-        which = (f'{p.classes[0]} (+1) vs {p.classes[1]} (−1)' if p.k == 2 else f'{p.k} classes, one-vs-rest')
+        which = (f'{p.classes[0]} (+1) vs {p.classes[1]} (−1)' if p.k == 2 else f'{p.k} classes, {self.many}')
         self.summary.setText(f'{which}: {len(p.y_train)} for training, {len(p.y_test)} for testing, '
                              f'{p.X_train.shape[1]} features on {p.X_train.shape[1]} qubits.')
         return p
@@ -1068,7 +1067,7 @@ class VariationalExperiment(QWidget):
         title.setStyleSheet('font-weight:700;')
         title.setWordWrap(True)
         form.addWidget(title)
-        self.data = _DataPicker(max_samples=300)
+        self.data = _DataPicker(max_samples=300, allow_all=True, many='one outcome per class')
         form.addWidget(self.data)
         model = QGroupBox('Circuit and training')
         mv = QFormLayout(model)
@@ -1094,6 +1093,8 @@ class VariationalExperiment(QWidget):
         self.loss_box = QComboBox()
         for label, key in (('Mean squared error', 'mse'), ('Hinge (as an SVM)', 'hinge'), ('Cross-entropy', 'cross-entropy')):
             self.loss_box.addItem(label, key)
+        self.loss_box.setToolTip('With more than two classes the loss is always cross-entropy, on the probabilities '
+                                 'of the classes\' measurement outcomes')
         mv.addRow('Loss', self.loss_box)
         self.rate = QDoubleSpinBox()
         self.rate.setRange(0.001, 1.0)
@@ -1128,7 +1129,8 @@ class VariationalExperiment(QWidget):
         buttons.addWidget(self.stop_button)
         mv.addRow(buttons)
         self.open_circuit = QPushButton('Open in circuit simulator')
-        self.open_circuit.setToolTip('The trained circuit for the first test point, with the observable Z0')
+        self.open_circuit.setToolTip('The trained circuit for the first test point, with the observable Z0 (two '
+                                     'classes) or the readout qubits measured (more classes)')
         self.open_circuit.setEnabled(False)
         mv.addRow(self.open_circuit)
         form.addWidget(model)
@@ -1162,6 +1164,9 @@ class VariationalExperiment(QWidget):
         root.addLayout(right, 1)
         self.model = None
         self._adam_controls()
+        for signal in (self.data.class_a.currentIndexChanged, self.data.source.currentIndexChanged, STORE.changed):
+            signal.connect(self._loss_for_classes)
+        self._loss_for_classes()
         self.train_button.clicked.connect(self.train)
         self.stop_button.clicked.connect(lambda: self.run.cancel() if getattr(self, 'run', None) else None)
         self.open_circuit.clicked.connect(self.open_in_circuit)
@@ -1172,6 +1177,23 @@ class VariationalExperiment(QWidget):
         return dict(method=self.method.currentData(), steps=self.steps.value(), rate=self.rate.value(),
                     batch_size=self.batch.value() if adam else 0, seed=self.seed.value())
 
+    def _many_classes(self):
+        """Whether the chosen data has more than two classes (then the loss is cross-entropy)."""
+        key = self.data.source.currentData()
+        if key == 'store':
+            return STORE.prepared is not None and STORE.prepared.k > 2
+        return self.data.class_a.currentData() == ALL and self.data.class_row.isVisibleTo(self.data)
+
+    def _loss_for_classes(self, *_):
+        many = self._many_classes()
+        if many:
+            if self.loss_box.isEnabled():
+                self._chosen_loss = self.loss_box.currentData()
+            self.loss_box.setCurrentIndex(self.loss_box.findData('cross-entropy'))
+        elif not self.loss_box.isEnabled() and getattr(self, '_chosen_loss', None):
+            self.loss_box.setCurrentIndex(self.loss_box.findData(self._chosen_loss))   # back to the student's choice
+        self.loss_box.setEnabled(not many)
+
     def _adam_controls(self, *_):
         adam = self.method.currentData() == 'Adam'
         self.rate.setEnabled(adam)
@@ -1179,6 +1201,9 @@ class VariationalExperiment(QWidget):
         self.patience.setEnabled(self.validation_share.value() > 0)
 
     def _new_model(self, p):
+        if p.k > 2:                                               # one circuit, one outcome per class (v0.9.4)
+            return V.MultiClassifier(p.X_train.shape[1], p.k, layers=self.layers.value(),
+                                     feature_map=self.feature_map.currentData(), seed=self.seed.value())
         return V.Classifier(p.X_train.shape[1], layers=self.layers.value(), feature_map=self.feature_map.currentData(),
                             seed=self.seed.value(), loss=self.loss_box.currentData())
 
@@ -1192,6 +1217,10 @@ class VariationalExperiment(QWidget):
         if p.X_train.shape[1] > D.MAX_QUBITS:
             self.result.setText('Too many features for the qubits: reduce them in the Datasets tab.')
             return None
+        if p.k > 2 and V.readout_qubits(p.k) > p.X_train.shape[1]:
+            self.result.setText(f'{p.k} classes are read from {V.readout_qubits(p.k)} qubits (one outcome per class): '
+                                f'use at least {V.readout_qubits(p.k)} qubits.')
+            return None
         from quantumscope.ml import evaluation as E
         self.prepared = p
         model = self._new_model(p)
@@ -1204,7 +1233,8 @@ class VariationalExperiment(QWidget):
         else:
             fit = (p.X_train, p.y_train)
         settings = dict(method=options['method'], steps=options['steps'], layers=self.layers.value(),
-                        map=self.feature_map.currentData(), dataset=self.data.key(), loss=self.loss_box.currentData())
+                        map=self.feature_map.currentData(), dataset=self.data.key(),
+                        loss=self.loss_box.currentData() if p.k == 2 else 'cross-entropy')
         plane = region_plane(p.X_train, p.X_test)
         self._history, self._validation = [], []
 
@@ -1217,7 +1247,7 @@ class VariationalExperiment(QWidget):
                 return not cancelled()
             model.train(*fit, callback=step, **options)
             decision = model.decision(p.X_test)
-            predicted = np.where(decision >= 0, 1, -1)
+            predicted = model.predict(p.X_test)
             return dict(model=model, predicted=predicted, decision_test=decision,
                         test=float(np.mean(predicted == p.y_test)), f=region_values(model.decision, plane),
                         stopped=cancelled(), stopped_early=model.stopped_early, best_step=model.best_step)
@@ -1249,7 +1279,8 @@ class VariationalExperiment(QWidget):
         self.result.setText(text)
         if regions is not None:
             p = self.prepared
-            draw_regions(self.regions, plane, regions[0], p.X_train, p.y_train, p.X_test, p.y_test, regions[1])
+            draw_regions(self.regions, plane, regions[0], p.X_train, p.y_train, p.X_test, p.y_test, regions[1], p.k,
+                         p.classes)
 
     def _cross_validate(self, k, on_progress, on_done):
         """Cross-validate the current settings on the training data: k fresh trainings, in the background."""
@@ -1296,11 +1327,14 @@ class VariationalExperiment(QWidget):
         accuracies = [h[1] for h in self._history] or [0.0]
         early = (f' Early stopping kept step {r["best_step"]}, the best on the validation data.'
                  if r.get('stopped_early') else '')
+        many = '' if p.k == 2 else (f' {p.k} classes read from {self.model.readout} qubits, with cross-entropy '
+                                    f'(chance is about {1 / p.k:.0%}).')
         self.result.setText(f'{"Stopped" if r["stopped"] else "Done"} after {len(self._history) - 1} steps: training '
                             f'accuracy {accuracies[-1]:.0%}, test accuracy {r["test"]:.0%}, final loss {losses[-1]:.4f}.'
-                            + early)
+                            + early + many)
         self.evaluation.show_results(p.y_test, r['decision_test'], p.classes)
-        draw_regions(self.regions, plane, r['f'], p.X_train, p.y_train, p.X_test, p.y_test, r['predicted'])
+        draw_regions(self.regions, plane, r['f'], p.X_train, p.y_train, p.X_test, p.y_test, r['predicted'], p.k,
+                     p.classes)
         self.open_circuit.setEnabled(True)
         self.last = dict(train=accuracies[-1], test=r['test'], history=list(self._history), stopped=r['stopped'])
         r.update(self.last)
@@ -1309,11 +1343,12 @@ class VariationalExperiment(QWidget):
                                                       settings['dataset']))
         from quantumscope.ml import progress
         progress.trained('variational', train=accuracies[-1], test=r['test'], map=settings['map'],
-                         layers=settings['layers'], dataset=settings['dataset'])
+                         layers=settings['layers'], dataset=settings['dataset'], classes=p.k)
 
     def _draw(self):
         p, model = self.prepared, self.model
-        _regions(self.regions, model.decision, p.X_train, p.y_train, p.X_test, p.y_test, model.predict(p.X_test))
+        _regions(self.regions, model.decision, p.X_train, p.y_train, p.X_test, p.y_test, model.predict(p.X_test), p.k,
+                 p.classes)
 
     def open_in_circuit(self):
         """Load the trained circuit for the first test point into the circuit simulator."""
@@ -1324,9 +1359,17 @@ class VariationalExperiment(QWidget):
         if workspace is None:
             return None
         x = self.prepared.X_test[0]
-        workspace.set_circuit(self.model.qubits, self.model.gates(x))
-        workspace.model.set_observable('Z0')
-        workspace._changed()
+        if isinstance(self.model, V.MultiClassifier):            # measure the readout qubits: outcome c is class c
+            r, p = self.model.readout, self.prepared
+            names = ', '.join(f'{c:0{r}b} = {name}' for c, name in enumerate(p.classes))
+            workspace.show_generated_circuit(self.model.qubits, self.model.gates(x), '',
+                                             f'The trained circuit for test sample 1 (true class {p.label_name(p.y_test[0])}). '
+                                             f'Measure q0…q{r - 1}: {names}. Unused outcomes are discarded.',
+                                             measured=tuple(range(r)))
+        else:
+            workspace.set_circuit(self.model.qubits, self.model.gates(x))
+            workspace.model.set_observable('Z0')
+            workspace._changed()
         launch = getattr(window, '_launch_circuits', None)
         if callable(launch):
             launch()

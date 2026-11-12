@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.3** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.4** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -218,7 +218,7 @@ The **Quantum ML** area turns data into quantum states and learns from them. Its
 - **Dataset** picks a built-in dataset (Iris, Wine, Breast Cancer Wisconsin, Digits 8×8, a 2,000-image MNIST subset, a 2,000-image Fashion-MNIST subset, Palmer Penguins, Seeds and Glass Identification) or a synthetic one (moons, circles, XOR, blobs). **Import CSV or .npz…** reads your own data: a CSV with a label column (named label, target, class … or the last column), or a NumPy file with arrays named X and y.
 - **Qubits (= features)** is how many features the prepared data will have: each classifier encodes one feature per qubit.
 - **The checker** gives a verdict (ready, usable after preprocessing, or cannot be used) and lists what stands in the way, each with a suggested fix: too many features, too many samples, more than two classes, classes too small to learn from, text columns, missing values, or features on different scales.
-- **Preprocessing** shows every step and lets you change it: **Classes** (two to separate, or **All classes**, which only the Quantum Kernel Classifier can use), **Missing values**, **Text columns**, **Samples per class**, **PCA components**, scaling to [0, π] and the **Test share**. **Apply suggestions** restores the checker's recipe, and **Prepare** prepares the data and shares it with both classifiers.
+- **Preprocessing** shows every step and lets you change it: **Classes** (two to separate, or **All classes**), **Missing values**, **Text columns**, **Samples per class**, **PCA components**, scaling to [0, π] and the **Test share**. **Apply suggestions** restores the checker's recipe, and **Prepare** prepares the data and shares it with both classifiers.
 - The data is split into training and test sets first, and every learned step (means, PCA, scaling) is fitted on the training part only, so the test accuracy is honest.
 - The plot shows the prepared training data, with a legend when there are more than two classes; for Digits, MNIST and Fashion-MNIST, example images of the chosen classes appear below it.
 - **Licences:** every built-in dataset is public and redistributed under its own licence (CC BY 4.0, CC BY-SA 3.0, CC0 or MIT), listed with its citation in the app's `ml/data/DATASETS.md`.
@@ -262,13 +262,14 @@ Both classifiers have a **Model** panel. After training, **Save model…** store
 
 ![Variational Classifier: a trained circuit's decision regions and its training curve](images/qml-variational.png)
 
-- The circuit is the feature map followed by **Trainable layers** of RY gates and CNOTs; its output is ⟨Z₀⟩ plus a bias. It separates two classes: for a dataset with more, choose the pair under **Classes**.
+- The circuit is the feature map followed by **Trainable layers** of RY gates and CNOTs; its output is ⟨Z₀⟩ plus a bias.
+- **More than two classes:** choose **All classes**. The first ⌈log₂ k⌉ qubits are measured and each outcome names a class (2 qubits for three species, 4 for ten digits); the loss is then cross-entropy. You need at least that many qubits.
 - **Optimizer:** **BFGS**, with exact gradients, or **Adam**. Set the **Steps** and the **Starting point (seed)**.
 - **Loss:** mean squared error, hinge (as an SVM) or cross-entropy. With Adam, set the **Learning rate** and a **Batch size** (each step on a random batch).
 - **Validation share** holds out part of the training data; its loss and accuracy appear as dashed curves. **Early stopping** then ends training when the validation loss stops improving, and keeps the best step.
 - **Evaluation** (a tab beside **Training**) shows the same metrics, confusion matrix and ROC curve as the kernel classifier, and can cross-validate the current settings.
 - **Train** shows the loss and the training accuracy step by step, and the decision regions as they change; **Stop** ends training early.
-- **Open in circuit simulator** loads the trained circuit for one test point into Quantum Circuits, with the observable Z0.
+- **Open in circuit simulator** loads the trained circuit for one test point into Quantum Circuits, with the observable Z0, or, for more classes, with the readout qubits measured: run shots and read the class from the outcome.
 
 ## 7. Math
 

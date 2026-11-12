@@ -30,6 +30,8 @@ $$\frac{\partial f}{\partial \theta_k} = \frac{f(\theta_k + \frac{\pi}{2}) - f(\
 
 QuantumScope trains with **BFGS** (fast, using these exact gradients) or **Adam** (steady, small steps), and draws the loss and the training accuracy at every step.
 
+For more than two classes, the circuit is read differently: measure several qubits and let each outcome name a class. The lecture *More than two classes* explains how.
+
 ## Kernels or circuits?
 
 | | Kernel classifier | Variational classifier |

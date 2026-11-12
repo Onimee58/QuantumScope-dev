@@ -10,7 +10,8 @@ Python it opens with numpy.load(path).
                its training points. Predictions use the exact kernel, even if training used shots.
                With more than two classes (v0.9.3, file version 2), one-vs-rest: coef has one column
                and b one entry per class, over the points any of the classifiers uses.
-  variational  the trained angles θ and the bias.
+  variational  the trained angles θ and the bias; with more than two classes (v0.9.4), one offset
+               per class, the classes being read from the first ⌈log₂ k⌉ qubits.
 Two-class files stay version 1, so older versions of QuantumScope still open them.
 """
 from dataclasses import dataclass, field
@@ -54,10 +55,20 @@ class TrainedModel:
             if self.k > 2:
                 return Kx @ np.atleast_2d(self.arrays['coef']).reshape(Kx.shape[1], self.k) + np.ravel(self.arrays['b'])
             return Kx @ self.arrays['coef'] + float(self.arrays['b'])
+        return self.classifier().decision(X)
+
+    def classifier(self):
+        """A variational model's circuit as a V.Classifier (or V.MultiClassifier), ready to use."""
+        s = self.settings
+        if self.k > 2:
+            model = V.MultiClassifier(self.pipeline.outputs, self.k, layers=s['layers'], feature_map=s['feature_map'],
+                                      reps=s['reps'], bandwidth=s['bandwidth'])
+            model.theta, model.bias = np.asarray(self.arrays['theta'], float), np.ravel(self.arrays['bias']).astype(float)
+            return model
         model = V.Classifier(self.pipeline.outputs, layers=s['layers'], feature_map=s['feature_map'],
                              reps=s['reps'], bandwidth=s['bandwidth'])
         model.theta, model.bias = np.asarray(self.arrays['theta'], float), float(self.arrays['bias'])
-        return model.decision(X)
+        return model
 
     def predict(self, X_raw):
         """Raw rows → (class names, decision values). Missing values are filled with the training means."""
@@ -126,6 +137,10 @@ def _check_shapes(model):
         theta = np.ravel(model.arrays['theta'])
         if len(theta) != model.settings['layers'] * k:
             raise ValueError('The model file is inconsistent (its angles do not match its layers and qubits)')
+        if np.size(model.arrays['bias']) != (model.k if model.k > 2 else 1):
+            raise ValueError('The model file is inconsistent (its offsets do not match its classes)')
+        if model.k > 2 and V.readout_qubits(model.k) > k:
+            raise ValueError('The model file is inconsistent (too few qubits to name its classes)')
 
 
 # ---- from the classifiers --------------------------------------------------------------------
@@ -158,5 +173,6 @@ def from_variational(classifier, prepared, settings, train, test, dataset=''):
     s = dict(feature_map=classifier.feature_map, reps=int(classifier.reps), bandwidth=float(classifier.bandwidth),
              layers=int(classifier.layers), optimizer=settings.get('method', ''),
              loss=getattr(classifier, 'loss_name', 'mse'))
-    arrays = dict(theta=np.array(classifier.theta, float), bias=float(classifier.bias))
+    bias = np.array(classifier.bias, float) if np.ndim(classifier.bias) else float(classifier.bias)
+    arrays = dict(theta=np.array(classifier.theta, float), bias=bias)
     return TrainedModel('variational', prepared.pipeline, s, arrays, _info(prepared, train, test, dataset))

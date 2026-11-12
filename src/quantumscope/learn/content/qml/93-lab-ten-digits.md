@@ -3,11 +3,11 @@ title: "Lab: from three species to ten digits"
 area: qml
 kind: lab
 order: 93
-objectives: Train a one-vs-rest quantum kernel classifier | Read a many-class confusion matrix | Compare an easy and a hard ten-class dataset
+objectives: Train a one-vs-rest quantum kernel classifier | Read a many-class confusion matrix | Compare an easy and a hard ten-class dataset | Separate several classes with one variational circuit
 ---
 # Lab: from three species to ten digits
 
-You will classify three iris species, then all ten handwritten digits, then ten kinds of clothing. Read the lecture *More than two classes* first.
+You will classify three iris species, then all ten handwritten digits, then ten kinds of clothing, and finally separate three classes with a single variational circuit. Read the lecture *More than two classes* first.
 
 [Open the Quantum Kernel Classifier](qs:open/qml_kernel)
 
@@ -33,6 +33,13 @@ text: Choose Fashion-MNIST with the same settings and train. It is harder: the t
 check: qml dataset fashion_mnist
 check: qml kernel classes >= 10
 check: qml kernel test >= 0.5
+```
+
+```step
+title: One circuit for three species
+text: Open the Variational Classifier (+ in Quantum ML). Choose Iris, 4 qubits and All 3 classes, set Trainable layers to 3 and press Train. The loss becomes cross-entropy, and the classes are read from 2 qubits. The test accuracy should reach at least 85%. Press Open in circuit simulator and run shots: the outcome on q0 q1 names the class (00, 01 or 10).
+check: qml variational classes >= 3
+check: qml variational test >= 0.85
 ```
 
 ```quiz
