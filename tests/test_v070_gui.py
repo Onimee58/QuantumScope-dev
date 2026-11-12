@@ -380,3 +380,28 @@ def test_ubuntu_install_can_be_left_for_later(app, answers, tmp_path, monkeypatc
     result = check_for_updates(None, opener=github(), platform='linux', frozen=True, folder=str(tmp_path),
                                run=lambda command: FakeInstaller(0), relaunch=lambda: pytest.fail('restarted'))
     assert result == 'installed' and 'next time' in answers['info'][-1]
+
+
+def test_v091_optimizer_methods_and_shots_in_the_workspace(app):
+    """v0.9.1: every method is offered with a tooltip, and a run with shots shows both curves."""
+    from quantumscope.editor import variational as V
+    from quantumscope.gui.circuit_workspace import CircuitWorkspace
+    w = CircuitWorkspace()
+    w.model.load_library('qaoa', {'graph': 'ring4', 'layers': 2})
+    w._changed()
+    w._refresh_parameter_panel()
+    assert [w.opt_method.itemData(i) for i in range(w.opt_method.count())] == list(V.METHODS)
+    w.opt_method.setCurrentIndex(w.opt_method.findData('SPSA'))
+    assert 'two circuit runs per step' in w.opt_method.toolTip()
+    w.opt_shots.setCurrentIndex(w.opt_shots.findData(1000))
+    w.opt_steps.setValue(60)
+    dialog = w.optimize_parameters().waited()
+    app.processEvents()
+    assert len(dialog.chart.measured) == len(dialog.chart.energies) == 61
+    assert '1,000 shots per Pauli term' in dialog.summary.text() and 'measurement noise' in dialog.summary.text()
+    w.opt_method.setCurrentIndex(w.opt_method.findData('Rotosolve'))
+    w.opt_shots.setCurrentIndex(0)
+    w.opt_steps.setValue(500)                       # one parameter at a time: allow enough updates
+    dialog = w.optimize_parameters().waited()
+    app.processEvents()
+    assert dialog.chart.measured is None and 'ground state is reached' in dialog.summary.text()

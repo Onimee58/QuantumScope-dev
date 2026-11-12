@@ -1,3 +1,28 @@
+## v0.9.1 — More optimizers, and optimizing with shots
+
+### Optimizing with shots
+- **A Shots choice beside Optimize:** **Exact**, or 100, 1,000 or 10,000 measurements of each term of the observable. Each term's estimate is drawn from the exact distribution of ±1 outcomes, so the noise is unbiased and shrinks like 1/√shots, as on hardware.
+- **With shots the optimizer only sees noisy energies,** and gradients come from the parameter-shift rule on them (the adjoint method needs the exact state, which hardware never gives).
+- **The Optimize chart draws the measured ⟨H⟩ (thin) beside the true ⟨H⟩ (bold),** and the summary reports the true result and the number of measurements used.
+
+### Five new optimizers
+- **Adam:** momentum and a step size per parameter.
+- **SPSA:** a gradient estimate along a random direction from two circuit runs per step, however many parameters; the usual choice on hardware. Its gains follow Spall, with a calibrated step size.
+- **Rotosolve:** each parameter in turn set to its exact minimum, from a trigonometric fit (3 values for a parameter driving one rotation; more for a parameter shared by several gates). No learning rate.
+- **Quantum natural gradient:** steps along g⁻¹∇⟨H⟩, with the Fubini–Study metric g computed exactly from the state's derivatives; stronger regularization and smaller steps with shots.
+- **Simulated annealing:** random moves, uphill ones accepted with probability e^(−ΔE/T) as the temperature falls.
+- **Every method has a tooltip.** "Max steps" means the same for all of them (for Rotosolve, parameter updates).
+- **Best of N** works with every method and with shots.
+
+### Lessons
+- **A new lecture, "Optimizing with shots":** shot noise, SPSA, Rotosolve, the quantum natural gradient, simulated annealing, and how to choose an optimizer.
+- **The optimizer lecture's table** lists all nine methods.
+- **Five glossary terms** (117 in total): shot noise, SPSA, Rotosolve, quantum natural gradient, simulated annealing.
+
+### Quality
+- **Tests:** the state derivatives and the metric against finite differences and the fidelity expansion; shot noise unbiased and shrinking like 1/√shots; every method reaching the ground state with exact energies; SPSA's cost and its success under shots, where Nelder–Mead fails; Rotosolve's fit equal to the energy; annealing's uphill moves; repeatable random methods; the chart's measured curve unbiased for every method.
+- **A timing-dependent GUI test** (editing the circuit during an optimization) now uses a run long enough on any machine.
+
 ## v0.9.0 — The Math tab: a quantum calculator
 
 ### The Quantum Calculator

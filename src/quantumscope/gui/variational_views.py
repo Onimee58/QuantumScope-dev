@@ -10,8 +10,26 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QDialog, QHBoxLayout, QL
 from quantumscope.editor import variational as V
 from quantumscope.gui.theme import canvas_color
 
-METHODS = (('BFGS (parameter-shift gradients)', 'BFGS'), ('Gradient descent (parameter shift)', 'gradient'),
-           ('COBYLA (no gradients)', 'COBYLA'), ('Nelder–Mead (no gradients)', 'Nelder-Mead'))
+METHODS = (('BFGS (quasi-Newton, gradients)', 'BFGS'), ('Gradient descent', 'gradient'),
+           ('Adam (momentum, adaptive steps)', 'Adam'), ('SPSA (2 runs per step)', 'SPSA'),
+           ('Rotosolve (exact minimum per parameter)', 'Rotosolve'), ('Quantum natural gradient', 'QNG'),
+           ('Simulated annealing', 'annealing'), ('COBYLA (no gradients)', 'COBYLA'),
+           ('Nelder–Mead (no gradients)', 'Nelder-Mead'))
+METHOD_TIPS = {
+    'BFGS': 'Builds up curvature from gradients: very fast with exact energies, but noise confuses it.',
+    'gradient': 'Steps downhill along the gradient. Simple; it can crawl across flat regions.',
+    'Adam': 'Gradient steps with momentum and a step size per parameter, as in deep learning.',
+    'SPSA': 'Moves all parameters at once along a random direction: two circuit runs per step, however many '
+            'parameters. The usual choice on real hardware.',
+    'Rotosolve': 'Sets one parameter at a time to its exact minimum: the energy is a sinusoid in each angle, '
+                 'fixed by three values. No learning rate.',
+    'QNG': 'The quantum natural gradient: follows the geometry of the quantum state (the Fubini–Study metric), '
+           'so every step changes the state by a similar amount.',
+    'annealing': 'Random moves; uphill moves are sometimes accepted, less often as a temperature falls. Can escape '
+                 'local minima; slow.',
+    'COBYLA': 'Builds linear models from energies alone; no gradients.',
+    'Nelder-Mead': 'Moves a simplex of points; no gradients. Noise misleads it badly.'}
+SHOTS = (('Exact', 0), ('100 shots', 100), ('1,000 shots', 1000), ('10,000 shots', 10000))
 
 
 class ConvergenceChart(QWidget):
@@ -20,10 +38,13 @@ class ConvergenceChart(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMinimumSize(560, 300)
-        self.energies, self.exact = [], None
+        self.energies, self.exact, self.measured = [], None, None
 
-    def set_data(self, energies, exact=None):
+    def set_data(self, energies, exact=None, measured=None):
+        """energies: the curve to draw; measured: the noisy values the optimizer saw (with shots),
+        drawn thin behind the true curve."""
         self.energies, self.exact = list(energies), exact
+        self.measured = list(measured) if measured is not None else None
         self.update()
 
     def paintEvent(self, event):
@@ -32,7 +53,7 @@ class ConvergenceChart(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         left, top, right, bottom = 70, 16, self.width() - 16, self.height() - 40
-        values = self.energies + ([self.exact] if self.exact is not None else [])
+        values = self.energies + ([self.exact] if self.exact is not None else []) + (self.measured or [])
         lo, hi = min(values), max(values)
         # Never zoom into rounding noise: show at least 1% of the energy scale (or 0.01).
         least = max(0.01, 0.01 * max(abs(lo), abs(hi)))
@@ -72,6 +93,16 @@ class ConvergenceChart(QWidget):
                        f'no step lowered ⟨H⟩ below {self.energies[0]:.6f}')
             p.end()
             return
+        if self.measured:                                        # what the optimizer saw: thin and noisy
+            noisy = QColor(canvas_color('chart_sampled'))
+            noisy.setAlphaF(0.75)
+            p.setPen(QPen(noisy, 1.0))
+            seen = [QPointF(x(i), y(e)) for i, e in enumerate(self.measured)]
+            for a, b in zip(seen, seen[1:]):
+                p.drawLine(a, b)
+            p.setPen(text)
+            p.drawText(QPointF(left + 8, top + 12), 'thin: ⟨H⟩ measured with shots · bold: true ⟨H⟩')
+            p.setPen(QPen(canvas_color('bloch_vector'), 2.4))
         points = [QPointF(x(i), y(e)) for i, e in enumerate(self.energies)]
         for a, b in zip(points, points[1:]):
             p.drawLine(a, b)
@@ -112,9 +143,9 @@ class OptimizeDialog(QDialog):
         if getattr(self, 'run_handle', None) is not None:
             self.run_handle.cancel()
 
-    def configure(self, method, steps, starts=1):
-        """Reuse this window for a new run (the panel's current method, step limit and starts)."""
-        self.method, self.steps, self.starts = method, steps, max(1, int(starts))
+    def configure(self, method, steps, starts=1, shots=0):
+        """Reuse this window for a new run (the panel's current method, step limit, starts and shots)."""
+        self.method, self.steps, self.starts, self.shots = method, steps, max(1, int(starts)), int(shots)
         self.history, self.stopped = [], False
         self.stop_button.setEnabled(True)
         self.chart.set_data([], None)
@@ -130,7 +161,7 @@ class OptimizeDialog(QDialog):
         workspace = self.workspace
         model = copy.deepcopy(workspace.model)                  # the worker's own circuit
         key = workspace._path_key()
-        method, steps, starts = self.method, self.steps, getattr(self, 'starts', 1)
+        method, steps, starts, shots = self.method, self.steps, getattr(self, 'starts', 1), getattr(self, 'shots', 0)
 
         def work(report, cancelled):                            # the worker: no widgets here
             exact = V.Evaluator(model).exact_minimum()
@@ -148,10 +179,10 @@ class OptimizeDialog(QDialog):
                     energies.clear()
                     report(('start', k, total))
                 history, best_index, finals = V.best_of(model, starts, method, steps, callback=progress,
-                                                        on_start=begin)
+                                                        on_start=begin, shots=shots)
                 history.evaluations = getattr(history, 'evaluations', 0)
             else:
-                history, best_index, finals = V.optimize(model, method, steps, callback=progress), 0, []
+                history, best_index, finals = V.optimize(model, method, steps, callback=progress, shots=shots), 0, []
             return dict(history=history, best_index=best_index, finals=finals, exact=exact)
 
         self._exact, self._energies = None, []
@@ -210,6 +241,10 @@ class OptimizeDialog(QDialog):
                                  'Press Optimize again to optimize the new circuit.')
             return
         values, energy = self.history[-1]
+        shots = getattr(self, 'shots', 0)
+        true = getattr(self.history, 'true', None)
+        if shots and true:                                    # report the true result, not the last noisy one
+            energy = true[-1]
         model.snapshot()                                      # the whole optimization is one undo step
         values = V.wrap_safely(model, values)                 # back into −π…π where that changes nothing
         for name, value in zip(list(model.parameters), values):
@@ -217,9 +252,12 @@ class OptimizeDialog(QDialog):
         model._apply_bindings()
         self.workspace._changed()
         self.workspace._sync_parameter_values()
-        self.chart.set_data([e for _, e in self.history], exact)
+        if shots and true:
+            self.chart.set_data(true, exact, measured=[e for _, e in self.history])
+        else:
+            self.chart.set_data([e for _, e in self.history], exact)
         gap = energy - exact if exact is not None else None
-        start = self.history[0][1]
+        start = true[0] if shots and true else self.history[0][1]
         steps = len(self.history) - 1
         evaluations = getattr(self.history, 'evaluations', 0)
         if finals:                                              # best of several starts
@@ -240,6 +278,8 @@ class OptimizeDialog(QDialog):
                                   'other starting values.' if exact is not None else '.'))
         else:
             verdict = ('' if gap is None else
+                       f' — {gap:.4g} above the exact minimum (with shots, measurement noise limits how close an '
+                       f'optimizer can get).' if shots else
                        ' — the ground state is reached.' if gap < 1e-6 else
                        f' — {gap:.4g} above the exact minimum over all states. This may be the best this circuit '
                        'can reach (its layers or its structure, such as a symmetry, limit which states it makes), '
@@ -248,7 +288,10 @@ class OptimizeDialog(QDialog):
             self.summary.setText(f'{"Stopped" if self.stopped else "Finished"} after {steps} '
                                  f'step{"" if steps == 1 else "s"} ({evaluations} circuit evaluations): '
                                  f'⟨H⟩ went from {start:.6f} to {energy:.6f}'
-                                 + (f' (exact minimum {exact:.6f})' if exact is not None else '') + verdict)
+                                 + (f' (exact minimum {exact:.6f})' if exact is not None else '') + verdict
+                                 + (f' {shots:,} shots per Pauli term: {getattr(self.history, "shots_used", 0):,} '
+                                    f'measurements in total. The thin line is ⟨H⟩ measured with these shots; the bold '
+                                    f'line is the true ⟨H⟩.' if shots else ''))
         self.stop_button.setEnabled(False)
         if on_finished is not None:
             on_finished(self.history)

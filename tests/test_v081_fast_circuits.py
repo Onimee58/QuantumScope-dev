@@ -141,8 +141,8 @@ def test_optimization_paths_agree_and_are_fast():
         m.load_library('qaoa', {'graph': 'ring6', 'layers': 3})
         original = V.Evaluator.__init__
 
-        def init(self, model):
-            original(self, model)
+        def init(self, model, **options):
+            original(self, model, **options)
             self.adjoint = adjoint
         V.Evaluator.__init__ = init
         try:

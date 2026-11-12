@@ -20,9 +20,16 @@ The simplest method steps downhill: $\theta \leftarrow \theta - \eta\,\nabla \la
 
 | Method | Uses | Character |
 |---|---|---|
-| Gradient descent | parameter-shift gradients | simple; slow on flat regions |
-| BFGS | parameter-shift gradients | learns the curvature; few steps |
+| Gradient descent | gradients | simple; slow on flat regions |
+| BFGS | gradients | learns the curvature; few steps |
+| Adam | gradients | momentum and a step size per parameter |
+| SPSA | two ⟨H⟩ values per step | cheap; the usual choice on hardware |
+| Rotosolve | three ⟨H⟩ values per parameter | sets each parameter to its exact minimum |
+| Quantum natural gradient | gradients and the state's geometry | steps of even size in the state |
+| Simulated annealing | only ⟨H⟩ values | random, can climb out of local minima |
 | COBYLA, Nelder–Mead | only ⟨H⟩ values | no gradients; try many probe points |
+
+The next lecture explains SPSA, Rotosolve and the natural gradient, and what happens when ⟨H⟩ comes from a limited number of measurements.
 
 The optimizer reports both its **steps** and its **circuit evaluations**: BFGS takes few steps but each needs a full gradient, while gradient-free methods discard most probes.
 

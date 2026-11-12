@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.0** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.1** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -174,7 +174,8 @@ Press **Parameters** to show the panel.
   - **Sliders** change parameters live. On wide windows they show in two columns.
   - **🎲** randomizes one parameter, and **Randomize all** randomizes every one.
 - **Observable:** type a weighted sum of Pauli terms, such as Z0 Z1 + 0.5 X0, or pick one from **Examples…**. The panel shows its expectation value ⟨O⟩ and the lowest possible value.
-- **Optimize** lowers ⟨O⟩ with the chosen method (**BFGS**, **Gradient descent**, **COBYLA** or **Nelder–Mead**). **Best of N random starts** also tries random starting points and keeps the best.
+- **Optimize** lowers ⟨O⟩ with the chosen method: **BFGS**, **Gradient descent**, **Adam**, **SPSA** (two circuit runs per step), **Rotosolve** (each parameter set to its exact minimum in turn), the **Quantum natural gradient**, **Simulated annealing**, **COBYLA** or **Nelder–Mead**; hover over a method for a short description. **Best of N random starts** also tries random starting values and keeps the best.
+- **Shots:** **Exact**, or 100, 1,000 or 10,000 measurements of each term of the observable, as on real hardware. With shots the optimizer only sees noisy energies, gradients come from the parameter-shift rule, and the Optimize chart draws the measured ⟨O⟩ (thin) beside the true ⟨O⟩ (bold), with the number of measurements used. Lecture "Optimizing with shots" compares the methods.
 - **Landscape…** draws ⟨O⟩ over two parameters, with the optimizer's path.
 
 ### Solving linear systems (VQLS)

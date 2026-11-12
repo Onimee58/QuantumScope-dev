@@ -684,3 +684,31 @@ A setting chosen before training rather than learned, such as the bandwidth, the
 lesson: qml/06-evaluating-classifiers
 see: Overfitting, Training set
 Stopping training when the loss on validation data stops improving, and keeping the best step, to avoid overfitting.
+
+### Shot noise
+aliases: shots, shot
+lesson: circuits/28-optimizing-with-shots
+see: Expectation value
+The scatter in a quantity estimated from a limited number of measurements. With N shots it shrinks like 1/√N.
+
+### SPSA
+aliases: simultaneous perturbation stochastic approximation
+lesson: circuits/28-optimizing-with-shots
+see: Gradient, Shot noise
+An optimizer that estimates the gradient along a random direction from two circuit runs per step, however many parameters there are; common on quantum hardware.
+
+### Rotosolve
+lesson: circuits/28-optimizing-with-shots
+see: Parameter-shift rule
+An optimizer that sets one rotation angle at a time to its exact minimum, using the fact that the energy is a sinusoid in each angle.
+
+### Quantum natural gradient
+aliases: natural gradient, Fubini–Study metric
+lesson: circuits/28-optimizing-with-shots
+see: Gradient
+A gradient step scaled by the inverse of the Fubini–Study metric, so that each step changes the quantum state by a similar amount.
+
+### Simulated annealing
+lesson: circuits/28-optimizing-with-shots
+see: Barren plateau
+An optimizer that makes random moves and sometimes accepts uphill ones, less often as a "temperature" falls, so it can leave local minima.

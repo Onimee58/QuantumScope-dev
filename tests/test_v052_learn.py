@@ -346,7 +346,7 @@ def test_grover_table_matches_the_formula():
 def test_every_area_has_lessons():
     areas = {l.area for l in LESSONS}
     assert areas == {'circuits', 'principles', 'hydrogen', 'math', 'qml'}     # Mathematics 0.7.7, Quantum ML 0.8.0
-    assert sum(l.kind == 'lab' for l in LESSONS) == 23 and len(LESSONS) == 82
+    assert sum(l.kind == 'lab' for l in LESSONS) == 23 and len(LESSONS) == 83
 
 
 def test_png_size_matches_the_image_and_needs_no_qt():
