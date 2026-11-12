@@ -12,7 +12,8 @@
     qs:try/CX                        (the Gate Explorer's "Try it" circuit)
     qs:inspector                     (open the State Inspector)
     qs:open/<view>                   (circuits, converter, orbital, dynamics2d, dynamics3d,
-                                      doubleslit, superposition, entanglement)
+                                      doubleslit, superposition, entanglement, teleportation, qec,
+                                      annealing, qml_datasets, qml_kernel, qml_variational, calculator)
     qs:lesson/<key>                  (another lesson, e.g. circuits/02-single-qubit-gates)
     qs:calc?expr=<expression>[&mode=exact|digits]   (the calculator, with the expression evaluated;
                                       %-encoded; mode=exact for expressions with symbols such as θ)
@@ -29,7 +30,7 @@ from quantumscope.physics.expressions import parse_angle
 from quantumscope.physics.initial_states import PRESETS, InitialState
 
 VIEWS = ('circuits', 'converter', 'orbital', 'dynamics2d', 'dynamics3d', 'doubleslit', 'superposition', 'entanglement',
-         'teleportation', 'qec', 'qml_datasets', 'qml_kernel', 'qml_variational', 'calculator')
+         'teleportation', 'qec', 'annealing', 'qml_datasets', 'qml_kernel', 'qml_variational', 'calculator')
 
 
 @dataclass(frozen=True)

@@ -1786,6 +1786,14 @@ class CircuitWorkspace(QWidget):
         simultaneous gates share a column (simulation order is unchanged)."""
         self.model.set_circuit(n,ops,columns,measured,measurement_column,total_columns,initial_states,blocks,noise,noise_model,classical,conditions)
         self._sync_view();self.grid.horizontalScrollBar().setValue(0);self.refresh()
+    def show_generated_circuit(self,n,ops,observable='',note=''):
+        """Load a circuit made elsewhere in the app (such as an anneal as gates), measuring every
+        qubit, with an observable to evaluate; the note goes in the status line."""
+        self.model.snapshot()
+        self.set_circuit(n,ops,measured=tuple(range(n)))
+        self.model.observable=observable
+        self._refresh_parameter_panel()
+        self.status.setText(note)
     def _layout(self):
         """Gates in simulation order with their columns, for saving."""
         gates,columns,_,_=self.model.layout()

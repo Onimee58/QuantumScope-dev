@@ -268,6 +268,15 @@ def screenshots():
     settle(app, 0.4)
     save(solution, 'vqls-solution.png', scale=0.9)
     solution.close()
+    w._launch_annealing()                                       # Quantum annealing: a hexagon, partly adiabatic
+    annealing = w._open_experiments['annealing']
+    annealing.problem_box.setCurrentIndex(annealing.problem_box.findData('maxcut:ring6'))
+    annealing.T.setValue(10)
+    annealing.compute().wait()
+    annealing.tabs.setCurrentIndex(1)
+    annealing.s_slider.setValue(28)
+    settle(app, 0.4)
+    save(w, 'annealing.png', scale=0.75)
 
     # Learn, Settings, About
     from PySide6.QtCore import QUrl

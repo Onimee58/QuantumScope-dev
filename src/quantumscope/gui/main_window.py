@@ -164,6 +164,7 @@ class MainWindow(QMainWindow):
             menu.addAction("Gate Circuit Simulator", self._launch_circuits)
             menu.addAction("QASM Converter", self._launch_converter)
             menu.addAction("Error-correction explorer", self._launch_qec_explorer)
+            menu.addAction("Quantum annealing", self._launch_annealing)
         if category in (None,"qml"):
             menu.addSection("QUANTUM ML")
             menu.addAction("Datasets", self._launch_qml_datasets)
@@ -203,7 +204,7 @@ class MainWindow(QMainWindow):
          "orbital": self._show_hydrogen, "dynamics2d": self.show_dynamics, "dynamics3d": self.show_dynamics_3d,
          "doubleslit": self._launch_double_slit, "superposition": self._launch_superposition,
          "entanglement": self._launch_entanglement, "teleportation": self._launch_teleportation,
-         "qec": self._launch_qec_explorer, "qml_datasets": self._launch_qml_datasets,
+         "qec": self._launch_qec_explorer, "annealing": self._launch_annealing, "qml_datasets": self._launch_qml_datasets,
          "qml_kernel": self._launch_qml_kernel, "qml_variational": self._launch_qml_variational,
          "calculator": self._launch_calculator}[view]()
 
@@ -357,7 +358,7 @@ class MainWindow(QMainWindow):
         return tabs
 
     # The area each experiment belongs to (the + menu it is listed in).
-    EXPERIMENT_AREAS={"dynamics_2d":"hydrogen","dynamics_3d":"hydrogen","qec_explorer":"circuits",
+    EXPERIMENT_AREAS={"dynamics_2d":"hydrogen","dynamics_3d":"hydrogen","qec_explorer":"circuits","annealing":"circuits",
                       "double_slit":"principles","superposition":"principles","entanglement":"principles",
                       "teleportation":"principles","qml_datasets":"qml","qml_kernel":"qml",
                       "qml_variational":"qml","calculator":"math"}
@@ -526,6 +527,16 @@ class MainWindow(QMainWindow):
     def _launch_qec_explorer(self):
         from quantumscope.gui.qec_chart import ErrorCorrectionExplorer
         self._open_experiment("qec_explorer", "Error-correction explorer", ErrorCorrectionExplorer)
+
+    def _launch_annealing(self):
+        from quantumscope.gui.annealing_view import AnnealingExperiment
+        self._open_experiment("annealing", "Quantum annealing",
+                              lambda parent: AnnealingExperiment(parent, open_circuit=self._load_annealing_circuit))
+
+    def _load_annealing_circuit(self, n, gates, observable, note):
+        """The anneal as gates, in the simulator, with its problem energy as the observable."""
+        self.circuit_widget.show_generated_circuit(n, gates, observable, note)
+        self._launch_circuits()
 
     def _launch_teleportation(self):
         from quantumscope.gui.teleportation_experiment import TeleportationDialog

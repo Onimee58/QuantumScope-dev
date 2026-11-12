@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.1** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.2** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -183,6 +183,21 @@ Press **Parameters** to show the panel.
 ![The VQLS solution view: the circuit's amplitudes against the classical solution](images/vqls-solution.png)
 
 **Algorithms… → Variational quantum linear solver** prepares a state proportional to the solution of A x = b. Choose the standard 3-qubit system, a worse-conditioned one, a 1-qubit one, or **Your own system**: A as a sum of Pauli terms on 1 to 3 qubits (it must be invertible) and b as |0…0⟩, |+…+⟩ or |1…1⟩. The observable is the VQLS cost, which is 0 exactly at the solution. Press **Optimize**, then **Verify / truth table**: the check passes at a fidelity of at least 0.99 with the classical solution. **Show the solution** compares the amplitudes as you go.
+
+### Quantum annealing
+
+![Quantum annealing: a hexagon's MaxCut annealed for T = 10, with the probability of the answer during the anneal and the likeliest bitstrings](images/annealing.png)
+
+Open **+ → Quantum annealing**. It anneals from the easy ground state of −ΣX to the ground state of a problem, the answer, and shows why the anneal time matters.
+
+- **Problem:** MaxCut on five small graphs, a **Spin glass** (choose the spins and an instance), **Number partitioning** (type the numbers) or **Your Ising problem** (Z terms, such as Z0 Z1 − 0.5 Z2). The answers and their energy are listed.
+- **Anneal** runs an anneal of time **T** and shows:
+  - **Spectrum:** the lowest levels of H(s), with the minimum gap circled. The panel reports the gap and the adiabatic time scale T*.
+  - **During the anneal:** the probability of the answer, and the overlap with the instantaneous ground state, as s goes from 0 to 1. The slider shows the likeliest bitstrings at any s (answers in green).
+- **Success against T** anneals for T from 0.5 to 80 and plots how often the answer is found, with the chance of guessing and T*.
+- **Open as circuit** turns the anneal into gates (digitized annealing) with the chosen number of **Steps**, and opens it in the simulator with the problem as the observable. One **Undo** brings back your previous circuit.
+
+For MaxCut and number partitioning, flipping every spin gives the same answer, so the spectrum shows only the levels the anneal can reach. Lecture "Quantum annealing" and its lab explain the physics.
 
 ### Files and tools
 

@@ -456,6 +456,41 @@ lesson: circuits/26-qaoa-maxcut
 see: QAOA
 Splitting a graph's nodes into two groups so that as many edges as possible join the groups.
 
+### Quantum annealing
+aliases: adiabatic quantum optimization
+lesson: circuits/29-quantum-annealing
+see: Adiabatic theorem, Ising Hamiltonian, Simulated annealing
+Finding the ground state of a problem Hamiltonian by starting in the easy ground state of a driver and changing the Hamiltonian slowly from one to the other.
+
+### Ising Hamiltonian
+aliases: Ising energy, Ising model
+lesson: circuits/29-quantum-annealing
+see: Quantum annealing, MaxCut
+An energy built from Z and ZZ terms, ΣJᵢⱼZᵢZⱼ + ΣhᵢZᵢ. It is diagonal, and its lowest-energy bitstrings answer an optimization problem.
+
+### Adiabatic theorem
+lesson: circuits/29-quantum-annealing
+see: Minimum gap
+A system in the ground state stays in the instantaneous ground state if its Hamiltonian changes slowly enough compared with the gap to the next level.
+
+### Minimum gap
+aliases: energy gap, spectral gap
+lesson: circuits/29-quantum-annealing
+see: Adiabatic theorem, Avoided crossing
+The smallest energy difference between the ground state and the first excited level it could jump to during an anneal. The anneal time needed grows like one over its square.
+
+### Avoided crossing
+aliases: avoided crossings, Landau–Zener transition
+lesson: circuits/29-quantum-annealing
+see: Minimum gap
+A point where two energy levels approach without crossing. A fast sweep jumps from one level to the other; the narrower the gap, the slower the sweep must be to avoid it.
+
+### Digitized annealing
+aliases: Trotterization, Trotter step, Trotter steps
+lesson: circuits/29-quantum-annealing
+see: QAOA, Quantum annealing
+An anneal split into short time slices, each a problem layer and a driver layer of gates, so a gate-based computer can run it. More slices follow the exact anneal more closely.
+
 ## Hydrogen
 
 ### Schrödinger equation
@@ -710,5 +745,5 @@ A gradient step scaled by the inverse of the Fubini–Study metric, so that each
 
 ### Simulated annealing
 lesson: circuits/28-optimizing-with-shots
-see: Barren plateau
+see: Barren plateau, Quantum annealing
 An optimizer that makes random moves and sometimes accepts uphill ones, less often as a "temperature" falls, so it can leave local minima.

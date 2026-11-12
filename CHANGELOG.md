@@ -1,3 +1,23 @@
+## v0.9.2 — Quantum annealing
+
+### The Quantum annealing experiment
+- **Open it with + in the Quantum Circuits area.** The anneal follows H(s) = (1 − s)·(−ΣX) + s·H_p from |+…+⟩, simulated exactly (each short slice exponentiated), for MaxCut on five graphs, a frustrated spin glass (choose the spins and the instance), number partitioning (your numbers) or your own Ising problem (Z terms).
+- **Spectrum:** the lowest levels of H(s) with the minimum gap circled, refined between grid points so narrow avoided crossings are not missed, and the adiabatic time scale T* = max |⟨1|∂H/∂s|0⟩| / Δ².
+- **Symmetry handled correctly:** when every term has an even number of Z's (MaxCut, partitioning), the anneal never leaves the symmetric states (|x⟩ + |x̄⟩)/√2, so gaps are computed there and the chart says so. Problems with degenerate answers use the gap to the first level that is not an answer.
+- **During the anneal:** the probability of the answer and the overlap with the instantaneous ground state against s, and the likeliest bitstrings at any s.
+- **Success against T** for anneals from T = 0.5 to 80, with the chance of guessing and T*. A spin glass with a tiny gap shows the surprise of the lecture: slower anneals can do worse until T is far beyond T*.
+- **Open as circuit:** the anneal as gates (H, then per slice RZ or CX–RZ–CX for each term and RX for the driver), with the problem as the observable and every qubit measured, in the circuit simulator; one Undo restores the previous circuit. QAOA has the same structure with free angles.
+- **Everything slow runs in the background;** the window never freezes.
+
+### Lessons
+- **A new lecture, "Quantum annealing":** Ising energies, the adiabatic theorem and the minimum gap, avoided crossings, symmetry, digitized annealing and QAOA, hardware annealers and simulated annealing.
+- **A new lab, "Anneal fast and slow",** whose steps tick as you anneal (a new `anneal` lab check) and as you build the circuit.
+- **Six glossary terms** (123 in total): quantum annealing, Ising Hamiltonian, adiabatic theorem, minimum gap, avoided crossing, digitized annealing.
+- **The guide** has a Quantum annealing section with a screenshot.
+
+### Quality
+- **Tests:** the symmetric-sector evolution against the full space, the sector's levels against the full spectrum, the circuit against the exact Trotter product, convergence of the time slicing, the adiabatic trend, the problem definitions, cancellation; and in the whole window, the experiment's results, its input checks, the success curve, and the circuit's energy and undo.
+
 ## v0.9.1 — More optimizers, and optimizing with shots
 
 ### Optimizing with shots

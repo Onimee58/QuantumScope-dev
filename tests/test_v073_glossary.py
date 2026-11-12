@@ -17,7 +17,7 @@ def links(markup):
 
 def test_the_glossary_is_complete_and_consistent():
     terms = GLOSSARY.terms
-    assert len(terms) == 117                                                   # + 5 optimizer terms (0.9.1), + 7 evaluation terms (0.8.3), + 10 Mathematics (0.7.7), + 14 Quantum ML (0.8.0)
+    assert len(terms) == 123                                                   # + 6 annealing terms (0.9.2), + 5 optimizer terms (0.9.1), + 7 evaluation terms (0.8.3), + 10 Mathematics (0.7.7), + 14 Quantum ML (0.8.0)
     for term in terms.values():
         assert term.definition and term.group, term.name
         assert term.lesson in LESSONS, (term.name, term.lesson)               # Learn more opens a real lesson
@@ -69,5 +69,5 @@ def test_without_a_glossary_lessons_render_as_before():
 
 def test_glossary_page_markdown():
     page = GLOSSARY.page_markdown()
-    assert page.startswith('# Glossary') and page.count('**') == 2 * 117 and '[[Eigenvalue]]' in page
+    assert page.startswith('# Glossary') and page.count("**") == 2 * 123 and '[[Eigenvalue]]' in page
     assert '(qs:lesson/math/04-hermitian-and-unitary)' in page

@@ -212,6 +212,8 @@ LAB_SOLUTIONS = {
     'qml/91-lab-mnist-pixels-to-qubits': ('qml', [('prepare', 'mnist', 4), ('kernel', 'store', 4, 'angle', 1.0),
                                                   ('kernel', 'store', 4, 'angle', 0.5)]),
     'qml/92-lab-train-a-circuit': ('qml', [('variational', 'moons', 2), ('observable Z0',)]),
+    # v0.9.2: annealing, done with the real annealing code, recorded as the experiment does
+    'circuits/110-lab-anneal-fast-and-slow': ('anneal',),
 }
 
 
@@ -232,6 +234,27 @@ def test_lab_solution_completes_every_step(key):
         m.set_parameter('θ', math.pi)
         lesson = next(l for l in LESSONS if l.key == key)
         assert all(labs.progress(m, steps_of(lesson.body)).values())
+        return
+    if LAB_SOLUTIONS[key][0] == 'anneal':
+        from quantumscope.physics import annealing as A, annealing_progress as progress
+        progress.reset()
+        hexagon, glass = A.maxcut('ring6'), A.spin_glass(8, 0)
+        steps = steps_of(lesson.body)
+        m = CircuitModel(1)
+        assert not any(labs.progress(m, steps).values())
+        progress.annealed(hexagon.key, 30, A.anneal(hexagon, 30, ground=False).final_success,
+                          A.spectrum(hexagon).minimum_gap)
+        assert labs.progress(m, steps)[0]
+        gap = A.spectrum(glass, points=81).minimum_gap
+        progress.annealed(glass.key, 10, A.anneal(glass, 10, ground=False).final_success, gap)
+        progress.curve(glass.key, gap)
+        m.set_circuit(6, A.circuit(hexagon, 10, 20))
+        m.set_observable(hexagon.observable)
+        assert all(labs.progress(m, steps).values()), progress.STATE
+        m.set_circuit(6, A.circuit(hexagon, 10, 5))           # too few steps: the energy is far off
+        m.set_observable(hexagon.observable)
+        assert not labs.progress(m, steps)[2]
+        progress.reset()
         return
     if LAB_SOLUTIONS[key][0] == 'qml':                         # Quantum ML: the real ML code, step by step
         import numpy as np
@@ -346,7 +369,7 @@ def test_grover_table_matches_the_formula():
 def test_every_area_has_lessons():
     areas = {l.area for l in LESSONS}
     assert areas == {'circuits', 'principles', 'hydrogen', 'math', 'qml'}     # Mathematics 0.7.7, Quantum ML 0.8.0
-    assert sum(l.kind == 'lab' for l in LESSONS) == 23 and len(LESSONS) == 83
+    assert sum(l.kind == 'lab' for l in LESSONS) == 24 and len(LESSONS) == 85        # + annealing lecture and lab (0.9.2)
 
 
 def test_png_size_matches_the_image_and_needs_no_qt():
