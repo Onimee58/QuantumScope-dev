@@ -170,12 +170,12 @@ class LearnWindow(QWidget):
                 hint = QTreeWidgetItem(['(choose a folder of .md lessons below)'])
                 hint.setDisabled(True)
                 top.addChild(hint)
-            for kind, label in (('lecture', 'Lectures'), ('lab', 'Labs')):
+            for kind, label in (('guide', ''), ('lecture', 'Lectures'), ('lab', 'Labs')):
                 group = [l for l in mine if l.kind == kind]
                 if not group:
                     continue
-                parent = QTreeWidgetItem([label]) if area != COURSE else top
-                if area != COURSE:
+                parent = QTreeWidgetItem([label]) if area != COURSE and kind != 'guide' else top   # the study guide comes first, on its own
+                if parent is not top:
                     top.addChild(parent)
                 for lesson in group:
                     item = QTreeWidgetItem([lesson.title])

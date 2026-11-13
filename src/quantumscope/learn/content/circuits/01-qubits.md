@@ -8,6 +8,10 @@ math: 01-complex-numbers, 02-vectors-and-dirac-notation
 ---
 # Qubits, state vectors and bit order
 
+## The idea
+
+Everything a quantum computer does happens to its **state**: a list of complex amplitudes, one for each possible readout. This lecture sets up the language for the rest of the area — how one qubit is written, what its amplitudes mean when you measure, how qubits combine, and how to read a label like $|10\rangle$ without confusion.
+
 ## One qubit
 
 A classical bit is either 0 or 1. A **qubit** has two basis states, written $|0\rangle$ and $|1\rangle$, and can be in any **superposition** of them:
@@ -55,6 +59,24 @@ You can switch QuantumScope's labels in **Settings → Circuits → Bit order in
 
 [Try it: X on q0 of three qubits](qs:circuit?n=3&gates=X:0&inspector=1)
 
+## Worked example
+
+Put H on q0 and X on q1 of a two-qubit circuit. Each qubit is independent, so the state is a tensor product:
+
+$$|+\rangle \otimes |1\rangle = \frac{1}{\sqrt{2}}\left(|0\rangle + |1\rangle\right) \otimes |1\rangle = \frac{1}{\sqrt{2}}\left(|01\rangle + |11\rangle\right)$$
+
+In textbook order the amplitude list is $(0, \frac{1}{\sqrt{2}}, 0, \frac{1}{\sqrt{2}})$: q1 is always 1, and q0 is 0 or 1 with probability ½ each. In Qiskit order the same two outcomes are labeled $|10\rangle$ and $|11\rangle$. The physics is identical; only the names of the basis states change.
+
+## Common mistakes
+
+- **Adding amplitudes to 1.** Normalization is $|\alpha|^2 + |\beta|^2 = 1$; the amplitudes themselves need not add to 1.
+- **Mixing up bit orders.** Before comparing with another tool or a textbook, check which qubit its labels write first.
+- **Treating $|+\rangle$ and $|-\rangle$ as the same.** Their measurement statistics in $z$ agree, but they are different states.
+
+## In the app
+
+Build the worked example and open the State Inspector: the **Amplitudes** tab lists each basis state with its amplitude and probability. Then change **Settings → Circuits → Bit order in labels** and watch the same amplitudes take the other labels.
+
 ## Check your understanding
 
 ```quiz
@@ -82,6 +104,15 @@ Q: In textbook order (q0 leftmost), which label means "q0 = 0 and q1 = 1"?
 - |11⟩
 - |00⟩
 E: The first digit belongs to q0 and the second to q1. In Qiskit order the same state would be written |10⟩.
+```
+
+```quiz
+Q: In textbook order, a two-qubit state has amplitudes (0, 0, 1, 0) for |00⟩, |01⟩, |10⟩, |11⟩. Which qubit is 1?
+* q0
+- q1
+- Both
+- Neither
+E: The nonzero amplitude belongs to |10⟩, and the first digit is q0.
 ```
 
 ## Summary

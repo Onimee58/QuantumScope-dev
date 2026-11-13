@@ -8,6 +8,10 @@ math: 03-matrices-acting-on-states, 04-hermitian-and-unitary, 09-matrix-exponent
 ---
 # Single-qubit gates
 
+## The idea
+
+A gate changes a qubit's state without measuring it. On one qubit, every gate is a small matrix that keeps the state normalized — and, geometrically, every gate is a turn of the Bloch sphere. A handful of named gates (X, Z, H, S, T and the rotations) is enough to build any single-qubit operation.
+
 ## Gates are unitary matrices
 
 A quantum gate on one qubit is a $2\times 2$ **unitary** matrix $U$: it satisfies $U^\dagger U = I$, which guarantees that a normalized state stays normalized. Applying the gate means multiplying the state vector by $U$, and every gate can be undone by applying $U^\dagger$.
@@ -48,6 +52,24 @@ $R_Y(\theta)$ rotates by $\theta$ about the $y$ axis, so $R_Y(\pi/2)|0\rangle = 
 
 [Try it: RY(π/2) on |0⟩](qs:circuit?n=1&gates=RY:0:pi/2&inspector=1)
 
+## Worked example
+
+Is the Hadamard a rotation? Try "Z, then $R_Y(\pi/2)$". With $R_Y(\pi/2) = \frac{1}{\sqrt{2}}\begin{pmatrix}1 & -1\\ 1 & 1\end{pmatrix}$,
+
+$$R_Y\!\left(\frac{\pi}{2}\right) Z = \frac{1}{\sqrt{2}}\begin{pmatrix}1 & -1\\ 1 & 1\end{pmatrix}\begin{pmatrix}1 & 0\\ 0 & -1\end{pmatrix} = \frac{1}{\sqrt{2}}\begin{pmatrix}1 & 1\\ 1 & -1\end{pmatrix} = H$$
+
+So H is a half turn about $z$ followed by a quarter turn about $y$. Check on $|0\rangle$: Z leaves it alone, and $R_Y(\pi/2)$ tilts it to $|+\rangle$, as H does. (The product is written right to left: Z acts first.)
+
+## Common mistakes
+
+- **Expecting a phase gate to change $|0\rangle$.** S, T and P only touch the $|1\rangle$ amplitude; start from $|+\rangle$ to see them work.
+- **Using θ instead of θ/2.** $R_Y(\pi)$ takes $|0\rangle$ to $|1\rangle$; $R_Y(\pi/2)$ only to the equator.
+- **Treating X and $R_X(\pi)$ as different gates on one qubit.** $R_X(\pi) = -iX$: the same gate up to a global phase.
+
+## In the app
+
+Double-click a gate in the palette to open the **Gate Explorer**: it shows the matrix, what the gate does to each basis state and a worked identity. Place gates on one qubit and open the State Inspector to watch the Bloch arrow turn; **Tools → Simplify** removes gates that do nothing but add a global phase.
+
 ## Check your understanding
 
 ```quiz
@@ -75,6 +97,15 @@ Q: Which of these gates is NOT its own inverse?
 - Z
 * S
 E: S² = Z, not I. The inverse of S is S† (shown as SDG), with i replaced by −i.
+```
+
+```quiz
+Q: What is T applied twice?
+- Z
+* S
+- I
+- T†
+E: T multiplies |1⟩ by e^{iπ/4}; twice gives e^{iπ/2} = i, which is S.
 ```
 
 ## Summary

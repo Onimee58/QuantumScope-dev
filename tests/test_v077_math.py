@@ -9,7 +9,7 @@ from quantumscope.learn.lessons import builtin_lessons, math_titles, parse
 from quantumscope.learn.render import to_html
 
 LESSONS = {l.key: l for l in builtin_lessons()}
-MATH = [l for l in LESSONS.values() if l.area == 'math']
+MATH = [l for l in LESSONS.values() if l.area == 'math' and l.kind == 'lecture']      # not the study guide (0.9.8)
 
 
 def test_twelve_mathematics_lessons_in_order_with_quizzes_and_valid_links():

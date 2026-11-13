@@ -7,7 +7,9 @@ objectives: Compute a conjugate transpose | Check whether a matrix is unitary or
 ---
 # Conjugate transpose, Hermitian and unitary
 
-Two kinds of matrices run through all of quantum computing: **unitary** matrices (the gates) and **Hermitian** matrices (the observables). Both are defined with the **conjugate transpose**.
+## The idea
+
+Two kinds of matrices run through all of quantum computing: **unitary** matrices (the gates) and **Hermitian** matrices (the observables). Gates must never lose probability, and measured values must be real numbers; these two physical demands are exactly the two definitions. Both are written with one operation, the **conjugate transpose**.
 
 ## The conjugate transpose
 
@@ -48,6 +50,24 @@ The diagonal of a Hermitian matrix is real, and the entries across the diagonal 
 
 The Pauli matrices and $H$ are both: they are gates and observables at once.
 
+## Worked example
+
+Test $U = \frac{1}{\sqrt{2}}\begin{pmatrix} 1 & i \\ i & 1 \end{pmatrix}$. Its conjugate transpose conjugates the $i$'s:
+
+$$U^\dagger = \frac{1}{\sqrt{2}}\begin{pmatrix} 1 & -i \\ -i & 1 \end{pmatrix}, \qquad U^\dagger U = \frac{1}{2}\begin{pmatrix} 1 + 1 & i - i \\ -i + i & 1 + 1 \end{pmatrix} = I$$
+
+So $U$ is unitary: a valid gate. It is not Hermitian, since $U^\dagger \neq U$. Undoing it needs $U^\dagger$, not $U$ again: applying $U$ twice gives $U^2 = iX$, a bit flip with a global phase.
+
+## Common mistakes
+
+- **Transposing without conjugating.** For complex matrices, $A^T$ and $A^\dagger$ differ; unitarity and Hermiticity use $A^\dagger$.
+- **Thinking every gate is its own inverse.** True for X, Z and H, but S, T and most rotations need their daggers: S is undone by S†, not by S.
+- **Reversing $(AB)^\dagger$ the wrong way.** It is $B^\dagger A^\dagger$; this is why undoing a circuit runs the gates' inverses in reverse order.
+
+## In the app
+
+The gate palette has each non-self-inverse gate's partner: S and SDG, T and TDG. Build H, S, SDG and check in the State Inspector that the state is $|+\rangle$ again. In the calculator, `†` takes the conjugate transpose: `H† H` gives the identity, and `S† S` does too, while `S S` does not.
+
 [Try it: S followed by its inverse SDG returns |+⟩ unchanged](qs:circuit?n=1&gates=H:0;S:0;SDG:0)
 
 [Try it in the calculator: H† H](qs:calc?expr=H%E2%80%A0%20H)
@@ -69,8 +89,25 @@ Q: Is the matrix with rows (1, 2i) and (−2i, 3) Hermitian?
 E: Its diagonal is real and the off-diagonal entries 2i and −2i are conjugates, so it equals its conjugate transpose.
 ```
 
+```quiz
+Q: What undoes the gate T?
+- T again
+* T† (TDG)
+- Z
+E: T is unitary, so its inverse is T†. T·T = S, not the identity.
+```
+
+```quiz
+Q: A circuit applies A, then B. Which circuit undoes it?
+- A†, then B†
+* B†, then A†
+- B, then A
+E: The circuit is BA, and (BA)† = A†B†, which applies B† first and A† last.
+```
+
 ## Summary
 
 - $A^\dagger$: transpose and conjugate; $(AB)^\dagger = B^\dagger A^\dagger$.
 - Unitary ($U^\dagger U = I$): preserves probabilities; every gate, undone by $U^\dagger$.
 - Hermitian ($A = A^\dagger$): real eigenvalues; every observable.
+- Some matrices are both (X, Y, Z, H); most gates are only unitary.

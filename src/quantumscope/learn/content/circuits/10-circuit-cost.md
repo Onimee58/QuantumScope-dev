@@ -8,6 +8,10 @@ math: 03-matrices-acting-on-states
 ---
 # Circuit cost: depth, T-count and Clifford gates
 
+## The idea
+
+Two circuits can compute the same thing at very different cost. On real hardware the cost is time and noise: every layer of gates gives qubits more time to decay, and some gates are far more expensive than others. A few standard measures — gate counts, depth, and the T-count — let you compare circuits and make them cheaper.
+
 ## Counting gates
 
 The simplest cost is the number of gates, with two-qubit gates usually weighted more heavily: on real hardware they are slower and noisier than single-qubit gates.
@@ -35,6 +39,26 @@ Open the Circuit tab to see gate counts, depths and Clifford counts. Collapsed b
 
 **Tools → Simplify circuit** removes gates that cancel (such as H·H or S·S†) and merges consecutive rotations, verifying that the circuit's unitary is unchanged.
 
+## Worked example
+
+A circuit on three qubits: H on q0, H on q1, X on q2, then CX from q0 to q1, drawn in four separate columns.
+
+- Gate count 4, of which one two-qubit gate.
+- Drawn depth 4, but minimum depth 2: H, H and X can all run in the first layer, and the CX in the second.
+- All four gates are Clifford gates, so the T-count is 0 and a classical computer can simulate the circuit efficiently, however many qubits it had.
+
+Add one Toffoli and the picture changes: its standard decomposition uses 6 CX gates and 7 T gates, so the T-count jumps from 0 to 7.
+
+## Common mistakes
+
+- **Counting columns as depth.** The drawn depth depends on your layout; the minimum depth is what the hardware needs.
+- **Weighting all gates equally.** Two-qubit gates are typically ten times noisier than single-qubit ones, and T gates dominate fault-tolerant cost.
+- **Assuming more qubits means a quantum advantage.** A Clifford-only circuit on 100 qubits is still easy to simulate classically.
+
+## In the app
+
+Open the State Inspector's **Circuit** tab for gate counts, two-qubit counts, drawn and minimum depth, Clifford counts and the T-count; collapsed blocks never hide their real gates. Build the worked example and compare its two depths, then try **Tools → Simplify circuit** on a circuit with H·H or S·S† in it.
+
 ## Check your understanding
 
 ```quiz
@@ -52,6 +76,22 @@ Q: Four single-qubit gates act on four different qubits in four different column
 - 2
 - 4
 E: They act on different qubits, so they can all run in the same layer.
+```
+
+```quiz
+Q: A circuit has drawn depth 10 but minimum depth 4. What does that tell you?
+* Many gates could run in parallel; the layout spreads them out
+- The circuit has 6 redundant gates
+- The circuit is noisy
+E: Minimum depth packs every gate as early as possible. The gap comes from the layout, not from extra gates.
+```
+
+```quiz
+Q: Why is the T-count, rather than the CX count, the main cost in a fault-tolerant computer?
+- T gates act on more qubits
+* Error-corrected T gates need costly extra resources, while Clifford gates are cheap
+- T gates cannot be simulated
+E: In common error-correcting codes, Clifford gates are cheap to implement, while each T gate needs an expensive procedure such as magic-state distillation.
 ```
 
 ## Summary

@@ -3,7 +3,7 @@
     ---
     title: Qubits, state vectors and bit order
     area: circuits            # circuits, principles, hydrogen (or anything, for teachers' lessons)
-    kind: lecture             # lecture or lab
+    kind: lecture             # lecture, lab, or guide (an area's study guide, shown first)
     order: 1
     objectives: Write a qubit state | Read a basis label
     ---
@@ -22,6 +22,7 @@ import re
 AREAS = {'circuits': 'Quantum Circuits', 'principles': 'Quantum Principles', 'hydrogen': 'Hydrogen',
          'math': 'Mathematics', 'qml': 'Quantum ML'}
 COURSE = 'course'
+KINDS = ('guide', 'lecture', 'lab')     # in the order the contents list them
 MAX_LESSON_BYTES = 2_000_000
 
 
@@ -30,7 +31,7 @@ class Lesson:
     key: str                  # 'circuits/01-qubits' or 'course/<file name>'
     title: str
     area: str
-    kind: str                 # 'lecture' or 'lab'
+    kind: str                 # 'lecture', 'lab' or 'guide'
     order: float
     body: str
     folder: str               # where relative images resolve
@@ -66,7 +67,7 @@ def parse(text, key, folder, default_area=COURSE):
     objectives = tuple(o.strip() for o in meta.get('objectives', '').split('|') if o.strip())
     noglossary = tuple(t.strip() for t in meta.get('noglossary', '').split(',') if t.strip())
     math = tuple(f'math/{m.strip()}' for m in meta.get('math', '').split(',') if m.strip())
-    return Lesson(key, title, meta.get('area', default_area), kind if kind in ('lecture', 'lab') else 'lecture',
+    return Lesson(key, title, meta.get('area', default_area), kind if kind in KINDS else 'lecture',
                   order, body, folder, objectives, noglossary, math)
 
 
@@ -116,7 +117,9 @@ def search(lessons, query, limit=30):
     for lesson in lessons:
         title, body = lesson.title.lower(), lesson.body.lower()
         if all(w in title or w in body for w in words):
-            score = sum(3 for w in words if w in title) + sum(body.count(w) for w in words)
+            headings = re.findall(r'^#+ (.+)$', body, re.M)          # a section about it counts more (0.9.8)
+            score = (sum(3 for w in words if w in title) + sum(body.count(w) for w in words)
+                     + sum(5 for w in words for h in headings if w in h))
             scored.append((-score, lesson.title, lesson))
     return [item[2] for item in sorted(scored, key=lambda x: (x[0], x[1]))[:limit]]
 
@@ -155,4 +158,4 @@ EXAMPLE_LESSONS = {
 @functools.lru_cache(maxsize=1)
 def math_titles():
     """{key: title} of the Mathematics lessons, for the "Math you need" links."""
-    return {lesson.key: lesson.title for lesson in builtin_lessons() if lesson.area == 'math'}
+    return {lesson.key: lesson.title for lesson in builtin_lessons() if lesson.area == 'math' and lesson.kind == 'lecture'}

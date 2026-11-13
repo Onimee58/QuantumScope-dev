@@ -8,6 +8,10 @@ math: 09-matrix-exponentials, 12-gradients-and-optimization
 ---
 # The parameter-shift rule
 
+## The idea
+
+To make ⟨O⟩ smaller, an optimizer needs to know which way is downhill: the gradient. For the rotation gates in quantum circuits there is a remarkable shortcut — run the same circuit twice with the angle shifted by ±π/2, and the difference gives the exact derivative, with no approximation at all.
+
 ## Gradients without calculus on the circuit
 
 To lower ⟨O⟩ efficiently we want its **gradient**: how fast ⟨O⟩ changes with each parameter. On a quantum computer we cannot differentiate the circuit symbolically, and finite differences ($f(\theta + \epsilon) - f(\theta)$ for a tiny $\epsilon$) drown in measurement noise.
@@ -32,6 +36,25 @@ which is exactly $f'(\theta)$.
 
 When a parameter drives several gates, its gradient is the sum of each gate's shift, multiplied by that gate's factor. QuantumScope's **BFGS** and **gradient descent** use this rule; the cost is two circuit runs per bound gate, which is why the optimizer reports how many circuit evaluations it used.
 
+## Worked example
+
+Take the shared-parameter circuit $R_Y(\theta)$, $R_Y(2\theta)$, with $f(\theta) = \langle Z\rangle = \cos 3\theta$. Shift each gate in turn:
+
+- Gate 1 (factor 1): $\frac{1}{2}\left[\cos(3\theta + \frac{\pi}{2}) - \cos(3\theta - \frac{\pi}{2})\right] = -\sin 3\theta$.
+- Gate 2 (factor 2): the same shift gives $-\sin 3\theta$, multiplied by its factor 2.
+
+The total is $-3\sin 3\theta$, exactly $f'(\theta)$. At $\theta = \pi/6$ that is $-3$. It took four circuit runs: two per gate.
+
+## Common mistakes
+
+- **Using a tiny shift.** The rule uses ±π/2; tiny finite differences are approximate and drown in shot noise.
+- **Forgetting the factors.** A gate with angle $2\theta$ contributes twice its shift difference.
+- **Applying the rule to any gate.** It holds for generators with two eigenvalues a gap of 1 apart, such as the rotation gates; other gates need more shifts.
+
+## In the app
+
+With parameters and an observable in the **Parameters & observable** panel, press **Optimize** with BFGS or gradient descent: the optimizer computes gradients with this rule and reports how many circuit evaluations it used. Move a slider by π/2 either way and read ⟨O⟩ to apply the rule by hand.
+
 ## Check your understanding
 
 ```quiz
@@ -48,6 +71,22 @@ Q: Why not use a tiny finite difference instead?
 - Finite differences are always exactly zero
 - Quantum circuits have no derivatives
 E: The shifts of ±π/2 are large, so the difference is far above the measurement noise.
+```
+
+```quiz
+Q: f(θ) = sin θ. What does the parameter-shift rule give at θ = 0?
+* 1
+- 0
+- −1
+E: [sin(π/2) − sin(−π/2)]/2 = (1 + 1)/2 = 1 = cos 0.
+```
+
+```quiz
+Q: A circuit has 5 parameters, each in one rotation gate. How many circuit runs does one full exact gradient need?
+- 5
+* 10
+- 25
+E: Two shifted runs per parameter: 2 × 5 = 10.
 ```
 
 ## Summary

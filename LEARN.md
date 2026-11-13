@@ -21,13 +21,15 @@ An optional header at the top sets the title, the order and the learning objecti
 ```
 ---
 title: Week 3 — Measurement
-kind: lecture            (or lab)
+kind: lecture            (or lab, or guide)
 order: 3
 objectives: State the Born rule | Predict measurement statistics
 ---
 ```
 
 Without a header, the first `# Heading` becomes the title.
+
+`kind: guide` makes a study guide, listed first. The built-in lectures follow one shape, which works well for your own too (v0.9.8): `## The idea` (two or three sentences), the main sections, `## Worked example`, `## Common mistakes`, `## In the app` (what to try, with Try it links), `## Check your understanding` with four questions, and `## Summary`.
 
 ### What you can write
 

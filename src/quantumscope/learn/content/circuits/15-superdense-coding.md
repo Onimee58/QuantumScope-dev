@@ -8,6 +8,10 @@ math: 07-tensor-products, 10-pauli-algebra
 ---
 # Superdense coding
 
+## The idea
+
+A single qubit, sent on its own, can carry at most one classical bit. But if sender and receiver already share an entangled pair, sending one qubit delivers **two** bits. Superdense coding shows that entanglement is a resource that can stand in for communication — the mirror image of teleportation.
+
 ## Two bits in one qubit
 
 On its own, one qubit can carry at most one bit of classical information (the Holevo bound). With a shared Bell pair, Alice can send **two** bits by transmitting just her one qubit.
@@ -40,6 +44,24 @@ Alice sends q0 to Bob. He applies CX from q0 to q1, then H to q0, and measures b
 
 Both show that shared entanglement is a resource that can be traded against communication.
 
+## Worked example
+
+Alice wants to send 11. Starting from $|\Phi^+\rangle$, she applies X to q0, then Z to q0:
+
+$$\frac{|00\rangle + |11\rangle}{\sqrt{2}} \overset{X_0}{\longrightarrow} \frac{|10\rangle + |01\rangle}{\sqrt{2}} \overset{Z_0}{\longrightarrow} \frac{|01\rangle - |10\rangle}{\sqrt{2}}$$
+
+Bob receives q0 and applies CX from q0 to q1: $|01\rangle$ stays, $|10\rangle$ becomes $|11\rangle$, giving $\frac{1}{\sqrt{2}}(|01\rangle - |11\rangle) = |-\rangle|1\rangle$. His H turns $|-\rangle$ into $|1\rangle$, and he measures $11$: the message, with certainty.
+
+## Common mistakes
+
+- **Thinking Alice sends two qubits.** Only q0 travels; q1 was shared with Bob beforehand.
+- **Thinking the trick beats physics.** The Bell pair had to be distributed first; counting it, two qubits carry two bits.
+- **Measuring before decoding.** Bob must apply CX and H first; measuring the Bell state directly gives random results.
+
+## In the app
+
+Open the **Superdense coding** example and change Alice's gates to send each of the four messages; the histogram shows the message every time. Step through with the State Inspector to see the four Bell states after encoding.
+
 ## Check your understanding
 
 ```quiz
@@ -55,6 +77,23 @@ Q: Can one qubit without shared entanglement carry two classical bits?
 - Yes, using a superposition
 * No: at most one bit (the Holevo bound)
 E: Superdense coding needs the Bell pair; a lone qubit carries at most one bit.
+```
+
+```quiz
+Q: Alice applies only X to her half of |Φ⁺⟩. Which two bits does Bob read?
+- 00
+* 01
+- 10
+- 11
+E: X encodes b₁ = 1 and b₀ = 0, so Bob decodes 01.
+```
+
+```quiz
+Q: Without a shared Bell pair, how many classical bits can one transmitted qubit carry?
+* One
+- Two
+- Unlimited, since amplitudes are continuous
+E: The Holevo bound limits one qubit to one bit; entanglement shared in advance doubles it.
 ```
 
 ## Summary

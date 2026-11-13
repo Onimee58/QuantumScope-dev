@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.7** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.8** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -46,7 +46,7 @@ Nothing is downloaded or installed without your confirmation, and a download tha
 
 - **Areas:** the five tabs under the title, **Hydrogen**, **Quantum Principles**, **Quantum Circuits**, **Quantum ML** and **Math**, are the five areas of the app.
 - **Experiment tabs:** each area holds experiment tabs. Open more with **+** on the right of the tab bar, or with **+ New Experiment** at the top. Every tab can be closed with its **×**. A closed tab is only hidden, so opening it again brings it back exactly as you left it. An area with no open tabs shows a **Start** page with its experiments as buttons.
-- **📖 Learn** opens the lessons for the current area (chapter 8).
+- **📖 Learn** opens the study guide for the current area (chapter 8).
 - **⚑** opens **Report a problem** (chapter 10). **⚙** opens **Settings** (chapter 9). **ⓘ** shows **About QuantumScope**, including **Check for updates…** and **User guide**, which opens this document.
 - **Charts:** right-click any chart for **View All**, the axis options, **Save image…** (PNG or JPEG at twice the screen resolution), **Copy image** and **Save data (CSV)…**.
 - **Long computations** (training, **Optimize**, **Best of N**, the landscape) run in the background with their progress shown, so the window never freezes; **Stop** or **Cancel** ends them early.
@@ -331,12 +331,13 @@ The same expression means the same in both modes; switching recalculates the cur
 
 ## 8. Learn
 
-**📖 Learn** opens QuantumScope's course: lectures and labs for every area, plus **Mathematics**.
+**📖 Learn** opens QuantumScope's course: a study guide, lectures and labs for every area, plus **Mathematics**.
 
 ![Learn: a lecture with a glossary popup](images/learn.png)
 
 - **Contents:** lessons are grouped by area: **Quantum Circuits**, **Quantum Principles**, **Hydrogen**, **Mathematics** and **Quantum ML**. **Search lessons…** finds any lesson by its words.
-- **Lectures** explain a topic. **Math you need** at the top links to the Mathematics lessons it builds on.
+- **Study guides:** each area starts with one. It says who the area is for and how long it takes, what to read first, the suggested order of lectures and labs, and what you should be able to do at the end. Each tab's **📖 Learn** button opens its area's study guide.
+- **Lectures** explain a topic, always in the same order: **The idea** in a few sentences, the main content, a **Worked example** with numbers, **Common mistakes**, **In the app** (what to try, with Try it links), four questions and a **Summary**. **Math you need** at the top links to the Mathematics lessons it builds on.
 - **Try it** links open the matching experiment or circuit in the main window.
 - **Quizzes** check your understanding: click an answer to see whether it is right, and why.
 - **Labs** give step-by-step tasks in the circuit simulator or the Quantum ML experiments, and check each step as you complete it.

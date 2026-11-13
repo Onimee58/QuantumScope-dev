@@ -8,6 +8,10 @@ math: 06-probability
 ---
 # Logical error rates and thresholds
 
+## The idea
+
+A code does not make errors impossible; it makes them rarer — if the physical error rate is low enough. This lecture computes how often the bit-flip code fails, shows that a code can even make things worse against the wrong kind of noise, and introduces the **threshold** that decides whether error correction pays off.
+
 ## When does the code fail?
 
 Suppose each data qubit independently suffers a bit flip with probability $p$. The bit-flip code fails only when two or three qubits flip:
@@ -34,6 +38,24 @@ With the second link, press **Plot logical error rate** in the verification pane
 
 Our model only puts errors on the data. In a real device the gates that measure the syndrome are faulty too, so a code only helps when the physical error rate is below a **threshold** that depends on the code and the noise. Below it, larger codes push the logical error rate down further and further; above it, adding qubits makes things worse. For the surface code, a leading candidate for large quantum computers, thresholds of around one percent are typically quoted.
 
+## Worked example
+
+At $p = 0.01$, the bit-flip code fails with probability
+
+$$3p^2 - 2p^3 = 0.0003 - 0.000002 \approx 0.0003$$
+
+about **33 times** less often than an unprotected qubit (0.01). The improvement grows as $p$ shrinks, because failure needs two errors. Against phase flips at $p = 0.1$, however, the same code fails with probability $\frac{1}{2}(1 - 0.8^3) \approx 0.244$ — more than twice as often as a bare qubit.
+
+## Common mistakes
+
+- **Thinking a code always helps.** Against the wrong error type, or above threshold, it makes things worse.
+- **Ignoring faulty syndrome measurements.** Real thresholds include errors in the checking circuits, which is why they are low.
+- **Reading 3p² as small for any p.** It beats p only when p < ½ (against its own error type); for realistic codes the bar is far lower.
+
+## In the app
+
+Open the **Error-correction explorer** to compare logical and physical error rates for each code and noise type. In the bit-flip code example with random errors, **Plot logical error rate** draws the curve from the circuit itself; remove a correction gate and watch it rise.
+
 ## Check your understanding
 
 ```quiz
@@ -50,6 +72,22 @@ Q: Why can error correction make things worse?
 * Each extra qubit is another place for errors; if they are too frequent or of the wrong type, the code adds failures
 - Measurement is unreliable
 E: Below the threshold the code's redundancy wins; above it, the extra error opportunities win.
+```
+
+```quiz
+Q: At p = 0.2, how often does the bit-flip code fail against bit flips?
+- 0.2
+* 0.104
+- 0.04
+E: 3p² − 2p³ = 0.12 − 0.016 = 0.104, about half the unprotected rate.
+```
+
+```quiz
+Q: Above the threshold, what happens when a larger code is used?
+- The logical error rate falls
+* The logical error rate rises: more qubits bring more errors than the code can fix
+- Nothing changes
+E: Below threshold, bigger codes help more and more; above it, they hurt.
 ```
 
 ## Summary

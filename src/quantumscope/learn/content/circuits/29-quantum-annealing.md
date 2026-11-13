@@ -8,6 +8,10 @@ math: 05-eigenvalues, 09-matrix-exponentials
 ---
 # Quantum annealing
 
+## The idea
+
+Instead of a sequence of gates, quantum annealing uses a slowly changing Hamiltonian: start in a ground state that is easy to prepare, then turn the energy landscape gradually into one whose ground state encodes the answer. If the change is slow enough, the system follows along and ends on the answer. How slow is slow enough is the whole story.
+
 Many hard problems ask for the best of $2^n$ choices: the best cut of a graph, the best split of a set of numbers, the lowest-energy arrangement of magnets. **Quantum annealing** looks for the answer without a gate-by-gate algorithm. It prepares a ground state that is easy, then changes the Hamiltonian slowly into one whose ground state is the answer.
 
 ## The problem as an energy
@@ -62,7 +66,26 @@ Commercial quantum annealers (such as D-Wave's) run this physically, on thousand
 
 **Simulated annealing** (one of the optimizers in the circuit tab) is a classical cousin: random moves at a falling temperature, climbing over barriers thermally. Quantum annealing can instead **tunnel** through tall, thin barriers.
 
-## In QuantumScope
+## Worked example
+
+Split the numbers 1, 2 and 3 into two groups with equal sums. With $H_p = (Z_0 + 2Z_1 + 3Z_2)^2$:
+
+| Bitstring | Signs $Z_0, Z_1, Z_2$ | Sum | Energy |
+|---|---|---|---|
+| 000 | +, +, + | 6 | 36 |
+| 001 | +, +, − | 0 | 0 |
+| 110 | −, −, + | 0 | 0 |
+| 011 | +, −, − | −4 | 16 |
+
+The answers are 001 and its complement 110: {1, 2} against {3}. The symmetry pairs every bitstring with its complement, so the anneal ends in $(|001\rangle + |110\rangle)/\sqrt{2}$, and a measurement gives one of the two equally good answers.
+
+## Common mistakes
+
+- **"Slower is always better."** Near a tiny gap, an anneal that is slow but not slow enough can do worse than a fast one.
+- **Ignoring the square.** Halving the minimum gap needs about four times the anneal time.
+- **Assuming a proven speedup.** Quantum annealers have not been shown to beat the best classical methods in general.
+
+## In the app
 
 Open **+ → Quantum annealing** in the Quantum Circuits area. Choose a problem and an anneal time $T$:
 
@@ -106,3 +129,10 @@ Q: How does QAOA differ from a digitized anneal?
 * QAOA uses the same layers, but few of them, with angles chosen by an optimizer
 E: Both alternate cost and mixer layers starting from |+…+⟩. The anneal fixes the angles by its schedule and needs many slices; QAOA optimizes a few layers' angles.
 ```
+
+## Summary
+
+- Annealing turns $H(s) = (1 - s)H_d + sH_p$ from an easy ground state into one that encodes the answer.
+- The anneal must be long compared with $T^*$, which grows like one over the minimum gap squared.
+- Avoided crossings with tiny gaps cause jumps; symmetry pairs each answer with its complement.
+- Digitized annealing is QAOA with fixed angles; no general quantum speedup has been shown.

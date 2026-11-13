@@ -8,7 +8,9 @@ math: 06-probability
 ---
 # Evaluating a classifier
 
-Training makes a classifier fit its data; evaluation tells you whether it will work on data it has never seen. A single accuracy number can hide a lot, so QuantumScope's **Evaluation** tab shows several measures, a confusion matrix and an ROC curve.
+## The idea
+
+Training makes a classifier fit its data; evaluation tells you whether it will work on data it has never seen. A single accuracy number can hide a lot: a model can score 95% while missing every case that matters. Good evaluation counts *which* mistakes are made, looks at every possible threshold, and keeps the test set untouched until the very end.
 
 ## The confusion matrix
 
@@ -53,7 +55,25 @@ Settings such as the bandwidth, the feature map or $C$ are **hyperparameters**: 
 
 ## Early stopping
 
-A variational classifier can keep improving on its training data while getting worse on new data: it starts to overfit. **Early stopping** watches the loss on validation data, stops when it has not improved for a while, and keeps the best step. In QuantumScope, set a **Validation share** and **Early stopping** in the Variational Classifier; the validation curves appear dashed beside the training curves.
+A variational classifier can keep improving on its training data while getting worse on new data: it starts to overfit. **Early stopping** watches the loss on validation data, stops when it has not improved for a while, and keeps the best step.
+## Worked example
+
+A test set of 100 samples gives TP = 45, FN = 5, FP = 10, TN = 40:
+
+- accuracy = 85/100 = 85%; precision = 45/55 ≈ 81.8%; recall = 45/50 = 90%;
+- specificity = 40/50 = 80%; F1 = 2 × 0.818 × 0.9 / 1.718 ≈ 85.7%; balanced accuracy = (90% + 80%)/2 = 85%.
+
+Now a different test set: 95 negatives and 5 positives, and a lazy classifier that always says −1. Its accuracy is 95%, yet its recall is 0 and its balanced accuracy 50%: it has learned nothing. Only the full confusion matrix shows this.
+
+## Common mistakes
+
+- **Reporting accuracy alone on unbalanced data.** Check recall for the small class, or balanced accuracy.
+- **Choosing settings by test accuracy.** Every peek makes the test score optimistic; use cross-validation on the training data.
+- **Ignoring the spread.** 91% ± 3% and 89% ± 3% are not clearly different.
+
+## In the app
+
+After training in the **Quantum Kernel Classifier**, open the **Evaluation** tab: it shows the confusion matrix, the measures above and the ROC curve with its AUC. **Cross-validate** reports a mean and spread over folds; **Search** cross-validates every combination under **Settings to try**, and **Use best** applies the winner. In the Variational Classifier, set a **Validation share** and **Early stopping**; the validation curves appear dashed beside the training curves.
 
 [Try it: evaluate and search in the Quantum Kernel Classifier](qs:open/qml_kernel)
 
@@ -73,6 +93,22 @@ Q: Why can the best setting from a hyperparameter search score lower on the test
 - Cross-validation uses the test set
 - The test set is always harder
 E: Each cross-validated score has its own uncertainty; the maximum of many such scores is biased upwards. The untouched test set gives the honest estimate.
+```
+
+```quiz
+Q: A disease affects 2% of patients. A model always predicts "healthy". What is its accuracy, and what is its recall for the disease?
+* 98% accuracy, 0% recall
+- 98% accuracy, 98% recall
+- 50% accuracy, 0% recall
+E: It is right for every healthy patient (98%) but finds none of the sick ones. Balanced accuracy, 50%, exposes it.
+```
+
+```quiz
+Q: A classifier's ROC curve has an area of 0.5. What does that mean?
+- It is perfect
+* Its decision values separate the classes no better than guessing
+- It is correct half the time on the training set
+E: An AUC of 0.5 means a random +1 sample scores above a random −1 sample only half the time: the diagonal.
 ```
 
 ## Summary

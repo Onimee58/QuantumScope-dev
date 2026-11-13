@@ -8,6 +8,8 @@ math: 06-probability
 ---
 # More than two classes
 
+## The idea
+
 An SVM answers a yes-or-no question: which side of a boundary is a point on? Many real questions have more answers: which of ten digits, which of three penguin species, which of six kinds of glass. Both of QuantumScope's classifiers handle them: choose **All classes** under Classes.
 
 ## One-vs-rest
@@ -62,6 +64,22 @@ In the **Glass** dataset, building windows have 70 and 76 samples, while tablewa
 
 With one feature per qubit, more qubits keep more of an image's variation after PCA, and accuracy on ten classes rises with them.
 
+## Worked example
+
+One-vs-rest on three penguin species gives, for one penguin, the decision values $f_{\mathrm{Adélie}} = -0.4$, $f_{\mathrm{Chinstrap}} = 0.3$ and $f_{\mathrm{Gentoo}} = -1.2$. The prediction is the largest, Chinstrap, even though a value of 0.3 is not very confident.
+
+A variational classifier for the same three classes measures $\lceil \log_2 3 \rceil = 2$ qubits. Suppose the outcomes have probabilities $p_{00} = 0.5$, $p_{01} = 0.2$, $p_{10} = 0.2$ and $p_{11} = 0.1$, with all offsets $b_c = 0$. Outcome 11 names no class, so it is dropped and the rest renormalized by $0.9$: $P = 0.56,\ 0.22,\ 0.22$, and class 0 wins. If the true class is 1, this sample adds $-\log 0.22 \approx 1.5$ to the cross-entropy; a confident right answer would add almost nothing.
+
+## Common mistakes
+
+- **Comparing accuracies across different numbers of classes.** Compare each with chance, $1/k$, and with the balanced accuracy.
+- **Reading the confusion matrix by columns.** Rows are true classes; a row shows where that class's samples went.
+- **Expecting one small circuit to match one-vs-rest.** It separates all classes at once with few parameters; on hard datasets it usually scores lower.
+
+## In the app
+
+In the **Quantum Kernel Classifier**, choose a dataset with more than two classes and **All classes** under **Classes**, then **Train**. The **Decision regions** take one colour per class, and the **Evaluation** tab shows the $k \times k$ confusion matrix with macro-averaged measures and one ROC curve per class. In the **Variational Classifier**, the same setting reads the classes from the measured qubits; **Open in circuit simulator** shows them.
+
 [Try it: classify all three penguin species](qs:open/qml_kernel) · [with one circuit](qs:open/qml_variational)
 
 ## Check your understanding
@@ -105,3 +123,9 @@ Q: Why does the balanced accuracy suit the Glass dataset better than plain accur
 - It is always higher than plain accuracy
 E: Balanced accuracy is the average recall over the classes. A classifier that ignores tableware and headlamps loses a whole class's share of it.
 ```
+
+## Summary
+
+- One-vs-rest trains one classifier per class on a single shared kernel and picks the most confident.
+- One circuit can name k classes with ⌈log₂ k⌉ measured qubits, trained on the cross-entropy.
+- Judge k-class scores against chance (1/k); use the k × k confusion matrix and balanced accuracy, especially with unbalanced classes.

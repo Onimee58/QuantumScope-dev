@@ -36,6 +36,24 @@ A quantum computer cannot read $C$ directly. VQLS estimates the terms with **Had
 
 [Try it: solve a 1-qubit system with VQLS](qs:algorithm/vqls?problem=single&layers=1)
 
+## Worked example
+
+The 1-qubit system: $A = 1 + 0.5X$ and $|b\rangle = |0\rangle$. Since $X^2 = 1$, $A^{-1} = \frac{4}{3}(1 - 0.5X)$, so
+
+$$A^{-1}|0\rangle = \frac{4}{3}\left(|0\rangle - 0.5|1\rangle\right) \ \Rightarrow\ |x\rangle \approx 0.894|0\rangle - 0.447|1\rangle$$
+
+Check: $A(|0\rangle - 0.5|1\rangle) = 0.75|0\rangle + 0|1\rangle$, which points exactly along $|b\rangle$, so $C = 0$. The eigenvalues of $A$ are 1.5 and 0.5, so $\kappa = 3$: a well-conditioned system. One RY gate can reach this state, and the optimizer finds it in a few steps.
+
+## Common mistakes
+
+- **Expecting the solution vector itself.** VQLS gives a normalized state $\propto x$; its overall length and individual entries need further measurements.
+- **Using a singular matrix.** Without an inverse there is no unique solution, and the cost has a whole valley of zeros.
+- **Ignoring the condition number.** A large κ means a flat landscape near the solution and many more measurements.
+
+## In the app
+
+**Algorithms → Variational quantum linear solver** sets up the standard systems or your own $A$. Press **Optimize** and open **Show the solution** to compare the circuit's amplitudes with $A^{-1}b$; the landscape shows how flat the cost becomes for the badly conditioned system.
+
 ## Check your understanding
 
 ```quiz
@@ -52,6 +70,22 @@ Q: A system has condition number 19 instead of 2.3. What changes?
 * The cost landscape is flatter, so the solve takes more optimizer steps (and, on hardware, more measurements)
 - The system has no solution
 E: A large condition number means A nearly loses a direction, which makes the solution harder to pin down.
+```
+
+```quiz
+Q: What is the cost C at the exact solution?
+* 0
+- 1
+- κ
+E: At the solution A|x⟩ points along |b⟩, so its part orthogonal to |b⟩, which C measures, vanishes.
+```
+
+```quiz
+Q: A has singular values 4 and 0.5. What is its condition number?
+- 2
+* 8
+- 4.5
+E: κ = σmax/σmin = 4/0.5 = 8.
 ```
 
 ## Summary

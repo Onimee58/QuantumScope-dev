@@ -198,7 +198,7 @@ def to_html(lesson, theme='dark', eq_folder='', revealed=(), steps=None, font_si
     out = [f'<html><body style="color:{p["text"]}; font-size:{font_size}px">']
     pending = {'objectives': ''}
     if lesson.objectives:
-        pending['objectives'] = (f'<div style="background:{p["note_bg"]}; padding:8px"><b>In this {lesson.kind}, '
+        pending['objectives'] = (f'<div style="background:{p["note_bg"]}; padding:8px"><b>In this {"study guide" if lesson.kind == "guide" else lesson.kind}, '
                                  f'you will:</b><ul>' + ''.join(f'<li>{html.escape(o)}</li>' for o in lesson.objectives)
                                  + '</ul></div>')
     if lesson.math:                               # "Math you need": links to the Mathematics lessons

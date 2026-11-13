@@ -8,6 +8,10 @@ math: 12-gradients-and-optimization
 ---
 # Optimizing with shots
 
+## The idea
+
+Everything a real quantum computer reports is a count of measurement outcomes, so every energy it gives an optimizer is a little noisy. Some optimizers stumble on that noise; others were designed for it. This lecture shows how large the noise is, how many shots precision costs, and which methods cope.
+
 A simulator can compute ⟨H⟩ exactly. A quantum computer cannot: it prepares the state, measures it, and repeats. Each measurement of a Pauli term gives +1 or −1, so ⟨H⟩ is only **estimated** from a limited number of **shots**, and every estimate is a little different.
 
 ## Shot noise
@@ -59,6 +63,26 @@ The **quantum natural gradient** (Stokes and colleagues, 2020) steps along $g^{-
 
 [Try it: optimize the H₂ ground state, then repeat with 1,000 shots](qs:algorithm/vqe?problem=h2&layers=2)
 
+## Worked example
+
+A Pauli term with $\langle P\rangle = 0.5$ is estimated with standard deviation
+
+$$\sigma = \sqrt{\frac{1 - 0.5^2}{N}} \approx \frac{0.87}{\sqrt{N}}$$
+
+so about 0.087 with 100 shots and 0.0087 with 10,000. Chemistry wants energies to about 0.0016 Hartree. A term with coefficient 0.4 contributes $0.4\sigma$, so reaching that alone needs $(0.4 \times 0.87 / 0.0016)^2 \approx 47{,}000$ shots — for one term, at one point of the landscape.
+
+The cost of a gradient matters as much. With 12 parameters, the parameter-shift rule needs 24 circuit runs per gradient; SPSA needs 2, whatever the number of parameters.
+
+## Common mistakes
+
+- **Comparing two noisy energies as if exact.** A difference smaller than the noise is meaningless; Nelder–Mead and COBYLA trip on this.
+- **Expecting the measured curve to fall smoothly.** With shots it jitters around the true value; judge the bold true curve, or average.
+- **Using exact-simulation settings on hardware.** An optimizer that works with exact values may fail with 1,000 shots.
+
+## In the app
+
+In the **Parameters & observable** panel, set **Shots** to Exact, 100, 1,000 or 10,000, choose an optimizer and press **Optimize**. The chart draws the measured ⟨H⟩ (thin) beside the true ⟨H⟩ (bold). Compare BFGS, SPSA and Rotosolve on the H₂ example at 1,000 shots.
+
 ## Check your understanding
 
 ```quiz
@@ -83,6 +107,14 @@ Q: Why does Rotosolve need no learning rate?
 - It uses the quantum natural gradient
 - It only works with exact energies
 E: Three values fix the sinusoid a cos(θ − b) + c, whose minimum is at θ = b + π.
+```
+
+```quiz
+Q: How do you cut the shot noise on an estimate by a factor of 10?
+- Use 10 times more shots
+* Use 100 times more shots
+- Use SPSA instead
+E: The noise falls like 1/√N, so a tenth of the noise needs a hundred times the shots.
 ```
 
 ## Summary

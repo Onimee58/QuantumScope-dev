@@ -7,7 +7,9 @@ objectives: Multiply a matrix by a vector and by another matrix | Write X, Z and
 ---
 # Matrices acting on states
 
-Every quantum gate is a **matrix**, and applying a gate means multiplying the state vector by it.
+## The idea
+
+Every quantum gate is a **matrix**, and applying a gate means multiplying the state vector by it. A whole circuit is then one big matrix, the product of its gates. Two habits make this easy: multiply rows by columns, and remember that the first gate in time stands on the right.
 
 ## Matrix times vector
 
@@ -25,7 +27,7 @@ $$X = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}, \qquad Z = \begin{pmatrix} 1
 - $Z$ changes the sign of the $|1\rangle$ amplitude: a phase flip.
 - $H$ makes superpositions: $H|0\rangle = |+\rangle$ and $H|1\rangle = |-\rangle$.
 
-Worked example:
+For example:
 
 $$H|0\rangle = \frac{1}{\sqrt{2}}\begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}\begin{pmatrix} 1 \\ 0 \end{pmatrix} = \frac{1}{\sqrt{2}}\begin{pmatrix} 1 \\ 1 \end{pmatrix} = |+\rangle$$
 
@@ -45,7 +47,27 @@ $$XZ = \begin{pmatrix} 0 & -1 \\ 1 & 0 \end{pmatrix} \neq ZX = \begin{pmatrix} 0
 
 so "Z then X" and "X then Z" are different gates; here they differ only by a sign, $XZ = -ZX$.
 
+## Worked example
+
+What does the circuit H, then Z, then H do? Its matrix is $HZH$. First
+
+$$HZ = \frac{1}{\sqrt{2}}\begin{pmatrix} 1 & -1 \\ 1 & 1 \end{pmatrix}, \qquad HZH = \frac{1}{2}\begin{pmatrix} 1 - 1 & 1 + 1 \\ 1 + 1 & 1 - 1 \end{pmatrix} = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix} = X$$
+
+A phase flip between two Hadamards is a bit flip. This is no accident: H swaps the $x$ and $z$ directions, so a flip about one becomes a flip about the other. Circuits use this constantly to turn one kind of gate into another.
+
+## Common mistakes
+
+- **Writing the product in circuit order.** "H then X" is $XH$, not $HX$.
+- **Multiplying columns by rows.** Each result entry is a *row* of the left matrix times a *column* of the right one.
+- **Dropping the $1/\sqrt{2}$.** Without it, $H|0\rangle$ has length $\sqrt{2}$ and is not a state.
+
+## In the app
+
+Build H, Z, H in the circuit editor and open the State Inspector's **Circuit** tab: it shows the whole circuit's matrix, which should be $X$. In the calculator, matrices multiply with `*`: try `H*Z*H`, or `X*Z` and `Z*X` to see the order matter.
+
 [Try it: H twice is the identity (the qubit returns to |0⟩)](qs:circuit?n=1&gates=H:0;H:0)
+
+[Try it: H, Z, H acts as X](qs:circuit?n=1&gates=H:0;Z:0;H:0&inspector=1)
 
 [Try it in the calculator: H|0⟩](qs:calc?expr=H%7C0%E2%9F%A9)
 
@@ -67,8 +89,26 @@ Q: A circuit applies H, then X. Which matrix describes it?
 E: The first gate acts first, so it stands on the right, next to the state: X(H|ψ⟩) = (XH)|ψ⟩.
 ```
 
+```quiz
+Q: What is X|+⟩?
+* |+⟩
+- |−⟩
+- |0⟩
+E: X swaps the two amplitudes, and |+⟩ has equal amplitudes (1, 1)/√2, so nothing changes.
+```
+
+```quiz
+Q: What is HXH?
+- X
+* Z
+- H
+- I
+E: H swaps the x and z directions, so a bit flip between Hadamards becomes a phase flip, just as HZH = X.
+```
+
 ## Summary
 
-- A gate is a matrix; applying it multiplies the state vector.
+- A gate is a matrix; applying it multiplies the state vector, row by row.
 - Circuits read left to right, products right to left: "A then B" is $BA$.
 - Matrix products depend on the order: $XZ \neq ZX$.
+- HZH = X and HXH = Z: Hadamards swap the x and z directions.

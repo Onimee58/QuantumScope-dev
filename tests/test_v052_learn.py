@@ -17,7 +17,7 @@ EQ = os.path.join(content_folder(), 'eq')
 def test_builtin_lessons_have_titles_objectives_and_kinds():
     assert len(LESSONS) >= 3
     for lesson in LESSONS:
-        assert lesson.title and lesson.objectives and lesson.kind in ('lecture', 'lab')
+        assert lesson.title and lesson.objectives and lesson.kind in ('guide', 'lecture', 'lab')
         assert lesson.area in ('circuits', 'principles', 'hydrogen', 'math', 'qml')
 
 
@@ -389,7 +389,7 @@ def test_grover_table_matches_the_formula():
 def test_every_area_has_lessons():
     areas = {l.area for l in LESSONS}
     assert areas == {'circuits', 'principles', 'hydrogen', 'math', 'qml'}     # Mathematics 0.7.7, Quantum ML 0.8.0
-    assert sum(l.kind == 'lab' for l in LESSONS) == 25 and len(LESSONS) == 87        # + annealing (0.9.2), many classes (0.9.3)
+    assert sum(l.kind == 'lab' for l in LESSONS) == 25 and len(LESSONS) == 92        # + annealing (0.9.2), many classes (0.9.3), study guides (0.9.8)
 
 
 def test_png_size_matches_the_image_and_needs_no_qt():
