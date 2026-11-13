@@ -37,6 +37,7 @@ PREFS = {p.key: p for p in (
     # Graphics
     Pref('graphics/device', 'auto', ('auto', 'integrated', 'nvidia'), restart=True),
     Pref('graphics/volume_method', 'Auto (GPU preferred)', ('Auto (GPU preferred)', 'GPU', 'CPU')),
+    Pref('performance/monitor', True, (True, False)),     # the status-bar meter and memory warnings (v0.9.6)
     # Files
     Pref('files/folder', ''),                         # '' means the user's Documents folder
     Pref('files/recent', ()),                          # most recent first
@@ -44,7 +45,14 @@ PREFS = {p.key: p for p in (
     Pref('files/pdf_report', 'ask', ('ask', 'always', 'never')),
     # Learn
     Pref('learn/course_folder', ''),                   # a teacher's folder of .md lessons
+    # News (v0.9.5): announcements and the support address, from the public releases repository
+    Pref('news/check', 'ask', ('ask', 'weekly', 'never')),
+    Pref('news/last_checked', ''),                     # ISO time of the last successful check
+    Pref('news/cache', ''),                            # the last news.json read, shown when offline
+    Pref('news/dismissed', ()),                        # announcement ids the user closed
 )}
+
+HISTORY = ('files/recent', 'news/last_checked', 'news/cache', 'news/dismissed')   # kept by Restore defaults
 
 MAX_RECENT = 8
 
@@ -112,10 +120,10 @@ def set(key, value, store=None):  # noqa: A001 - mirrors QSettings
 
 
 def restore_defaults(store=None):
-    """Reset every setting except the recent-files list (that is history, not a preference)."""
+    """Reset every setting except history (recent files, dismissed announcements, the news cache)."""
     store = store if store is not None else _settings()
     for key in PREFS:
-        if key != 'files/recent':
+        if key not in HISTORY:
             store.remove(key)
     store.sync()
 

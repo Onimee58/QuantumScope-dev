@@ -52,6 +52,7 @@ def check(rest):
         qml bandwidth <= 0.5       the kernel classifier's last bandwidth
         qml shots >= 100           the kernel was estimated from at least this many shots
         qml variational test >= 0.85   the variational classifier's last test accuracy (also train)
+        qml kernel classes >= 10   …trained on this many classes (v0.9.3; also variational)
     """
     words = rest.split()
     if not words:
@@ -69,6 +70,8 @@ def check(rest):
             return False, f'train the {what} classifier'
         if words[1] == 'map':
             return result.get('map') == words[2], f'use the {words[2]} feature map'
+        if words[1] == 'classes':
+            return _compare(result.get('classes', 2), ' '.join(words[2:])), f'train on {" ".join(words[2:])} classes'
         return _compare(result.get(words[1], 0.0), ' '.join(words[2:])), f'{what} {words[1]} accuracy {" ".join(words[2:])}'
     if what in ('bandwidth', 'shots'):
         result = STATE.get('kernel')

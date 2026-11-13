@@ -42,14 +42,32 @@ def axes3d(X, y, kind='pca'):
     the share of the data's variance along each axis.
       pca         the three directions of greatest variance
       separating  first the line from one class's centre to the other's, then the two main
-                  directions of what is left (perpendicular to it): the class separation in view."""
+                  directions of what is left (perpendicular to it): the class separation in view.
+                  With more classes (labels 0 … k−1), the directions along which the class centres
+                  spread most (between-class principal components), completed by the data's own."""
     X, y = np.asarray(X, float), np.asarray(y)
     if X.shape[1] < 3:
         raise ValueError('The 3-D view needs at least 3 features')
     mean = X.mean(axis=0)
     centred = X - mean
     total = float((centred ** 2).sum()) or 1.0
-    if kind == 'separating':
+    labels = np.unique(y)
+    if kind == 'separating' and not (len(labels) <= 2 and set(labels.tolist()) <= {-1, 1}):
+        centres = np.array([X[y == c].mean(axis=0) for c in labels]) - mean
+        _, spread, between = np.linalg.svd(centres, full_matrices=False)
+        between = [v for v, size in zip(between, spread) if size > 1e-9 * max(1.0, spread[0])][:3]
+        _, _, within = np.linalg.svd(centred, full_matrices=False)
+        basis = []
+        for v in between + list(within):                           # Gram–Schmidt: class spread first
+            for b in basis:
+                v = v - (v @ b) * b
+            if np.linalg.norm(v) > 1e-9 and len(basis) < 3:
+                basis.append(v / np.linalg.norm(v))
+        basis = np.array(basis)
+        m = len(between)
+        names = [f'class spread {i + 1}' for i in range(m)] + [f'remaining PC{i + 1}' for i in range(3 - m)]
+        short = [f'C{i + 1}' for i in range(m)] + [f'R{i + 1}' for i in range(3 - m)]
+    elif kind == 'separating':
         d = X[y == 1].mean(axis=0) - X[y != 1].mean(axis=0)
         d = d / (np.linalg.norm(d) or 1.0)
         rest = centred - np.outer(centred @ d, d)
@@ -91,18 +109,38 @@ def decision_grid(decision, axes, P_all, resolution, chunk=2000, cancelled=None)
     ticks = [np.linspace(lo[k] - pad[k], hi[k] + pad[k], resolution) for k in range(3)]
     gx, gy, gz = np.meshgrid(*ticks, indexing='ij')
     points = lift(axes, np.c_[gx.ravel(), gy.ravel(), gz.ravel()])
-    values = np.empty(len(points))
+    values = None
     for start in range(0, len(points), chunk):
         if cancelled is not None and cancelled():
             return None
-        values[start:start + chunk] = decision(points[start:start + chunk])
-    return ticks, values.reshape(resolution, resolution, resolution)
+        part = np.asarray(decision(points[start:start + chunk]), float)
+        if values is None:                                         # one column per class for k > 2
+            values = np.empty((len(points),) + part.shape[1:])
+        values[start:start + chunk] = part
+    return ticks, values.reshape((resolution, resolution, resolution) + values.shape[1:])
+
+
+def class_margins(values):
+    """For decision values with one column per class (…, k): for each class, its value minus the
+    largest of the others (…, k). Positive where the class wins; 0 on its region's boundary."""
+    values = np.asarray(values, float)
+    out = np.empty_like(values)
+    for c in range(values.shape[-1]):
+        others = np.delete(values, c, axis=-1)
+        out[..., c] = values[..., c] - others.max(axis=-1)
+    return out
+
+
+def winners(values):
+    """The predicted label for decision values: the sign (±1) for one value, else the largest column."""
+    values = np.asarray(values, float)
+    return np.argmax(values, axis=-1) if values.ndim > 1 else np.where(values >= 0, 1, -1)
 
 
 def slice_agreement(decision, axes, X):
-    """The share of points where the decision on the slice (at the point's projection) has the same
-    sign as the classifier's real decision at the point: how far to trust the drawn surface."""
+    """The share of points where the decision on the slice (at the point's projection) predicts the
+    same class as the classifier's real decision at the point: how far to trust the drawn surface."""
     X = np.asarray(X, float)
-    real = decision(X)
-    on_slice = decision(lift(axes, project(axes, X)))
-    return float(np.mean((real >= 0) == (on_slice >= 0)))
+    real = winners(decision(X))
+    on_slice = winners(decision(lift(axes, project(axes, X))))
+    return float(np.mean(real == on_slice))

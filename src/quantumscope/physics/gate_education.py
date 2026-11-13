@@ -144,7 +144,7 @@ def inverse_description(name,angle=0.0,phi=0.0,lam=0.0):
     if name in simple:return simple[name],[Gate(simple[name],(0,))]
     if name in ('RX','RY','RZ','P','CP'):
         sym='λ' if name in ('P','CP') else 'θ'
-        return f'{name}(−{sym}); at this angle {name}({angle_text(-angle)})',[Gate(name,(0,1) if name=='CP' else (0,),-angle)]
+        return f'{name}(−{sym}); at this angle {name}({angle_text(-angle)})',[Gate(name,tuple(range(2 if name=='CP' else 1)),-angle)]
     if name=='U':return 'U(−θ, −λ, −φ)',[Gate('U',(0,),-angle,-lam,-phi)]
     if name=='SX':return 'SX applied three times (SX⁴ = I)',[Gate('SX',(0,))]*3
     n=gate_information(name)['qubits']

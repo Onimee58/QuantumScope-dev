@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog, QForm
 
 from quantumscope.gui import preferences as prefs
 
-SECTIONS = ('Appearance', 'Circuits', 'Graphics', 'Files', 'Updates')
+SECTIONS = ('Appearance', 'Circuits', 'Graphics and performance', 'Files', 'Updates and news')
 
 
 class SettingsDialog(QDialog):
@@ -163,7 +163,7 @@ class SettingsDialog(QDialog):
         v.addStretch()
 
     def _graphics(self, page):
-        v, form = self._page(page, 'Graphics')
+        v, form = self._page(page, 'Graphics and performance')
         linux = sys.platform.startswith('linux')
         self.device = self._combo('graphics/device', (('auto', 'Automatic'), ('integrated', 'Integrated graphics'),
                                                       ('nvidia', 'NVIDIA (PRIME offloading)')))
@@ -177,6 +177,12 @@ class SettingsDialog(QDialog):
         form.addRow('3D volume rendering', self.volume)
         form.addRow(self._note('How 3D orbital clouds are drawn. CPU is slower but works on any computer; '
                                'surfaces are not affected.'))
+        self.monitor = QCheckBox('Watch memory and processor use')
+        self.monitor.setChecked(prefs.get('performance/monitor'))
+        self.monitor.toggled.connect(lambda on: self._changed('performance/monitor', on))
+        form.addRow(self.monitor)
+        form.addRow(self._note('Shows a meter in the status bar, warns when the computer\'s memory is nearly full, '
+                               'and asks before a task that may not fit (a very fine 3-D grid, a large kernel).'))
         info_head = QLabel('Graphics information')
         info_head.setStyleSheet('font-weight: 600; margin-top: 8px;')
         v.addWidget(info_head)
@@ -196,14 +202,19 @@ class SettingsDialog(QDialog):
 
     def _updates(self, page):
         from quantumscope import __version__
-        v, form = self._page(page, 'Updates', f'You have QuantumScope {__version__}.')
-        form.addRow(self._note('QuantumScope never checks automatically. When you press the button, it asks for '
-                               'permission, makes one request to github.com for the newest full release, and '
+        v, form = self._page(page, 'Updates and news', f'You have QuantumScope {__version__}.')
+        form.addRow(self._note('QuantumScope never checks for updates by itself. When you press the button, it asks '
+                               'for permission, makes one request to github.com for the newest full release, and '
                                'shows its notes. Downloads are verified with the release checksum before '
                                'anything is installed.'))
         check = QPushButton('Check for updates…')
         check.clicked.connect(lambda: self._call('check_for_updates'))
         form.addRow(check)
+        self.news = self._combo('news/check', (('ask', 'Ask me'), ('weekly', 'Read weekly'), ('never', 'Never')))
+        form.addRow('QuantumScope news', self.news)
+        form.addRow(self._note('Announcements of new courses, workshops and features, shown in a bar under the '
+                               'header, and the support address for Report a problem. QuantumScope reads one '
+                               'public file on github.com at most once a week; nothing about you is sent.'))
         v.addStretch()
 
     def _files(self, page):
@@ -269,7 +280,7 @@ class SettingsDialog(QDialog):
                          (self.angle_units, 'circuits/angle_units'), (self.bit_order, 'circuits/bit_order'),
                          (self.number_format, 'circuits/number_format'),
                          (self.device, 'graphics/device'), (self.volume, 'graphics/volume_method'),
-                         (self.pdf_report, 'files/pdf_report')):
+                         (self.pdf_report, 'files/pdf_report'), (self.news, 'news/check')):
             box.blockSignals(True)
             box.setCurrentIndex(max(0, box.findData(prefs.get(key))))
             box.blockSignals(False)
@@ -279,7 +290,7 @@ class SettingsDialog(QDialog):
             widget.setValue(prefs.get(key))
             widget.blockSignals(False)
         for widget, key in ((self.confirm_clear, 'circuits/confirm_clear'),
-                            (self.autosave, 'files/autosave')):
+                            (self.autosave, 'files/autosave'), (self.monitor, 'performance/monitor')):
             widget.blockSignals(True)
             widget.setChecked(prefs.get(key))
             widget.blockSignals(False)

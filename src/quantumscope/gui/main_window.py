@@ -64,8 +64,11 @@ class AboutDialog(QDialog):
         self.guide_button=QPushButton('User guide')
         self.guide_button.setToolTip('Open the QuantumScope User Guide (PDF)')
         self.guide_button.clicked.connect(open_user_guide)
+        self.report_button=QPushButton('Report a problem…')
+        self.report_button.setToolTip('Fills in an email or a GitHub issue for you to check and send')
+        self.report_button.clicked.connect(lambda: parent.report_problem() if hasattr(parent,'report_problem') else None)
         update_row=QHBoxLayout();update_row.addStretch();update_row.addWidget(self.update_button)
-        update_row.addWidget(self.guide_button);update_row.addStretch()
+        update_row.addWidget(self.guide_button);update_row.addWidget(self.report_button);update_row.addStretch()
         layout.addLayout(update_row)
         tagline=QLabel('Explore  •  Visualize  •  Simulate');tagline.setAlignment(Qt.AlignmentFlag.AlignCenter)
         tagline.setStyleSheet('color:#5ad1e9;font-size:12px;');layout.addWidget(tagline)
@@ -80,7 +83,7 @@ class AboutDialog(QDialog):
         for line in ('Developer & maintainer','Postdoctoral Fellow','Southern Methodist University, Dallas'):
             label=QLabel(line);label.setObjectName('muted');label.setWordWrap(True);identity.addWidget(label)
         self._load_avatar()
-        desc=QLabel('Open-source scientific software for hydrogen orbitals, quantum principles, and interactive quantum circuits.')
+        desc=QLabel('Scientific software for teaching hydrogen orbitals, quantum principles, quantum circuits and quantum machine learning.')
         desc.setWordWrap(True);desc.setAlignment(Qt.AlignmentFlag.AlignCenter);layout.addWidget(desc)
         features=QLabel('Hydrogen Explorer & Dynamics  •  Double Slit  •  Superposition & Entanglement  •  Circuit Simulator  •  QASM Converter')
         features.setObjectName('muted');features.setWordWrap(True)
@@ -164,6 +167,7 @@ class MainWindow(QMainWindow):
             menu.addAction("Gate Circuit Simulator", self._launch_circuits)
             menu.addAction("QASM Converter", self._launch_converter)
             menu.addAction("Error-correction explorer", self._launch_qec_explorer)
+            menu.addAction("Quantum annealing", self._launch_annealing)
         if category in (None,"qml"):
             menu.addSection("QUANTUM ML")
             menu.addAction("Datasets", self._launch_qml_datasets)
@@ -203,7 +207,7 @@ class MainWindow(QMainWindow):
          "orbital": self._show_hydrogen, "dynamics2d": self.show_dynamics, "dynamics3d": self.show_dynamics_3d,
          "doubleslit": self._launch_double_slit, "superposition": self._launch_superposition,
          "entanglement": self._launch_entanglement, "teleportation": self._launch_teleportation,
-         "qec": self._launch_qec_explorer, "qml_datasets": self._launch_qml_datasets,
+         "qec": self._launch_qec_explorer, "annealing": self._launch_annealing, "qml_datasets": self._launch_qml_datasets,
          "qml_kernel": self._launch_qml_kernel, "qml_variational": self._launch_qml_variational,
          "calculator": self._launch_calculator}[view]()
 
@@ -213,6 +217,10 @@ class MainWindow(QMainWindow):
             self.renderer.setCurrentText(prefs.get("graphics/volume_method"))
         if hasattr(self, "circuit_widget"):
             self.circuit_widget.apply_preferences()
+        if hasattr(self, "news_bar"):                     # the news choice may have changed
+            self.news_bar.start()
+        if hasattr(self, "resource_monitor"):
+            self.resource_monitor.apply_preferences()
 
     def graphics_information(self):
         """Renderer, vendor and OpenGL version of the 3D view's actual context."""
@@ -246,6 +254,18 @@ class MainWindow(QMainWindow):
         from quantumscope.gui import preferences as prefs
         if prefs.get("appearance/theme") == "system":
             self.apply_theme("system")
+
+    def report_problem(self, error=None):
+        """Help → Report a problem: shows the whole report, then fills in an email or a GitHub issue."""
+        from quantumscope.gui.report_dialog import ReportDialog
+        dialog = ReportDialog(self, error)
+        self._report_dialog = dialog
+        dialog.exec()
+        return dialog
+
+    def start_news(self):
+        """After the window appears: ask once about the news, or read it if a week has passed."""
+        return self.news_bar.start()
 
     def _header_button(self, label, tooltip, action):
         button = QToolButton(self)
@@ -292,9 +312,13 @@ class MainWindow(QMainWindow):
         new_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         new_button.setMenu(self._experiment_menu(new_button))
         row.addWidget(new_button)
+        row.addWidget(self._header_button("⚑", "Report a problem", self.report_problem))
         row.addWidget(self._header_button("⚙", "Settings", self._show_settings))
         row.addWidget(self._header_button("ⓘ", "About QuantumScope (and check for updates)", self.show_about))
         outer.addWidget(header)
+        from quantumscope.gui.news_bar import NewsBar          # announcements, after the user allows them (v0.9.5)
+        self.news_bar = NewsBar(self)
+        outer.addWidget(self.news_bar)
         self.categories = QTabWidget()
         self.categories.setObjectName("categoryWorkspace")
         self.categories.setDocumentMode(True)
@@ -350,6 +374,8 @@ class MainWindow(QMainWindow):
         self._show_placeholder("math")                   # so does Math (v0.9.0)
         self._select_category("hydrogen")
         self.statusBar().showMessage("Ready  ·  Choose an experiment or explore hydrogen orbitals")
+        from quantumscope.gui.resource_monitor import ResourceMonitor    # memory and processor (v0.9.6)
+        self.resource_monitor = ResourceMonitor(self)
 
     def _select_category(self, category):
         tabs=self.workspaces[category]
@@ -357,7 +383,7 @@ class MainWindow(QMainWindow):
         return tabs
 
     # The area each experiment belongs to (the + menu it is listed in).
-    EXPERIMENT_AREAS={"dynamics_2d":"hydrogen","dynamics_3d":"hydrogen","qec_explorer":"circuits",
+    EXPERIMENT_AREAS={"dynamics_2d":"hydrogen","dynamics_3d":"hydrogen","qec_explorer":"circuits","annealing":"circuits",
                       "double_slit":"principles","superposition":"principles","entanglement":"principles",
                       "teleportation":"principles","qml_datasets":"qml","qml_kernel":"qml",
                       "qml_variational":"qml","calculator":"math"}
@@ -526,6 +552,16 @@ class MainWindow(QMainWindow):
     def _launch_qec_explorer(self):
         from quantumscope.gui.qec_chart import ErrorCorrectionExplorer
         self._open_experiment("qec_explorer", "Error-correction explorer", ErrorCorrectionExplorer)
+
+    def _launch_annealing(self):
+        from quantumscope.gui.annealing_view import AnnealingExperiment
+        self._open_experiment("annealing", "Quantum annealing",
+                              lambda parent: AnnealingExperiment(parent, open_circuit=self._load_annealing_circuit))
+
+    def _load_annealing_circuit(self, n, gates, observable, note):
+        """The anneal as gates, in the simulator, with its problem energy as the observable."""
+        self.circuit_widget.show_generated_circuit(n, gates, observable, note)
+        self._launch_circuits()
 
     def _launch_teleportation(self):
         from quantumscope.gui.teleportation_experiment import TeleportationDialog
@@ -879,7 +915,26 @@ class MainWindow(QMainWindow):
             self.zoom_factor.setValue(1.3)
             self._change_camera()
 
+    def _memory_allows(self):
+        """A fine grid, twice with the comparison viewer, can need a lot of memory: ask first if the
+        computer may not have it (once per grid size and viewer count)."""
+        from quantumscope import resources as R
+        from quantumscope.gui.resource_monitor import confirm_memory
+        viewers = 2 if self.compare_enable.isChecked() else 1
+        key = (self.resolution.value(), viewers)
+        if key in getattr(self, "_memory_accepted", set()):
+            return True
+        needed = R.hydrogen_grid(self.resolution.value(), viewers)
+        if not confirm_memory(self, needed, f"A {self.resolution.value()}³ grid"
+                              + (" in both viewers" if viewers == 2 else "")):
+            return False
+        self._memory_accepted = getattr(self, "_memory_accepted", set()) | {key}
+        return True
+
     def refresh(self):
+        if not self._memory_allows():
+            self.statusBar().showMessage("Not drawn: lower the grid points or turn off the comparison viewer", 6000)
+            return
         self._rendering = True
         try:
             self.statusBar().showMessage("Rendering…")

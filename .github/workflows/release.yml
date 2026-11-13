@@ -4,9 +4,27 @@ on:
   push:
     tags: ['v*']
 permissions:
-  contents: write
+  contents: read            # publishing uses RELEASES_TOKEN, for the public releases repository
 jobs:
+  draft:                    # one draft release, created before the three builds upload into it
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create the draft release in the public releases repository
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          PUBLIC: ${{ vars.RELEASES_REPOSITORY || 'Onimee58/QuantumScope' }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::The RELEASES_TOKEN secret is missing: installers cannot be published to $PUBLIC"
+            exit 1
+          fi
+          gh release view "$GITHUB_REF_NAME" -R "$PUBLIC" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" -R "$PUBLIC" --draft --title "QuantumScope $GITHUB_REF_NAME" \
+              --notes "Installers for QuantumScope $GITHUB_REF_NAME. Release notes follow."
   installers:
+    needs: draft
+    if: ${{ !cancelled() && (needs.draft.result == 'success' || needs.draft.result == 'skipped') }}
     strategy:
       fail-fast: false
       matrix:
@@ -37,7 +55,7 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libgl1 libegl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-randr0 libxcb-shape0
       - name: Install Python dependencies
-        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]" pyinstaller
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]" pyinstaller "cython>=3.1,<4"
       - name: Physics regression tests
         run: python -m pytest -q
       - name: Prepare macOS app icon
@@ -61,21 +79,28 @@ jobs:
           ICON="src/quantumscope/assets/quantumscope.png"
           if [ "$TARGET" = windows ]; then ICON="src/quantumscope/assets/quantumscope.ico"; fi
           if [ "$TARGET" = macos ]; then ICON="dist/mac-icon/QuantumScope.icns"; fi
-          python -m PyInstaller --noconfirm --clean --windowed --onedir --name QuantumScope --icon "$ICON" --collect-submodules vtkmodules --collect-data vtkmodules --collect-data pyvista --collect-data pyqtgraph --collect-data pyvistaqt --collect-data quantumscope --exclude-module pyqtgraph.examples --exclude-module pyqtgraph.opengl --exclude-module pyvista.trame src/quantumscope/__main__.py
+          # Only the VTK modules QuantumScope uses (v0.9.6): about 20% smaller than bundling all of VTK.
+          VTK_ARGS="$(python tools/pyinstaller_vtk_args.py)"
+          # QuantumScope's own modules as native code (v0.9.7): bytecode is easily turned back into source.
+          # PyInstaller still analyses the source; the spec then swaps in the compiled modules.
+          python tools/cython_compile.py build/compiled
+          python -m PyInstaller.utils.cliutils.makespec --windowed --onedir --name QuantumScope --icon "$ICON" $VTK_ARGS --collect-data pyvista --collect-data pyqtgraph --collect-data pyvistaqt --collect-data quantumscope --exclude-module pyqtgraph.examples --exclude-module pyqtgraph.opengl --exclude-module pyvista.trame src/quantumscope/__main__.py
+          python tools/pyinstaller_compiled.py QuantumScope.spec build/compiled
+          python -m PyInstaller --noconfirm --clean QuantumScope.spec
       - name: Launch check of the packaged application (Linux)
         if: runner.os == 'Linux'
         timeout-minutes: 5
         shell: bash
         run: |
           sudo apt-get install -y xvfb
-          QUANTUMSCOPE_SELF_TEST_REPORT=self-test.txt xvfb-run -a dist/QuantumScope/QuantumScope --self-test || { cat self-test.txt; exit 1; }
+          QUANTUMSCOPE_EXPECT_NATIVE=1 QUANTUMSCOPE_SELF_TEST_REPORT=self-test.txt xvfb-run -a dist/QuantumScope/QuantumScope --self-test || { cat self-test.txt; exit 1; }
           cat self-test.txt
       - name: Launch check of the packaged application (macOS)
         if: runner.os == 'macOS'
         timeout-minutes: 5
         shell: bash
         run: |
-          QUANTUMSCOPE_SELF_TEST_REPORT=self-test.txt dist/QuantumScope.app/Contents/MacOS/QuantumScope --self-test || { cat self-test.txt; exit 1; }
+          QUANTUMSCOPE_EXPECT_NATIVE=1 QUANTUMSCOPE_SELF_TEST_REPORT=self-test.txt dist/QuantumScope.app/Contents/MacOS/QuantumScope --self-test || { cat self-test.txt; exit 1; }
           cat self-test.txt
       - name: Launch check of the packaged application (Windows)
         if: runner.os == 'Windows'
@@ -83,6 +108,7 @@ jobs:
         shell: pwsh
         run: |
           $env:QUANTUMSCOPE_SELF_TEST_REPORT = "$PWD\self-test.txt"
+          $env:QUANTUMSCOPE_EXPECT_NATIVE = "1"
           # Windowed builds return immediately unless waited on explicitly.
           $proc = Start-Process -FilePath "dist\QuantumScope\QuantumScope.exe" -ArgumentList "--self-test" -Wait -PassThru
           if (Test-Path self-test.txt) { Get-Content self-test.txt }
@@ -130,14 +156,17 @@ jobs:
           name: QuantumScope-${{ env.VERSION }}-${{ matrix.platform }}-installer
           path: dist/installers/*
           if-no-files-found: error
-      - name: Publish installers with tagged release
+      # The source is private; installers are published to the public releases repository, whose
+      # name (Onimee58/QuantumScope) every installed copy's updater asks. RELEASES_TOKEN is a
+      # fine-grained token allowed to write contents to that repository only.
+      - name: Upload installers to the draft release (publish it by hand, with its notes)
         if: startsWith(github.ref, 'refs/tags/v')
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          PUBLIC: ${{ vars.RELEASES_REPOSITORY || 'Onimee58/QuantumScope' }}
         shell: bash
         run: |
-          gh release view "$GITHUB_REF_NAME" || gh release create "$GITHUB_REF_NAME" --title "QuantumScope $GITHUB_REF_NAME" --notes "Native Windows and Ubuntu installers; test on target systems."
-          gh release upload "$GITHUB_REF_NAME" dist/installers/* --clobber
+          gh release upload "$GITHUB_REF_NAME" -R "$PUBLIC" dist/installers/* --clobber
           if [ "${{ matrix.platform }}" = "linux" ]; then      # the user guide, once
-            gh release upload "$GITHUB_REF_NAME" src/quantumscope/assets/QuantumScope-User-Guide.pdf --clobber
+            gh release upload "$GITHUB_REF_NAME" -R "$PUBLIC" src/quantumscope/assets/QuantumScope-User-Guide.pdf --clobber
           fi

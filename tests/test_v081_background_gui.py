@@ -59,6 +59,8 @@ def test_optimize_runs_in_the_background_and_respects_edits(app):
     w.show()
     w.load_library('qaoa', {'graph': 'ring6', 'layers': 2})
     before = dict(w.model.parameters)
+    w.opt_multi.setChecked(True)                                       # a run long enough to edit during,
+    w.opt_starts.setValue(20)                                          # on any machine (one start is ~0.2 s)
     dialog = w.optimize_parameters()
     assert not w.opt_button.isEnabled()                                # no second run meanwhile
     turns = 0

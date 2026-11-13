@@ -141,7 +141,17 @@ def test_install_plans():
 def test_release_workflow_publishes_checksums():
     text = open('.github/workflows/release.yml').read()
     assert 'Write SHA-256 checksums next to the installers' in text and ".sha256" in text
-    assert text.index('Write SHA-256 checksums') < text.index('Publish installers with tagged release')
+    assert text.index('Write SHA-256 checksums') < text.index('Upload installers to the draft release')
+
+
+def test_installers_go_to_the_public_releases_repository_that_the_updater_reads():
+    """The source is private: installers are published (as a draft, published by hand) to the public
+    repository whose name every installed copy's updater already asks."""
+    from quantumscope import updater
+    text = open('.github/workflows/release.yml').read()
+    assert f"'{updater.REPOSITORY}'" in text and 'secrets.RELEASES_TOKEN' in text and 'github.token' not in text
+    assert '--draft' in text and 'needs: draft' in text
+    assert text.count('-R "$PUBLIC"') >= 3                     # create, and both uploads, all go there
 
 
 @pytest.mark.skipif(os.environ.get('QUANTUMSCOPE_NETWORK_TESTS') != '1', reason='network tests are opt-in')

@@ -212,6 +212,10 @@ LAB_SOLUTIONS = {
     'qml/91-lab-mnist-pixels-to-qubits': ('qml', [('prepare', 'mnist', 4), ('kernel', 'store', 4, 'angle', 1.0),
                                                   ('kernel', 'store', 4, 'angle', 0.5)]),
     'qml/92-lab-train-a-circuit': ('qml', [('variational', 'moons', 2), ('observable Z0',)]),
+    'qml/93-lab-ten-digits': ('qml', [('all', 'iris', 4), ('all', 'mnist', 8), ('all', 'fashion_mnist', 8),   # v0.9.3
+                                      ('circuit_all', 'iris', 4)]),                                          # v0.9.4
+    # v0.9.2: annealing, done with the real annealing code, recorded as the experiment does
+    'circuits/110-lab-anneal-fast-and-slow': ('anneal',),
 }
 
 
@@ -233,6 +237,27 @@ def test_lab_solution_completes_every_step(key):
         lesson = next(l for l in LESSONS if l.key == key)
         assert all(labs.progress(m, steps_of(lesson.body)).values())
         return
+    if LAB_SOLUTIONS[key][0] == 'anneal':
+        from quantumscope.physics import annealing as A, annealing_progress as progress
+        progress.reset()
+        hexagon, glass = A.maxcut('ring6'), A.spin_glass(8, 0)
+        steps = steps_of(lesson.body)
+        m = CircuitModel(1)
+        assert not any(labs.progress(m, steps).values())
+        progress.annealed(hexagon.key, 30, A.anneal(hexagon, 30, ground=False).final_success,
+                          A.spectrum(hexagon).minimum_gap)
+        assert labs.progress(m, steps)[0]
+        gap = A.spectrum(glass, points=81).minimum_gap
+        progress.annealed(glass.key, 10, A.anneal(glass, 10, ground=False).final_success, gap)
+        progress.curve(glass.key, gap)
+        m.set_circuit(6, A.circuit(hexagon, 10, 20))
+        m.set_observable(hexagon.observable)
+        assert all(labs.progress(m, steps).values()), progress.STATE
+        m.set_circuit(6, A.circuit(hexagon, 10, 5))           # too few steps: the energy is far off
+        m.set_observable(hexagon.observable)
+        assert not labs.progress(m, steps)[2]
+        progress.reset()
+        return
     if LAB_SOLUTIONS[key][0] == 'qml':                         # Quantum ML: the real ML code, step by step
         import numpy as np
         from quantumscope.ml import datasets as D, kernels as K, progress, variational as V
@@ -253,6 +278,24 @@ def test_lab_solution_completes_every_step(key):
                 progress.trained('kernel', train=K.accuracy(p.y_train, svm.predict(Ktr)),
                                  test=K.accuracy(p.y_test, svm.predict(Kte)), map=kind, bandwidth=bandwidth, shots=0,
                                  dataset=progress.STATE['dataset'] if name == 'store' else name)
+            elif action[0] == 'all':                         # every class, one-vs-rest (v0.9.3), as the lab says
+                _, name, qubits = action
+                ds = D.load(name)
+                p = D.prepare(ds, D.check(ds, qubits=qubits, max_classes=None)[2])
+                model = K.classifier('svm', 1.0, p.k).fit(K.kernel(p.X_train, kind='angle'), p.y_train)
+                progress.trained('kernel', train=1.0, test=K.accuracy(p.y_test, model.predict(
+                    K.kernel(p.X_test, p.X_train, kind='angle'))), map='angle', bandwidth=1.0, shots=0, dataset=name,
+                    classes=p.k)
+                steps_now = labs.progress(m, steps_of(lesson.body))
+                assert steps_now[[a[1] for a in LAB_SOLUTIONS[key][1]].index(name)], (name, progress.STATE)
+            elif action[0] == 'circuit_all':                 # one variational circuit, every class (v0.9.4)
+                _, name, qubits = action
+                ds = D.load(name)
+                p = D.prepare(ds, D.check(ds, qubits=qubits, max_samples=300, max_classes=None)[2])
+                model = V.MultiClassifier(qubits, p.k, layers=3, seed=0)
+                history = model.train(p.X_train, p.y_train, method='BFGS', steps=80)     # the app's defaults
+                progress.trained('variational', train=history[-1][2], dataset=name, classes=p.k,
+                                 test=float(np.mean(model.predict(p.X_test) == p.y_test)))
             elif action[0] == 'variational':
                 _, name, qubits = action
                 p = D.prepare(D.load(name), D.check(D.load(name), qubits=qubits)[2])
@@ -346,7 +389,7 @@ def test_grover_table_matches_the_formula():
 def test_every_area_has_lessons():
     areas = {l.area for l in LESSONS}
     assert areas == {'circuits', 'principles', 'hydrogen', 'math', 'qml'}     # Mathematics 0.7.7, Quantum ML 0.8.0
-    assert sum(l.kind == 'lab' for l in LESSONS) == 23 and len(LESSONS) == 82
+    assert sum(l.kind == 'lab' for l in LESSONS) == 25 and len(LESSONS) == 87        # + annealing (0.9.2), many classes (0.9.3)
 
 
 def test_png_size_matches_the_image_and_needs_no_qt():

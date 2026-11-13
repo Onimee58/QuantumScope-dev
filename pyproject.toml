@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "quantumscope"
-version = "0.9.0"
+version = "0.9.7"
 description = "Cross-platform, scientifically grounded quantum visualization studio"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [{name = "QuantumScope contributors"}]
-dependencies = ["numpy>=1.26", "scipy>=1.11", "PySide6>=6.6", "pyvista>=0.43", "pyvistaqt>=0.11", "pyqtgraph>=0.13", "Pillow>=10.0", "sympy>=1.12"]
+dependencies = ["numpy>=1.26", "scipy>=1.11", "PySide6>=6.6,<6.13", "pyvista>=0.43", "pyvistaqt>=0.11", "pyqtgraph>=0.13", "Pillow>=10.0", "sympy>=1.12", "psutil>=5.9"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
@@ -28,4 +28,4 @@ testpaths = ["tests"]
 line-length = 100
 
 [tool.setuptools.package-data]
-quantumscope = ["assets/*.png", "assets/*.svg", "assets/*.ico", "assets/*.pdf", "learn/content/*.md", "learn/content/*/*.md", "learn/content/eq/*.png", "ml/data/*.npz", "ml/data/*.md"]
+quantumscope = ["assets/*.png", "assets/*.svg", "assets/*.ico", "assets/*.pdf", "learn/content/*.md", "learn/content/*/*.md", "learn/content/eq/*.png", "ml/data/*.npz", "ml/data/*.csv", "ml/data/*.md"]

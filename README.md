@@ -7,7 +7,7 @@
 
   An open-source, cross-platform quantum visualization and circuit simulation studio built with Python and PySide6.
 
-  [![Version](https://img.shields.io/badge/version-v0.9.0-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
+  [![Version](https://img.shields.io/badge/version-v0.9.7-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
   [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
   [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
   [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-555)](https://github.com/Onimee58/QuantumScope/releases)
@@ -30,7 +30,7 @@ Use it for self-study, classroom demonstrations, coursework or experimenting wit
 | **Hydrogen** | Hydrogen Orbital Explorer; coherent-state Hydrogen Dynamics in 2D and 3D; probability density, amplitude and phase visualization; available image/data exports |
 | **Quantum Principles** | Double-Slit Experiment; interactive quantum superposition and Bloch sphere; quantum entanglement demonstrations |
 | **Quantum Circuits** | Drag-and-drop circuit editor, statevector simulation, simulation stepping, Bloch spheres for every qubit, measurements, example circuits, verification, QASM Converter and PDF export |
-| **Quantum ML** | Datasets (five built-in, offline, plus your own CSV or .npz) with a checker and visible preprocessing; Quantum Kernel Classifier (angle and ZZ feature maps, bandwidth, shot noise, SVM or kernel ridge, decision regions); Variational Classifier (live training, open the trained circuit in the simulator) |
+| **Quantum ML** | Datasets (nine built-in, offline, plus your own CSV or .npz) with a checker and visible preprocessing; Quantum Kernel Classifier (angle and ZZ feature maps, bandwidth, shot noise, SVM or kernel ridge, two classes or all of them, decision regions); Variational Classifier (live training, two classes or all of them, open the trained circuit in the simulator) |
 
 ### Quantum circuit studio
 
@@ -45,6 +45,74 @@ Use it for self-study, classroom demonstrations, coursework or experimenting wit
 - **Quantum Gate Explorer**: double-click a gate in the *left palette* for its definition, circuit symbol, matrix/operation and basic state transformations. Double-clicking a placed parameterized gate opens its parameter editor instead.
 
 **Supported operations:** `H`, `X`, `Y`, `Z`, `S`, `T`, `Sdg`, `Tdg`, `SX`, `RX`, `RY`, `RZ`, `U`/`U3`, `P`, `CX`, `CZ`, `SWAP`, `CCX`, `CSWAP`, and terminal `M`.
+
+## System requirements
+
+**Systems:** Windows 10 (version 1809 or later) or Windows 11, 64-bit; macOS 14.4 or later on Apple Silicon; Ubuntu 24.04 or Debian 13 or later, 64-bit.
+
+| | Minimum | Recommended | Best |
+|---|---|---|---|
+| **Processor** | 64-bit, 2 cores | 4 cores | 6 or more cores |
+| **Memory (RAM)** | 4 GB | 8 GB | 16 GB |
+| **Graphics** | OpenGL 3.2 (most integrated graphics since 2015) | Recent integrated graphics (Intel Iris Xe, AMD Radeon, Apple M1) | A dedicated graphics card (NVIDIA or AMD) |
+| **Disk space** | 1.5 GB free | 2 GB free | 2 GB free (SSD) |
+| **Screen** | 1280 × 720 | 1920 × 1080 | 1920 × 1080 or larger |
+| **What runs well** | 3-D orbitals up to 96 points per axis; circuits up to 10 qubits; Quantum ML up to a few hundred samples | Everything, including the comparison 3-D view and larger datasets | The finest 3-D grids (160 points per axis) with both viewers, and the largest models, smoothly |
+
+## What's new in v0.9.7?
+
+**Protected code.** The installers now carry QuantumScope's own code compiled to native machine code instead of Python bytecode, which free tools can turn back into readable source. Nothing changes in how the app looks or works.
+
+## What's new in v0.9.6?
+
+**Lighter, and watching its own use.**
+
+- **Installers about 20% smaller:** only the parts of VTK (the 3-D library) that QuantumScope uses are bundled.
+- **A resource meter** in the status bar shows QuantumScope's memory, how full the computer's memory is, and how busy the processor is. It warns when memory is nearly full, and asks before a very fine 3-D grid or a large kernel that may not fit.
+- **System requirements** (minimum, recommended, best) are stated here, in the guide and on the releases page.
+- **Check boxes** are now clearly visible in the dark theme (and the light one).
+
+## What's new in v0.9.5?
+
+**Report a problem, and news.**
+
+- **⚑ Report a problem** shows the whole report (your description, version, system and tab; nothing personal) and fills in an email or a GitHub issue for you to send. QuantumScope sends nothing itself.
+- **Unexpected errors** no longer pass silently: QuantumScope keeps running and offers to report them, with the details filled in.
+- **News:** with your permission, QuantumScope reads one public file once a week and shows announcements of new courses, workshops and features in a bar under the header, one at a time.
+
+## What's new in v0.9.4?
+
+**One circuit, many classes.**
+
+- **The Variational Classifier separates any number of classes:** it measures ⌈log₂ k⌉ qubits and each outcome names a class (4 qubits for ten digits), trained by cross-entropy with exact gradients.
+- **Everything follows:** decision regions, many-class evaluation and cross-validation, saved models, and **Open in circuit simulator** with the readout qubits measured.
+- **Lessons:** the lecture "More than two classes" and its lab cover the circuit approach.
+
+## What's new in v0.9.3?
+
+**More than two classes, and four more datasets.**
+
+- **The Quantum Kernel Classifier separates all classes at once** (one-vs-rest, sharing one kernel matrix): all ten MNIST digits, three penguin species, six kinds of glass.
+- **Evaluation for many classes:** a k × k confusion matrix, macro-averaged precision, recall and F1, balanced accuracy, and a ROC curve per class. Saved models, the 3-D view and predictions on new files handle many classes too.
+- **Four new built-in datasets,** with their licences: a Fashion-MNIST subset, Palmer Penguins, Seeds and Glass Identification.
+- **A new lecture and lab** on multi-class classification, and two glossary terms.
+
+## What's new in v0.9.2?
+
+**Quantum annealing.**
+
+- **A Quantum annealing experiment** in the Quantum Circuits area: MaxCut, spin glasses, number partitioning or your own Ising problem, annealed exactly.
+- **See why the anneal time matters:** the spectrum with its minimum gap and the adiabatic time scale, the state during the anneal, and the probability of success against the anneal time.
+- **Open the anneal as a circuit** (digitized annealing) in the simulator, and compare it with QAOA.
+- **A new lecture and lab** on quantum annealing, and six glossary terms.
+
+## What's new in v0.9.1?
+
+**More optimizers, and optimizing with shots.**
+
+- **Five new optimizers** for parameterized circuits: Adam, SPSA, Rotosolve, the quantum natural gradient and simulated annealing, beside BFGS, gradient descent, COBYLA and Nelder–Mead.
+- **Optimize with shots:** the optimizer sees noisy measured energies, as on real hardware, and the chart compares them with the true energy.
+- **A new lecture** on optimizing with shots, and five glossary terms.
 
 ## What's new in v0.9.0?
 

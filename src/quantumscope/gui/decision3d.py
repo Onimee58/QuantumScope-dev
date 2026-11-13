@@ -2,7 +2,8 @@
 
 Points are shown along three axes (principal components, or axes chosen to show the class
 separation), with the classifier's decision boundary as a surface (f = 0) and, for an SVM, the
-margins (f = ±1). With more than three features this is a slice through the data's mean: the caption
+margins (f = ±1). With more than two classes (v0.9.3), each class's region has its own surface,
+in its colour, where it takes over from the next most confident class. With more than three features this is a slice through the data's mean: the caption
 gives the share of points where the slice agrees with the real classifier. Drag to rotate, scroll to
 zoom, Shift-drag to pan; click a point to see its sample. Nothing is computed until the tab is opened.
 """
@@ -79,7 +80,10 @@ class Decision3DView(QWidget):
     def set_result(self, result, model):
         """A new trained classifier: computed when the view is visible (now, or when the tab opens)."""
         self.result, self.model, self.geometry = result, model, None
-        self.show_margins.setEnabled(model is not None and model.settings.get('method') == 'svm')
+        many = result is not None and result['prepared'].k > 2
+        self.show_margins.setEnabled(model is not None and model.settings.get('method') == 'svm' and not many)
+        self.show_margins.setToolTip('With more than two classes, each class has its own classifier: the '
+                                     'boundaries show where one class takes over from another' if many else '')
         if self.isVisible():
             self.compute()
         else:
@@ -154,7 +158,21 @@ class Decision3DView(QWidget):
         plotter.clear()
         p, r = self.result['prepared'], self.result
         ticks, f = g['ticks'], g['f']
-        if self.show_boundary.isChecked() or self.show_margins.isChecked():
+        from quantumscope.gui.qml_experiments import palette
+        colours = palette(p.k)
+        if f.ndim == 4 and self.show_boundary.isChecked():           # each class's region, in its colour
+            spacing = [float(t[1] - t[0]) for t in ticks]
+            margins = W.class_margins(f)
+            opacity = self.opacity.value() / 100
+            for c, colour in colours:
+                if (margins[..., c] > 0).any():
+                    volume = pv.ImageData(dimensions=f.shape[:3], spacing=spacing, origin=[float(t[0]) for t in ticks])
+                    volume.point_data['m'] = margins[..., c].ravel(order='F')
+                    surface = volume.contour([0.0], scalars='m')
+                    if surface.n_points:
+                        plotter.add_mesh(surface, color=colour, opacity=opacity * 0.7, smooth_shading=True,
+                                         name=f'region{c}')
+        elif self.show_boundary.isChecked() or self.show_margins.isChecked():
             spacing = [float(t[1] - t[0]) for t in ticks]
             volume = pv.ImageData(dimensions=f.shape, spacing=spacing, origin=[float(t[0]) for t in ticks])
             volume.point_data['f'] = f.ravel(order='F')                 # x varies fastest in VTK
@@ -171,7 +189,7 @@ class Decision3DView(QWidget):
         wrong = r['predicted'] != p.y_test
         everything = np.r_[g['P_train'], g['P_test']]
         size = 0.018 * float(np.max(everything.max(axis=0) - everything.min(axis=0)) or 1.0)   # markers follow the data
-        for label, colour in ((1, PLUS), (-1, MINUS)):
+        for label, colour in colours:
             pts = g['P_train'][p.y_train == label]
             if len(pts):
                 plotter.add_mesh(pv.PolyData(pts).glyph(geom=pv.Sphere(radius=size), scale=False, orient=False),

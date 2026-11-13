@@ -1,3 +1,150 @@
+## v0.9.7 — Protected code
+
+- **QuantumScope's own code is compiled to native machine code in the installers** (.so on Linux and macOS, .pyd on Windows, with Cython). Before, the installers carried Python bytecode, which free tools turn back into readable source. All 94 modules the app uses are compiled; only the package files (`__init__`) and the start script remain Python, and they hold no logic.
+- **How:** `tools/cython_compile.py` compiles the modules in the release workflow; PyInstaller still analyses the Python source (so it finds every library exactly as before), and `tools/pyinstaller_compiled.py` then swaps each module's bytecode for its compiled file. The build stops if any module would ship as bytecode, and the packaged self-test fails on all three systems if a loaded module is not native.
+- **Behaving exactly like Python:** compiled with Python's own rules (no strict type checks from annotations). Cython computes `2 ** len(x)` as a decimal (8.0) where Python gives a whole number; three places did this (a reshape, a truth table and the Gate Explorer's "8×8" text) and are written with `<<` now, and the build stops if such a power appears again. The whole test suite and the GUI test suite pass against the compiled modules.
+- **Size:** the compiled modules add about 16 MB to the installed app (built small, without debugging data); the VTK savings of v0.9.6 remain.
+- **Error reports** still name the file, line and function where an error happened.
+- The packaged self-test also checks that the memory meter can read memory (psutil is bundled).
+
+## v0.9.6 — Lighter, and watching its own use
+
+### Smaller installers
+- **Only the VTK modules QuantumScope uses are bundled** (38 of about 150; tools/pyinstaller_vtk_args.py builds the list into the release workflow). In a test build on Linux, the installed app went from 970 MB to 770 MB and the compressed download from 314 MB to 258 MB; Windows and macOS shrink similarly.
+- **Safeguards:** the list came from every module the whole GUI test suite and the user-guide build load; a test checks that nothing the app loads is missing from it, and the packaged self-test now imports every listed module and builds a contour and a volume pipeline, so a missing piece fails the build instead of a student's session.
+
+### Memory and processor
+- **A meter in the status bar** shows QuantumScope's own memory, how full the computer's memory is, and how busy the processor is, every few seconds (psutil, on all three systems).
+- **Warnings:** amber when memory is getting full, red when it is nearly full; then QuantumScope says once what to do (save, lower the grid, fewer samples, close other programs, restart), until memory recovers. A processor fully busy for 30 seconds is noted in the status bar, without a dialog.
+- **Asking before a big task:** a 3-D orbital grid (once per grid size and viewer count) and a quantum kernel estimate the memory they need, from measurements, and ask first if it would take more than 70% of what is free.
+- **⚙ → Graphics and performance** (renamed from Graphics) has **Watch memory and processor use**, on by default.
+
+### System requirements
+- **Minimum, recommended and best** (processor, memory, graphics, disk, screen, and what runs well at each) are in the guide, the README and the public releases page, from measurements of the app's memory use: about 0.5 GB on its own, plus 0.1–0.3 GB for a fine 3-D grid per viewer, and up to about 0.15 GB for a 1,000-sample kernel.
+- **Supported systems** follow what the installers are built with: Windows 10 (1809 or later) or 11; macOS 14.4 or later on Apple Silicon; Ubuntu 24.04 or Debian 13 or later. PySide6 is held below 6.13, because Qt 6.12 is the last version that supports Windows 10.
+- **The Linux package says what it needs:** glibc 2.39 or later (so apt refuses an older system with a clear message instead of the app failing to start) and libxcb-cursor0 (which Qt's X11 support needs).
+
+### Fixed
+- **Check boxes** were nearly invisible on dark panels (the Double-Slit's which-path detectors, among others): unticked boxes had no visible edge. Every check box now has an outlined box and a white tick on a coloured fill, in both themes; a test measures their contrast.
+
+## v0.9.5 — Report a problem, and news
+
+### Report a problem
+- **⚑ in the header** (and **Report a problem…** in **ⓘ**) opens a report: what happened, what you expected, and a preview of everything the report contains — the QuantumScope version, how it was installed, the system, Python, PySide6 and NumPy versions, and the area and tab you were in. No names, paths or files.
+- **QuantumScope sends nothing itself.** **Send by email…** opens your email program with the report filled in; **Open a GitHub issue…** opens a new public issue in your browser. The full report is always copied to the clipboard, and long reports are shortened in the link with a note to paste the full one.
+- **A screenshot** of the window can be saved to your Files folder, to attach.
+- **The email button** appears once a support address is published in the news (see below); until then, GitHub and Copy report work.
+
+### The crash catcher
+- **An unexpected error** used to print only to a hidden console. Now QuantumScope keeps running, says what happened, and offers **Report it…** with the error's details in the report. Each distinct error is offered once; developers still see it printed.
+
+### News
+- **The first start asks once**, in a bar under the header, whether QuantumScope may read its news: one public file (news.json in github.com/Onimee58/QuantumScope), at most once a week, with nothing about the user sent.
+- **If allowed,** the first current announcement appears in that bar, with **Learn more ↗** when it has a link; **✕** closes it for good. Announcements can be limited to dates and versions, and are plain text only.
+- **Offline,** the last news read is shown, and the next start tries again.
+- **⚙ → Updates and news** holds the choice (Ask me, Read weekly, Never). Restore defaults asks again but keeps closed announcements closed.
+- **Maintainers** edit news.json on GitHub, with no new release; docs/releases-repository/NEWS-HOWTO.md explains the format.
+
+### Also
+- **The About page** describes QuantumScope as teaching software for all five areas.
+- **The guide** covers Report a problem, the crash catcher and news.
+- **Tests:** news files (valid, malformed, dates, versions, dismissal, the weekly rhythm, downloads refused when they are not news), reports (contents, nothing personal, titles, email and issue links, shortening), and in the window the news bar's consent, announcements, links, closing and offline behaviour, the report dialog's email and GitHub routes with the screenshot, the crash catcher, and the setting.
+
+## v0.9.4 — One circuit, many classes
+
+### The Variational Classifier, for any number of classes
+- **All classes** now works in the Variational Classifier (and the Datasets tab shares many-class data with both classifiers).
+- **One circuit, one outcome per class:** the first r = ⌈log₂ k⌉ qubits are measured; outcome c, in binary on q0 … q(r−1), is class c (2 qubits for three classes, 4 for ten). Outcomes that name no class are discarded and the rest renormalized, with a learned offset per class: P(c | x) = p_c e^(b_c) / Σ p_c′ e^(b_c′).
+- **Training** lowers the cross-entropy with exact gradients (adjoint, or the parameter-shift rule as on hardware), with BFGS or Adam, mini-batches, validation and early stopping, exactly as for two classes. The Loss list switches to cross-entropy while all classes are chosen, and returns to your choice afterwards.
+- **Results:** decision regions in each class's colour, the many-class Evaluation tab (confusion matrix, macro averages, per-class ROC), cross-validation, saved models (file version 2, with one offset per class) and predictions on new files, which give each prediction's probability.
+- **Open in circuit simulator** loads the trained circuit for a test sample with its readout qubits measured, and says which outcome is which class.
+- **Too few qubits** to name the classes (such as ten digits on 3 qubits) is explained instead of failing.
+- **Typical results** (test accuracy; chance in brackets): Iris 92% (33%), Wine 89%, Penguins 87%, Digits on 6 qubits 65% (10%), MNIST on 8 qubits about 50% (10%). The kernel classifier scores higher on the harder datasets: a small circuit must separate every class at once.
+
+### Lessons
+- **"More than two classes"** has a new section, "One circuit, many outcomes", and a quiz on readout qubits; **"Variational classifiers"** points to it.
+- **The lab "From three species to ten digits"** has a fourth step: three species with one circuit, read on two qubits in the simulator.
+- **The guide** describes All classes and the readout in the Variational Classifier.
+
+### Quality
+- **Tests:** the readout's qubit count and outcome order; outcome probabilities against the circuit simulator, gate by gate; the class probabilities by hand; adjoint and parameter-shift gradients against finite differences (angles and offsets); three species with BFGS and Adam; ten digits far above chance; validation and early stopping; cross-validation; two-class training unchanged; saving, loading, predicting and refusing damaged files; and in the whole window, training, the loss switch, evaluation, the model summary, the circuit in the simulator with its outcome probabilities, and the too-few-qubits message.
+- **The variational model's code** now has one readout hook, shared by two and many classes, so both use the same training loop.
+
+## v0.9.3 — More than two classes, and four more datasets
+
+### Multi-class quantum kernel classification
+- **All classes at once:** under Classes, the Quantum Kernel Classifier (and the Datasets tab) now offers **All classes** beside a pair. One-vs-rest: one SVM or kernel ridge per class, each telling its class from the rest, all sharing one kernel matrix, so no extra circuits are needed; the prediction is the most confident class.
+- **The checker** uses every class with at least 10 samples (smaller ones are left out, and it says which) and keeps at least 40 samples per class when it subsamples. A pair stays the default, so existing labs and scripts behave as before.
+- **Decision regions** in each class's colour, with every region's edge and a legend; the **kernel matrix** sorted by class with all class borders; the **kernel map** coloured by class with a legend; the **sample viewer** gives the winning class's confidence and the runner-up.
+- **The 3-D view** draws each class's region as a coloured surface; **Separating axes** follow the spread of the class centres (completed by the data's own directions).
+- **Evaluation:** accuracy, balanced accuracy, macro-averaged precision, recall and F1, the hardest class, a k × k confusion matrix drawn as a picture (green where a class was recognized, red where it was taken for another), and a one-vs-rest ROC curve per class with the mean AUC. **Cross-validation** and the **hyperparameter search** work with many classes.
+- **Saved models** of more than two classes (file version 2) store one weight column and offset per class over the points any classifier uses; **Predict on a file** shows each prediction's confidence. Two-class models are still saved as version 1, so older versions of QuantumScope open them.
+- **The Variational Classifier** still separates two classes, and says so if the Datasets tab prepared more.
+
+### Four more datasets (offline, with their licences in DATASETS.md)
+- **Fashion-MNIST** (MIT): the first 200 images of each of ten kinds of clothing from the official test set, checked against its published checksums. Harder than digits.
+- **Palmer Penguins** (CC0): 344 penguins of three species, kept as published, with text columns and missing values for the checker to handle.
+- **Seeds** (CC BY 4.0): 210 wheat kernels of three varieties.
+- **Glass Identification** (CC BY 4.0): 214 fragments of six unevenly represented types, for learning about imbalance.
+- Seeds and Glass come from copies of the UCI files and were checked against UCI's published sample and class counts.
+
+### Lessons
+- **A new lecture, "More than two classes":** one-vs-rest and one-vs-one, regions, chance at 1/k, the k × k confusion matrix, macro averages and balanced accuracy, per-class ROC curves, unbalanced classes, and easy and hard datasets.
+- **A new lab, "From three species to ten digits",** whose steps tick as you train (a new `qml kernel classes` check).
+- **Two glossary terms** (125 in total): one-vs-rest, macro average. "Preparing real data" now mentions All classes.
+- **The guide** covers the new datasets, All classes, many-class evaluation and models, with a new screenshot.
+
+### Quality
+- **Tests:** the new datasets against their published counts; one-vs-rest equal to k separate SVMs on one kernel; ten digits on eight qubits; many-class metrics by hand and the two-class metrics as a special case; per-class ROC areas against the rank statistic; cross-validation and search; saving, loading and predicting with many classes, and damaged files refused; the 3-D view's axes, grid and agreement; and in the window, every many-class view, the pair choice, the Datasets tab's sharing, and the 3-D view.
+- **The Evaluation tab clears an earlier model's cross-validation result** when a new model is trained, so the shown result always belongs to the current model.
+- **The self-test** checks all nine bundled datasets, so a build missing the new CSV file fails it.
+- **Example images** are labelled with full class names, in the theme's text colour.
+
+## v0.9.2 — Quantum annealing
+
+### The Quantum annealing experiment
+- **Open it with + in the Quantum Circuits area.** The anneal follows H(s) = (1 − s)·(−ΣX) + s·H_p from |+…+⟩, simulated exactly (each short slice exponentiated), for MaxCut on five graphs, a frustrated spin glass (choose the spins and the instance), number partitioning (your numbers) or your own Ising problem (Z terms).
+- **Spectrum:** the lowest levels of H(s) with the minimum gap circled, refined between grid points so narrow avoided crossings are not missed, and the adiabatic time scale T* = max |⟨1|∂H/∂s|0⟩| / Δ².
+- **Symmetry handled correctly:** when every term has an even number of Z's (MaxCut, partitioning), the anneal never leaves the symmetric states (|x⟩ + |x̄⟩)/√2, so gaps are computed there and the chart says so. Problems with degenerate answers use the gap to the first level that is not an answer.
+- **During the anneal:** the probability of the answer and the overlap with the instantaneous ground state against s, and the likeliest bitstrings at any s.
+- **Success against T** for anneals from T = 0.5 to 80, with the chance of guessing and T*. A spin glass with a tiny gap shows the surprise of the lecture: slower anneals can do worse until T is far beyond T*.
+- **Open as circuit:** the anneal as gates (H, then per slice RZ or CX–RZ–CX for each term and RX for the driver), with the problem as the observable and every qubit measured, in the circuit simulator; one Undo restores the previous circuit. QAOA has the same structure with free angles.
+- **Everything slow runs in the background;** the window never freezes.
+
+### Lessons
+- **A new lecture, "Quantum annealing":** Ising energies, the adiabatic theorem and the minimum gap, avoided crossings, symmetry, digitized annealing and QAOA, hardware annealers and simulated annealing.
+- **A new lab, "Anneal fast and slow",** whose steps tick as you anneal (a new `anneal` lab check) and as you build the circuit.
+- **Six glossary terms** (123 in total): quantum annealing, Ising Hamiltonian, adiabatic theorem, minimum gap, avoided crossing, digitized annealing.
+- **The guide** has a Quantum annealing section with a screenshot.
+
+### Quality
+- **Tests:** the symmetric-sector evolution against the full space, the sector's levels against the full spectrum, the circuit against the exact Trotter product, convergence of the time slicing, the adiabatic trend, the problem definitions, cancellation; and in the whole window, the experiment's results, its input checks, the success curve, and the circuit's energy and undo.
+
+## v0.9.1 — More optimizers, and optimizing with shots
+
+### Optimizing with shots
+- **A Shots choice beside Optimize:** **Exact**, or 100, 1,000 or 10,000 measurements of each term of the observable. Each term's estimate is drawn from the exact distribution of ±1 outcomes, so the noise is unbiased and shrinks like 1/√shots, as on hardware.
+- **With shots the optimizer only sees noisy energies,** and gradients come from the parameter-shift rule on them (the adjoint method needs the exact state, which hardware never gives).
+- **The Optimize chart draws the measured ⟨H⟩ (thin) beside the true ⟨H⟩ (bold),** and the summary reports the true result and the number of measurements used.
+
+### Five new optimizers
+- **Adam:** momentum and a step size per parameter.
+- **SPSA:** a gradient estimate along a random direction from two circuit runs per step, however many parameters; the usual choice on hardware. Its gains follow Spall, with a calibrated step size.
+- **Rotosolve:** each parameter in turn set to its exact minimum, from a trigonometric fit (3 values for a parameter driving one rotation; more for a parameter shared by several gates). No learning rate.
+- **Quantum natural gradient:** steps along g⁻¹∇⟨H⟩, with the Fubini–Study metric g computed exactly from the state's derivatives; stronger regularization and smaller steps with shots.
+- **Simulated annealing:** random moves, uphill ones accepted with probability e^(−ΔE/T) as the temperature falls.
+- **Every method has a tooltip.** "Max steps" means the same for all of them (for Rotosolve, parameter updates).
+- **Best of N** works with every method and with shots.
+
+### Lessons
+- **A new lecture, "Optimizing with shots":** shot noise, SPSA, Rotosolve, the quantum natural gradient, simulated annealing, and how to choose an optimizer.
+- **The optimizer lecture's table** lists all nine methods.
+- **Five glossary terms** (117 in total): shot noise, SPSA, Rotosolve, quantum natural gradient, simulated annealing.
+
+### Quality
+- **Tests:** the state derivatives and the metric against finite differences and the fidelity expansion; shot noise unbiased and shrinking like 1/√shots; every method reaching the ground state with exact energies; SPSA's cost and its success under shots, where Nelder–Mead fails; Rotosolve's fit equal to the energy; annealing's uphill moves; repeatable random methods; the chart's measured curve unbiased for every method.
+- **A timing-dependent GUI test** (editing the circuit during an optimization) now uses a run long enough on any machine.
+
 ## v0.9.0 — The Math tab: a quantum calculator
 
 ### The Quantum Calculator

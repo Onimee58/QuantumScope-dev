@@ -456,6 +456,41 @@ lesson: circuits/26-qaoa-maxcut
 see: QAOA
 Splitting a graph's nodes into two groups so that as many edges as possible join the groups.
 
+### Quantum annealing
+aliases: adiabatic quantum optimization
+lesson: circuits/29-quantum-annealing
+see: Adiabatic theorem, Ising Hamiltonian, Simulated annealing
+Finding the ground state of a problem Hamiltonian by starting in the easy ground state of a driver and changing the Hamiltonian slowly from one to the other.
+
+### Ising Hamiltonian
+aliases: Ising energy, Ising model
+lesson: circuits/29-quantum-annealing
+see: Quantum annealing, MaxCut
+An energy built from Z and ZZ terms, ΣJᵢⱼZᵢZⱼ + ΣhᵢZᵢ. It is diagonal, and its lowest-energy bitstrings answer an optimization problem.
+
+### Adiabatic theorem
+lesson: circuits/29-quantum-annealing
+see: Minimum gap
+A system in the ground state stays in the instantaneous ground state if its Hamiltonian changes slowly enough compared with the gap to the next level.
+
+### Minimum gap
+aliases: energy gap, spectral gap
+lesson: circuits/29-quantum-annealing
+see: Adiabatic theorem, Avoided crossing
+The smallest energy difference between the ground state and the first excited level it could jump to during an anneal. The anneal time needed grows like one over its square.
+
+### Avoided crossing
+aliases: avoided crossings, Landau–Zener transition
+lesson: circuits/29-quantum-annealing
+see: Minimum gap
+A point where two energy levels approach without crossing. A fast sweep jumps from one level to the other; the narrower the gap, the slower the sweep must be to avoid it.
+
+### Digitized annealing
+aliases: Trotterization, Trotter step, Trotter steps
+lesson: circuits/29-quantum-annealing
+see: QAOA, Quantum annealing
+An anneal split into short time slices, each a problem layer and a driver layer of gates, so a gate-based computer can run it. More slices follow the exact anneal more closely.
+
 ## Hydrogen
 
 ### Schrödinger equation
@@ -662,6 +697,18 @@ lesson: qml/06-evaluating-classifiers
 see: Precision, ROC curve
 Of the samples that really are positive, the share a classifier finds: TP / (TP + FN).
 
+### One-vs-rest
+aliases: one-versus-rest, one-vs-all
+lesson: qml/07-more-than-two-classes
+see: Confusion matrix, Macro average
+A way to separate k classes with k binary classifiers, each telling one class from all the others; the prediction is the most confident class. A quantum kernel classifier's k classifiers share one kernel matrix.
+
+### Macro average
+aliases: macro averages, macro-averaged
+lesson: qml/07-more-than-two-classes
+see: One-vs-rest, Recall
+A measure such as precision, recall or F1 computed for each class and then averaged over the classes, so that every class counts equally however many samples it has.
+
 ### ROC curve
 aliases: ROC curves, AUC, area under the curve
 lesson: qml/06-evaluating-classifiers
@@ -684,3 +731,31 @@ A setting chosen before training rather than learned, such as the bandwidth, the
 lesson: qml/06-evaluating-classifiers
 see: Overfitting, Training set
 Stopping training when the loss on validation data stops improving, and keeping the best step, to avoid overfitting.
+
+### Shot noise
+aliases: shots, shot
+lesson: circuits/28-optimizing-with-shots
+see: Expectation value
+The scatter in a quantity estimated from a limited number of measurements. With N shots it shrinks like 1/√N.
+
+### SPSA
+aliases: simultaneous perturbation stochastic approximation
+lesson: circuits/28-optimizing-with-shots
+see: Gradient, Shot noise
+An optimizer that estimates the gradient along a random direction from two circuit runs per step, however many parameters there are; common on quantum hardware.
+
+### Rotosolve
+lesson: circuits/28-optimizing-with-shots
+see: Parameter-shift rule
+An optimizer that sets one rotation angle at a time to its exact minimum, using the fact that the energy is a sinusoid in each angle.
+
+### Quantum natural gradient
+aliases: natural gradient, Fubini–Study metric
+lesson: circuits/28-optimizing-with-shots
+see: Gradient
+A gradient step scaled by the inverse of the Fubini–Study metric, so that each step changes the quantum state by a similar amount.
+
+### Simulated annealing
+lesson: circuits/28-optimizing-with-shots
+see: Barren plateau, Quantum annealing
+An optimizer that makes random moves and sometimes accepts uphill ones, less often as a "temperature" falls, so it can leave local minima.

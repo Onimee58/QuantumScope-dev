@@ -46,7 +46,7 @@ def gate_derivative(gate, field):
 class Evaluator:
     """Fast ⟨H⟩ for a model at different parameter values, without touching the model."""
 
-    def __init__(self, model):
+    def __init__(self, model, shots=0, rng=None):
         if not model.observable:
             raise ValueError('Set an observable first (for example a Hamiltonian).')
         if not model.parameters:
@@ -55,8 +55,46 @@ class Evaluator:
         self.names = list(model.parameters)
         self.terms = parse(model.observable, model.n)
         self.calls = 0
-        self.adjoint = not model.noisy                             # pure states: one forward + one backward pass
+        self.shots = int(shots)                                    # 0: exact; else per Pauli term (v0.9.1)
+        self.rng = rng if rng is not None else np.random.default_rng()
+        # The adjoint method needs the exact state, which hardware never gives: with shots, gradients
+        # come from the parameter-shift rule on the sampled energies, as on a real device.
+        self.adjoint = not model.noisy and not self.shots          # pure states: one forward + one backward pass
         self._last = None                                          # (values, energy) of the latest evaluation
+
+    @property
+    def measured_terms(self):
+        """The Pauli terms that need measuring (a constant term does not)."""
+        return sum(1 for _, ops in self.terms if ops)
+
+    def _sampled(self, state):
+        """⟨H⟩ estimated from `shots` measurements of each Pauli term: each outcome is ±1, with
+        P(+1) = (1 + ⟨P⟩)/2, so the count of +1 outcomes is binomial."""
+        total = 0.0
+        for coefficient, ops in self.terms:
+            if not ops:
+                total += coefficient
+                continue
+            mean = min(1.0, max(-1.0, expectation(state, self.model.n, [(1.0, ops)])))
+            plus = self.rng.binomial(self.shots, (1 + mean) / 2)
+            total += coefficient * (2 * plus / self.shots - 1)
+        return float(total)
+
+    def _final_state(self, values):
+        m = self.model
+        m.parameters = dict(zip(self.names, map(float, values)))
+        m._apply_bindings()
+        return m.simulate_noisy(store=False)[1][-1] if m.noisy else m.simulate().column_states[-1]
+
+    def observe(self, values):
+        """⟨H⟩ as a measurement would give it (sampled with shots), for the chart only: not counted,
+        never seen by the optimizer. SPSA uses it, since its two probes do not measure ⟨H⟩ at its point."""
+        state = self._final_state(values)
+        return self._sampled(state) if self.shots else expectation(state, self.model.n, self.terms)
+
+    def true_energy(self, values):
+        """The exact ⟨H⟩, for display only: not counted, never seen by the optimizer."""
+        return expectation(self._final_state(values), self.model.n, self.terms)
 
     def energy(self, values, shift=None):
         """⟨H⟩ at the given parameter values; shift=(key, field, δ) moves one gate angle only."""
@@ -71,7 +109,7 @@ class Evaluator:
             m.gates[(r, c)] = Gate(g.name, g.targets, fields['angle'], fields['phi'], fields['lam'])
         self.calls += 1
         state = m.simulate_noisy(store=False)[1][-1] if m.noisy else m.simulate().column_states[-1]
-        energy = expectation(state, m.n, self.terms)
+        energy = self._sampled(state) if self.shots else expectation(state, m.n, self.terms)
         if shift is None:
             self._last = (np.array(values, float), energy)
         return energy
@@ -132,6 +170,55 @@ class Evaluator:
             grad[index[name]] += factor * (plus - minus) / 2
         return grad
 
+    def state_derivatives(self, values):
+        """(|ψ⟩, D) with D[i] = ∂|ψ⟩/∂(parameter i), exactly: each bound gate's derivative matrix in
+        place of the gate, times its factor (noiseless circuits only)."""
+        if self.model.noisy:
+            raise ValueError('The quantum natural gradient needs a noiseless circuit (pure states)')
+        m, n = self.model, self.model.n
+        m.parameters = dict(zip(self.names, map(float, values)))
+        m._apply_bindings()
+        bound = {}
+        for (r, c, field), (name, factor) in m.bindings.items():
+            bound.setdefault((r, c), []).append((field, name, factor))
+        ops = [(g, bound.get((r, c)) if m.gates.get((r, c)) is g else None) for c, r, _, g in m._placed()]
+        before, psi = [], m.initial_vector()
+        for g, _ in ops:
+            before.append(psi)
+            psi = apply_gate(psi, n, g)
+        index = {name: i for i, name in enumerate(self.names)}
+        D = np.zeros((len(self.names), len(psi)), complex)
+        for k, (g, fields) in enumerate(ops):
+            for field, name, factor in fields or ():
+                if name not in index:
+                    continue
+                d = apply_matrix(before[k], n, gate_derivative(g, field), g.targets)
+                for later, _ in ops[k + 1:]:
+                    d = apply_gate(d, n, later)
+                D[index[name]] += factor * d
+        return psi, D
+
+    def metric(self, values):
+        """The Fubini–Study metric g_ij = Re(⟨∂iψ|∂jψ⟩ − ⟨∂iψ|ψ⟩⟨ψ|∂jψ⟩): how far the state moves
+        when the parameters move (the quantum geometric tensor's real part)."""
+        psi, D = self.state_derivatives(values)
+        overlaps = D.conj() @ psi
+        return np.real(D.conj() @ D.T - np.outer(overlaps, overlaps.conj()))
+
+    def frequencies(self):
+        """For each parameter, the largest frequency K of ⟨H⟩ as a function of it, or None if ⟨H⟩ is
+        not a trigonometric polynomial in it (a factor that is not a whole number). Every bindable
+        gate is exp(−iθG) with G's eigenvalues one apart, so each gate adds |factor|."""
+        K = {name: 0 for name in self.names}
+        for _, (name, factor) in self.model.bindings.items():
+            if name not in K or K[name] is None:
+                continue
+            if abs(factor - round(factor)) > 1e-12:
+                K[name] = None
+            else:
+                K[name] += abs(int(round(factor)))
+        return [K[name] for name in self.names]
+
     def exact_minimum(self):
         return ground_energy(self.model.n, self.terms) if self.model.n <= 10 else None
 
@@ -141,26 +228,203 @@ class History(list):
     evaluations = 0
 
 
-def optimize(model, method='BFGS', steps=100, rate=0.2, callback=None, tolerance=1e-7, start=None):
+METHODS = ('BFGS', 'gradient', 'Adam', 'SPSA', 'Rotosolve', 'QNG', 'annealing', 'COBYLA', 'Nelder-Mead')
+
+
+def optimize(model, method='BFGS', steps=100, rate=0.2, callback=None, tolerance=1e-7, start=None, shots=0,
+             seed=None):
     """Minimize ⟨observable⟩ over the model's parameters.
 
-    method: 'BFGS' (quasi-Newton with exact parameter-shift gradients), 'gradient' (plain descent
-    with parameter-shift gradients), 'COBYLA' or 'Nelder-Mead' (gradient-free, from scipy).
+    method: 'BFGS' (quasi-Newton, exact gradients), 'gradient' (plain descent), 'Adam' (momentum and
+    adaptive steps), 'SPSA' (two circuit runs per step, whatever the number of parameters),
+    'Rotosolve' (each parameter set to its exact minimum in turn), 'QNG' (the quantum natural
+    gradient), 'annealing' (simulated annealing), 'COBYLA' or 'Nelder-Mead' (gradient-free, scipy).
+    shots: 0 for exact energies, else each Pauli term is estimated from this many measurements (the
+    optimizer then sees noisy energies, as on hardware). seed makes random methods repeatable.
     callback(iteration, values, energy) may return False to stop. Returns the history
-    [(values, energy), …], starting with the current parameters.
+    [(values, energy), …] of what the optimizer saw, starting with the current parameters;
+    history.true holds the exact energy of every recorded point, and history.evaluations and
+    history.shots_used the cost.
     """
-    ev = Evaluator(model)
+    if method not in METHODS:
+        raise ValueError(f'Unknown method {method!r}')
+    rng = np.random.default_rng(seed)
+    ev = Evaluator(model, shots=shots, rng=rng)
+    if method == 'Rotosolve' and None in ev.frequencies():
+        bad = [n for n, k in zip(ev.names, ev.frequencies()) if k is None]
+        raise ValueError(f'Rotosolve needs whole-number factors; {", ".join(bad)} has a fractional one')
     values = np.array([model.parameters[n] for n in ev.names] if start is None else start, float)
     history = History([(values.copy(), ev.energy(values))])
     try:
-        return _optimize(ev, values, history, method, steps, rate, callback, tolerance)
+        return _optimize(ev, values, history, method, steps, rate, callback, tolerance, rng)
     finally:
         history.evaluations = ev.calls
+        history.shots_used = ev.calls * ev.shots * ev.measured_terms
+        history.true = [ev.true_energy(v) for v, _ in history]
 
 
-def _optimize(ev, values, history, method, steps, rate, callback, tolerance):
+def _record(history, callback, values, energy):
+    history.append((np.array(values, float), float(energy)))
+    return callback is None or callback(len(history) - 1, values, energy) is not False
+
+
+def _adam(ev, values, history, steps, rate, callback, tolerance):
+    """Adam: a running mean of the gradient (momentum) and of its square (a step size per parameter)."""
+    m, v = np.zeros_like(values), np.zeros_like(values)
+    for t in range(1, steps + 1):
+        energy, grad = ev.energy_and_gradient(values)
+        if t > 1 and not _record(history, callback, values, energy):
+            return history
+        if not ev.shots and np.linalg.norm(grad) < tolerance:
+            return history
+        m = 0.9 * m + 0.1 * grad
+        v = 0.999 * v + 0.001 * grad * grad
+        values = values - rate * (m / (1 - 0.9 ** t)) / (np.sqrt(v / (1 - 0.999 ** t)) + 1e-8)
+    _record(history, callback, values, ev.energy(values))
+    return history
+
+
+def _spsa(ev, values, history, steps, rate, callback, rng):
+    """SPSA (Spall): move every parameter at once by ±c along a random direction Δ; the two energies
+    give a gradient estimate along Δ. Two circuit runs per step, however many parameters. Gains
+    a_k = a/(k + 1 + A)^0.602 and c_k = c/(k + 1)^0.101; a is calibrated so that the first steps
+    move the parameters by about `rate`. The recorded energies come from Evaluator.observe (for the chart, not counted):
+    SPSA itself only measures its two probes."""
+    p = len(values)
+    c, A = 0.15 if ev.shots else 0.1, 0.1 * steps
+    probes = []
+    for _ in range(5):                                         # calibration (counted as evaluations)
+        delta = rng.choice((-1.0, 1.0), p)
+        probes.append(abs(ev.energy(values + c * delta) - ev.energy(values - c * delta)) / (2 * c))
+    a = rate * (A + 1) ** 0.602 / max(float(np.mean(probes)), 1e-8)
+    for k in range(steps):
+        ak, ck = a / (k + 1 + A) ** 0.602, c / (k + 1) ** 0.101
+        delta = rng.choice((-1.0, 1.0), p)
+        plus, minus = ev.energy(values + ck * delta), ev.energy(values - ck * delta)
+        values = values - ak * (plus - minus) / (2 * ck) * delta
+        # The probes' mean is biased by the curvature, so the chart gets its own (uncounted) measurement.
+        if not _record(history, callback, values, ev.observe(values)):
+            return history
+    return history
+
+
+def _rotosolve(ev, values, history, steps, callback, tolerance):
+    """Rotosolve (Ostaszewski et al.; Nakanishi et al.): with the others fixed, ⟨H⟩ is a trigonometric
+    polynomial of degree K in each parameter (K = 1 for a parameter driving one rotation), fixed by
+    2K + 1 energies. Each parameter is set in turn to that polynomial's minimum; no learning rate."""
+    from scipy.optimize import minimize_scalar
+    degrees = ev.frequencies()
+    energy = history[-1][1]
+    for sweep in range(steps):
+        start_energy = energy
+        for i, K in enumerate(degrees):
+            if K == 0:
+                continue
+            points = values[i] + 2 * np.pi * np.arange(2 * K + 1) / (2 * K + 1)
+            samples = []
+            for k, x in enumerate(points):
+                trial = values.copy()
+                trial[i] = x
+                samples.append(energy if k == 0 else ev.energy(trial))
+            coeffs = np.fft.rfft(samples) / (2 * K + 1)       # E(x) = Σ_k |c_k| cos(k(x − x0) + arg)
+            k = np.arange(K + 1)
+
+            def curve(x, coeffs=coeffs, x0=points[0], k=k):
+                weights = np.where(k == 0, 1.0, 2.0)
+                return float(np.sum(weights * np.real(coeffs * np.exp(1j * k * (x - x0)))))
+            grid = values[i] + np.linspace(-np.pi, np.pi, 64 * K, endpoint=False)
+            best = grid[int(np.argmin([curve(x) for x in grid]))]
+            step = np.pi / (32 * K)
+            best = minimize_scalar(curve, bounds=(best - step, best + step), method='bounded',
+                                   options={'xatol': 1e-10}).x
+            values = values.copy()
+            values[i] = (best + np.pi) % (2 * np.pi) - np.pi if K == 1 else best
+            energy = curve(best) if not ev.shots else ev.energy(values)
+            if not _record(history, callback, values, energy) or len(history) - 1 >= steps:
+                return history                                 # steps: parameter updates, as elsewhere
+        if not ev.shots and start_energy - energy < tolerance:
+            break
+    return history
+
+
+def _qng(ev, values, history, steps, rate, callback, tolerance):
+    """The quantum natural gradient (Stokes et al.): step along g⁻¹∇⟨H⟩, where g is the Fubini–Study
+    metric, so that each step changes the quantum state by a similar amount whichever parameters
+    move. A small regularization keeps g invertible. Exact energies: a backtracking line search,
+    as for gradient descent; with shots, fixed steps."""
+    energy = history[-1][1]
+    # With shots the gradient is noisy, and g⁻¹ amplifies noise along directions the state barely
+    # depends on: a stronger regularization and a smaller step keep it stable (standard practice).
+    regularization = 0.05 if ev.shots else 1e-3
+    if ev.shots:
+        rate = min(rate, 0.05)
+    for _ in range(steps):
+        grad = ev.gradient(values)
+        if not ev.shots and np.linalg.norm(grad) < tolerance:
+            break
+        g = ev.metric(values)
+        direction = np.linalg.solve(g + regularization * np.eye(len(values)), grad)
+        if ev.shots:
+            values = values - rate * direction
+            energy = ev.energy(values)
+        else:
+            for _ in range(30):
+                trial = values - rate * direction
+                trial_energy = ev.energy(trial)
+                if trial_energy <= energy:
+                    break
+                rate *= 0.5
+            else:
+                break
+            improvement = energy - trial_energy
+            values, energy = trial, trial_energy
+            rate = min(rate * 1.2, 2.0)
+        if not _record(history, callback, values, energy):
+            break
+        if not ev.shots and improvement < tolerance * 1e-2:
+            break
+    return history
+
+
+def _annealing(ev, values, history, steps, rate, callback, rng):
+    """Simulated annealing: random moves, always accepted downhill and uphill with probability
+    exp(−ΔE/T), while the temperature T falls geometrically. Uphill moves let it leave local
+    minima. The walk is recorded (uphill moves included); it ends at the best point found."""
+    energy = history[-1][1]
+    trials = [abs(ev.energy(values + rng.normal(0, rate, len(values))) - energy) for _ in range(5)]
+    t0 = max(float(np.mean(trials)), 1e-6)                     # calibration (counted)
+    t_end = t0 * 1e-3
+    best_values, best_energy = values.copy(), energy
+    for k in range(steps):
+        temperature = t0 * (t_end / t0) ** (k / max(1, steps - 1))
+        width = 2 * rate * math.sqrt(temperature / t0) + 0.02
+        trial = values + rng.normal(0, width, len(values))
+        trial_energy = ev.energy(trial)
+        if trial_energy <= energy or rng.random() < math.exp(-(trial_energy - energy) / temperature):
+            values, energy = trial, trial_energy
+            if energy < best_energy:
+                best_values, best_energy = values.copy(), energy
+            if not _record(history, callback, values, energy):
+                return history
+    if not np.array_equal(best_values, history[-1][0]):
+        _record(history, callback, best_values, best_energy)
+    return history
+
+
+def _optimize(ev, values, history, method, steps, rate, callback, tolerance, rng=None):
     if callback is not None and callback(0, values, history[0][1]) is False:
         return history
+    rng = rng if rng is not None else np.random.default_rng()
+    if method == 'Adam':
+        return _adam(ev, values, history, steps, min(rate, 0.1), callback, tolerance)
+    if method == 'SPSA':
+        return _spsa(ev, values, history, steps, rate, callback, rng)
+    if method == 'Rotosolve':
+        return _rotosolve(ev, values, history, steps, callback, tolerance)
+    if method == 'QNG':
+        return _qng(ev, values, history, steps, rate, callback, tolerance)
+    if method == 'annealing':
+        return _annealing(ev, values, history, steps, rate, callback, rng)
     if method == 'gradient':
         # Gradient descent with a backtracking line search: a step that would raise ⟨H⟩ is
         # rejected and the step size halved; after a success it grows a little. A fixed step
@@ -264,7 +528,7 @@ def wrap_safely(model, values):
     return out
 
 
-def best_of(model, starts, method='BFGS', steps=100, rng=None, callback=None, on_start=None):
+def best_of(model, starts, method='BFGS', steps=100, rng=None, callback=None, on_start=None, shots=0):
     """Optimize from the current parameters and from starts − 1 random ones in [−π, π); keep the best.
 
     on_start(k, starts) is told when start k (0-based) begins; callback is passed through to each
@@ -284,7 +548,8 @@ def best_of(model, starts, method='BFGS', steps=100, rng=None, callback=None, on
         if on_start is not None:
             on_start(k, starts)
         start = None if k == 0 else rng.uniform(-math.pi, math.pi, len(names))
-        history = optimize(model, method, steps, callback=relay, start=start)
+        history = optimize(model, method, steps, callback=relay, start=start, shots=shots,
+                           seed=int(rng.integers(2 ** 32)))
         finals.append(history[-1][1])
         if best is None or history[-1][1] < best[-1][1] - 1e-12:
             best, best_index = history, k

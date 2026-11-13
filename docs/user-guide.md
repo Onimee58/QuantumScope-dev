@@ -1,10 +1,23 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.0** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.7** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
 ## 1. Installing and updating
+
+**System requirements.** Windows 10 (version 1809 or later) or Windows 11, 64-bit; macOS 14.4 or later on Apple Silicon; Ubuntu 24.04 or Debian 13 or later, 64-bit.
+
+| | Minimum | Recommended | Best |
+|---|---|---|---|
+| **Processor** | 64-bit, 2 cores | 4 cores | 6 or more cores |
+| **Memory (RAM)** | 4 GB | 8 GB | 16 GB |
+| **Graphics** | OpenGL 3.2 (most integrated graphics since 2015) | Recent integrated graphics (Intel Iris Xe, AMD Radeon, Apple M1) | A dedicated graphics card (NVIDIA or AMD) |
+| **Disk space** | 1.5 GB free | 2 GB free | 2 GB free (SSD) |
+| **Screen** | 1280 × 720 | 1920 × 1080 | 1920 × 1080 or larger |
+| **What runs well** | 3-D orbitals up to 96 points per axis; circuits up to 10 qubits; Quantum ML up to a few hundred samples | Everything, including the comparison 3-D view and larger datasets | The finest 3-D grids (160 points per axis) with both viewers, and the largest models, smoothly |
+
+QuantumScope itself uses about half a gigabyte of memory; a very fine 3-D orbital grid or a large Quantum ML dataset can add one to two more. It watches memory while it runs (chapter 9) and asks before a task that may not fit.
 
 QuantumScope runs on **Windows** (64-bit), **macOS** (Apple Silicon) and **Ubuntu or Debian Linux** (64-bit). Download the installer for your system from the project's **Releases** page on GitHub (github.com/Onimee58/QuantumScope):
 
@@ -19,7 +32,7 @@ QuantumScope runs on **Windows** (64-bit), **macOS** (Apple Silicon) and **Ubunt
 - **Windows:** if SmartScreen appears, choose **More info → Run anyway**.
 - **macOS:** if the app is blocked, open **System Settings → Privacy & Security** and choose **Open Anyway**.
 
-**Updating.** Open **ⓘ** (top right) and choose **Check for updates…**, or use **⚙ → Updates**. QuantumScope asks before it connects to GitHub. If a newer version exists, it shows the release notes; **Update now** downloads the installer, checks it against its published SHA-256 checksum, and installs it:
+**Updating.** Open **ⓘ** (top right) and choose **Check for updates…**, or use **⚙ → Updates and news**. QuantumScope asks before it connects to GitHub. If a newer version exists, it shows the release notes; **Update now** downloads the installer, checks it against its published SHA-256 checksum, and installs it:
 
 - **Windows:** the installer takes over, and QuantumScope closes.
 - **Ubuntu:** enter your password when asked; QuantumScope waits for the installation and offers **Restart now**.
@@ -34,7 +47,7 @@ Nothing is downloaded or installed without your confirmation, and a download tha
 - **Areas:** the five tabs under the title, **Hydrogen**, **Quantum Principles**, **Quantum Circuits**, **Quantum ML** and **Math**, are the five areas of the app.
 - **Experiment tabs:** each area holds experiment tabs. Open more with **+** on the right of the tab bar, or with **+ New Experiment** at the top. Every tab can be closed with its **×**. A closed tab is only hidden, so opening it again brings it back exactly as you left it. An area with no open tabs shows a **Start** page with its experiments as buttons.
 - **📖 Learn** opens the lessons for the current area (chapter 8).
-- **⚙** opens **Settings** (chapter 9). **ⓘ** shows **About QuantumScope**, including **Check for updates…** and **User guide**, which opens this document.
+- **⚑** opens **Report a problem** (chapter 10). **⚙** opens **Settings** (chapter 9). **ⓘ** shows **About QuantumScope**, including **Check for updates…** and **User guide**, which opens this document.
 - **Charts:** right-click any chart for **View All**, the axis options, **Save image…** (PNG or JPEG at twice the screen resolution), **Copy image** and **Save data (CSV)…**.
 - **Long computations** (training, **Optimize**, **Best of N**, the landscape) run in the background with their progress shown, so the window never freezes; **Stop** or **Cancel** ends them early.
 
@@ -174,7 +187,8 @@ Press **Parameters** to show the panel.
   - **Sliders** change parameters live. On wide windows they show in two columns.
   - **🎲** randomizes one parameter, and **Randomize all** randomizes every one.
 - **Observable:** type a weighted sum of Pauli terms, such as Z0 Z1 + 0.5 X0, or pick one from **Examples…**. The panel shows its expectation value ⟨O⟩ and the lowest possible value.
-- **Optimize** lowers ⟨O⟩ with the chosen method (**BFGS**, **Gradient descent**, **COBYLA** or **Nelder–Mead**). **Best of N random starts** also tries random starting points and keeps the best.
+- **Optimize** lowers ⟨O⟩ with the chosen method: **BFGS**, **Gradient descent**, **Adam**, **SPSA** (two circuit runs per step), **Rotosolve** (each parameter set to its exact minimum in turn), the **Quantum natural gradient**, **Simulated annealing**, **COBYLA** or **Nelder–Mead**; hover over a method for a short description. **Best of N random starts** also tries random starting values and keeps the best.
+- **Shots:** **Exact**, or 100, 1,000 or 10,000 measurements of each term of the observable, as on real hardware. With shots the optimizer only sees noisy energies, gradients come from the parameter-shift rule, and the Optimize chart draws the measured ⟨O⟩ (thin) beside the true ⟨O⟩ (bold), with the number of measurements used. Lecture "Optimizing with shots" compares the methods.
 - **Landscape…** draws ⟨O⟩ over two parameters, with the optimizer's path.
 
 ### Solving linear systems (VQLS)
@@ -182,6 +196,21 @@ Press **Parameters** to show the panel.
 ![The VQLS solution view: the circuit's amplitudes against the classical solution](images/vqls-solution.png)
 
 **Algorithms… → Variational quantum linear solver** prepares a state proportional to the solution of A x = b. Choose the standard 3-qubit system, a worse-conditioned one, a 1-qubit one, or **Your own system**: A as a sum of Pauli terms on 1 to 3 qubits (it must be invertible) and b as |0…0⟩, |+…+⟩ or |1…1⟩. The observable is the VQLS cost, which is 0 exactly at the solution. Press **Optimize**, then **Verify / truth table**: the check passes at a fidelity of at least 0.99 with the classical solution. **Show the solution** compares the amplitudes as you go.
+
+### Quantum annealing
+
+![Quantum annealing: a hexagon's MaxCut annealed for T = 10, with the probability of the answer during the anneal and the likeliest bitstrings](images/annealing.png)
+
+Open **+ → Quantum annealing**. It anneals from the easy ground state of −ΣX to the ground state of a problem, the answer, and shows why the anneal time matters.
+
+- **Problem:** MaxCut on five small graphs, a **Spin glass** (choose the spins and an instance), **Number partitioning** (type the numbers) or **Your Ising problem** (Z terms, such as Z0 Z1 − 0.5 Z2). The answers and their energy are listed.
+- **Anneal** runs an anneal of time **T** and shows:
+  - **Spectrum:** the lowest levels of H(s), with the minimum gap circled. The panel reports the gap and the adiabatic time scale T*.
+  - **During the anneal:** the probability of the answer, and the overlap with the instantaneous ground state, as s goes from 0 to 1. The slider shows the likeliest bitstrings at any s (answers in green).
+- **Success against T** anneals for T from 0.5 to 80 and plots how often the answer is found, with the chance of guessing and T*.
+- **Open as circuit** turns the anneal into gates (digitized annealing) with the chosen number of **Steps**, and opens it in the simulator with the problem as the observable. One **Undo** brings back your previous circuit.
+
+For MaxCut and number partitioning, flipping every spin gives the same answer, so the spectrum shows only the levels the anneal can reach. Lecture "Quantum annealing" and its lab explain the physics.
 
 ### Files and tools
 
@@ -193,34 +222,37 @@ Press **Parameters** to show the panel.
 
 ## 6. Quantum ML
 
-The **Quantum ML** area turns data into quantum states and learns from them. Its three experiments open from **+**: **Datasets**, **Quantum Kernel Classifier** and **Variational Classifier**. Everything runs offline; the five built-in datasets are part of the app.
+The **Quantum ML** area turns data into quantum states and learns from them. Its three experiments open from **+**: **Datasets**, **Quantum Kernel Classifier** and **Variational Classifier**. Everything runs offline; the nine built-in datasets are part of the app.
 
 ### Datasets
 
 ![Datasets: MNIST checked, prepared to four features, with example images of the two classes](images/qml-datasets.png)
 
-- **Dataset** picks a built-in dataset (Iris, Wine, Breast Cancer Wisconsin, Digits 8×8 and a 2,000-image MNIST subset) or a synthetic one (moons, circles, XOR, blobs). **Import CSV or .npz…** reads your own data: a CSV with a label column (named label, target, class … or the last column), or a NumPy file with arrays named X and y.
+- **Dataset** picks a built-in dataset (Iris, Wine, Breast Cancer Wisconsin, Digits 8×8, a 2,000-image MNIST subset, a 2,000-image Fashion-MNIST subset, Palmer Penguins, Seeds and Glass Identification) or a synthetic one (moons, circles, XOR, blobs). **Import CSV or .npz…** reads your own data: a CSV with a label column (named label, target, class … or the last column), or a NumPy file with arrays named X and y.
 - **Qubits (= features)** is how many features the prepared data will have: each classifier encodes one feature per qubit.
-- **The checker** gives a verdict (ready, usable after preprocessing, or cannot be used) and lists what stands in the way, each with a suggested fix: too many features, too many samples, more than two classes, text columns, missing values, or features on different scales.
-- **Preprocessing** shows every step and lets you change it: **Classes**, **Missing values**, **Text columns**, **Samples per class**, **PCA components**, scaling to [0, π] and the **Test share**. **Apply suggestions** restores the checker's recipe, and **Prepare** prepares the data and shares it with both classifiers.
+- **The checker** gives a verdict (ready, usable after preprocessing, or cannot be used) and lists what stands in the way, each with a suggested fix: too many features, too many samples, more than two classes, classes too small to learn from, text columns, missing values, or features on different scales.
+- **Preprocessing** shows every step and lets you change it: **Classes** (two to separate, or **All classes**), **Missing values**, **Text columns**, **Samples per class**, **PCA components**, scaling to [0, π] and the **Test share**. **Apply suggestions** restores the checker's recipe, and **Prepare** prepares the data and shares it with both classifiers.
 - The data is split into training and test sets first, and every learned step (means, PCA, scaling) is fitted on the training part only, so the test accuracy is honest.
-- The plot shows the prepared training data; for Digits and MNIST, example images of the two chosen classes appear below it.
+- The plot shows the prepared training data, with a legend when there are more than two classes; for Digits, MNIST and Fashion-MNIST, example images of the chosen classes appear below it.
+- **Licences:** every built-in dataset is public and redistributed under its own licence (CC BY 4.0, CC BY-SA 3.0, CC0 or MIT), listed with its citation in the app's `ml/data/DATASETS.md`.
 
 ### Quantum Kernel Classifier
 
+- **Data:** choose **From the Datasets tab**, or any dataset directly; it is then prepared with the checker's suggested recipe. For a dataset with more than two classes, **Classes** chooses the pair to separate, or **All classes**: one classifier per class, each telling its class from all the others (one-vs-rest), all sharing one kernel matrix. The prediction is the most confident class.
+- **Feature map:** **Angle encoding** (RY on each qubit) or the entangling **ZZ feature map**, with its **Repetitions**. **Bandwidth** scales the data before encoding: smaller values make the kernel smoother.
+
 ![Quantum Kernel Classifier: decision regions and the training kernel](images/qml-kernel.png)
 
-- **Data:** choose **From the Datasets tab**, or any dataset directly; it is then prepared with the checker's suggested recipe. For a dataset with more than two classes, **Classes** chooses the pair to separate.
-- **Feature map:** **Angle encoding** (RY on each qubit) or the entangling **ZZ feature map**, with its **Repetitions**. **Bandwidth** scales the data before encoding: smaller values make the kernel smoother.
 - **Shots per entry** estimates each kernel value from that many shots, as a quantum computer would; **exact** computes it exactly.
 - **Classifier:** a **Support vector machine** or **Kernel ridge**, with its strength **C or λ**. **Train** builds the kernel and the classifier in the background, so the window stays responsive; **Cancel** stops it.
-- **The decision regions** show the predicted class behind the points, deeper where the classifier is more confident, with the boundary as a white line. Training points are dots, test points triangles, and mistakes are marked ✕. With more than two features, the regions are drawn in the plane of the two leading principal components, a slice through the data.
-- **3-D view** (the tab beside **Decision regions**): the points along three axes, **Principal components** or **Separating axes** (the first runs from one class's centre to the other's), with the decision boundary as a surface and, for a support vector machine, the **Margins**. Support vectors have a soft halo; test points are cubes and mistakes are red. Drag to rotate, scroll to zoom, Shift-drag to pan, or use **Front**, **Top**, **Side**, **Isometric** and **Reset**; click a point to see its sample. With more than three features the view is a slice, and the caption says how often the slice agrees with the classifier. **Save image…** and **Save rotating GIF…** (a full turn, for slides) keep the view.
+
+- **The decision regions** show the predicted class behind the points, deeper where the classifier is more confident, with the boundary as a white line. With more classes, each region has its class's colour and a legend names them. Training points are dots, test points triangles, and mistakes are marked ✕. With more than two features, the regions are drawn in the plane of the two leading principal components, a slice through the data.
+- **3-D view** (the tab beside **Decision regions**): the points along three axes, **Principal components** or **Separating axes** (the first runs from one class's centre to the other's), with the decision boundary as a surface and, for a support vector machine, the **Margins**. With more than two classes, each class's region has its own coloured surface, and **Separating axes** follow the spread of the class centres. Support vectors have a soft halo; test points are cubes and mistakes are red. Drag to rotate, scroll to zoom, Shift-drag to pan, or use **Front**, **Top**, **Side**, **Isometric** and **Reset**; click a point to see its sample. With more than three features the view is a slice, and the caption says how often the slice agrees with the classifier. **Save image…** and **Save rotating GIF…** (a full turn, for slides) keep the view.
 - **Below the decision regions,** two tabs show the kernel itself (drag the divider to give either part more room):
   - **Kernel matrix:** the training kernel sorted by class. Hover over a cell to see its value and the two samples' classes; click it to see both samples beside the tabs (for Digits and MNIST, the images).
   - **Kernel map:** the data as the kernel sees it (kernel PCA): points the kernel finds similar lie close together. Click a point to see that sample, its prediction and its decision value. If the points scatter apart with no structure, the kernel has concentrated.
 - If the kernel is close to 0 for different points (kernel concentration), the result says so and suggests a smaller bandwidth.
-- **Evaluation** (a tab beside the kernel views): the test set's accuracy, balanced accuracy, precision, recall, specificity, F1 and AUC, the confusion matrix and the ROC curve. **Cross-validate** trains on k − 1 parts of the training data and checks the remaining part, k times, for a steadier estimate than a single test score.
+- **Evaluation** (a tab beside the kernel views): the test set's accuracy, balanced accuracy, precision, recall, specificity, F1 and AUC, the confusion matrix and the ROC curve. With more than two classes: accuracy, balanced accuracy, macro-averaged precision, recall and F1, the hardest class, a k × k confusion matrix (green where a class was recognized, red where it was taken for another) and a one-vs-rest ROC curve per class with their mean AUC. **Cross-validate** trains on k − 1 parts of the training data and checks the remaining part, k times, for a steadier estimate than a single test score.
 - **Search:** choose the feature maps, classifiers, bandwidths, repetitions and C or λ values to try, and the number of folds. **Search** cross-validates every combination on the training data (the test set stays untouched), lists them best first, and **Use best** applies the winner and trains it.
 
 ![The kernel map: MNIST 3s and 8s as the kernel sees them, with a misclassified sample shown beside it](images/qml-kernel-map.png)
@@ -229,11 +261,13 @@ The **Quantum ML** area turns data into quantum states and learns from them. Its
 
 ![The Evaluation tab: test-set metrics, the confusion matrix, the ROC curve and a 5-fold cross-validation](images/qml-evaluation.png)
 
+![All ten MNIST digits on 8 qubits: the Evaluation tab's per-class ROC curves and 10 × 10 confusion matrix](images/qml-multiclass.png)
+
 ![The Search tab: kernel settings cross-validated on the training data and ranked, best first](images/qml-search.png)
 
 ### Saving and using a model
 
-Both classifiers have a **Model** panel. After training, **Save model…** stores the model as a small `.npz` file: the classifier, its settings, and the preprocessing it was trained with (the classes, PCA, scaling and so on), so new data is prepared exactly like the training data. **Load model…** opens a saved model and sets the controls to match it. **Predict on a file…** predicts every sample in a `.csv` or `.npz` file with the same raw features as the training data: CSV columns are matched by name, and a label column is optional. The results show each sample's prediction and decision value, and, when the file has labels, the true class, whether the prediction was correct, and the accuracy. **Export CSV…** saves them. Model files are never run as code, so they are safe to share.
+Both classifiers have a **Model** panel. After training, **Save model…** stores the model as a small `.npz` file: the classifier, its settings, and the preprocessing it was trained with (the classes, PCA, scaling and so on), so new data is prepared exactly like the training data. **Load model…** opens a saved model and sets the controls to match it. **Predict on a file…** predicts every sample in a `.csv` or `.npz` file with the same raw features as the training data: CSV columns are matched by name, and a label column is optional. The results show each sample's prediction and decision value, and, when the file has labels, the true class, whether the prediction was correct, and the accuracy. **Export CSV…** saves them. A model of more than two classes shows each sample's predicted class and its confidence (the winning classifier's decision value). Model files are never run as code, so they are safe to share; a two-class model saved by this version still opens in older versions.
 
 ![Predictions for 300 new MNIST images from a saved 3-vs-8 model: accuracy on its two classes, and each sample's result](images/qml-predictions.png)
 
@@ -242,12 +276,13 @@ Both classifiers have a **Model** panel. After training, **Save model…** store
 ![Variational Classifier: a trained circuit's decision regions and its training curve](images/qml-variational.png)
 
 - The circuit is the feature map followed by **Trainable layers** of RY gates and CNOTs; its output is ⟨Z₀⟩ plus a bias.
+- **More than two classes:** choose **All classes**. The first ⌈log₂ k⌉ qubits are measured and each outcome names a class (2 qubits for three species, 4 for ten digits); the loss is then cross-entropy. You need at least that many qubits.
 - **Optimizer:** **BFGS**, with exact gradients, or **Adam**. Set the **Steps** and the **Starting point (seed)**.
 - **Loss:** mean squared error, hinge (as an SVM) or cross-entropy. With Adam, set the **Learning rate** and a **Batch size** (each step on a random batch).
 - **Validation share** holds out part of the training data; its loss and accuracy appear as dashed curves. **Early stopping** then ends training when the validation loss stops improving, and keeps the best step.
 - **Evaluation** (a tab beside **Training**) shows the same metrics, confusion matrix and ROC curve as the kernel classifier, and can cross-validate the current settings.
 - **Train** shows the loss and the training accuracy step by step, and the decision regions as they change; **Stop** ends training early.
-- **Open in circuit simulator** loads the trained circuit for one test point into Quantum Circuits, with the observable Z0.
+- **Open in circuit simulator** loads the trained circuit for one test point into Quantum Circuits, with the observable Z0, or, for more classes, with the readout qubits measured: run shots and read the class from the outcome.
 
 ## 7. Math
 
@@ -323,17 +358,17 @@ The same expression means the same in both modes; switching recalculates the cur
   - **Gate angles** in degrees or radians, and **Bit order in labels**, q0 leftmost (textbook) or rightmost (Qiskit);
   - **Amplitudes** shown exactly (1/√2) or as decimals, with **Decimal places**;
   - **Ask before clearing a circuit**.
-- **Graphics:** **Graphics device** (**Automatic**, **Integrated graphics**, or **NVIDIA (PRIME offloading)** on Linux laptops with two GPUs; applies after a restart) and **3D volume rendering** (**Auto**, **GPU** or **CPU**). **Refresh** shows which graphics renderer is in use.
+- **Graphics and performance:** **Graphics device** (**Automatic**, **Integrated graphics**, or **NVIDIA (PRIME offloading)** on Linux laptops with two GPUs; applies after a restart) and **3D volume rendering** (**Auto**, **GPU** or **CPU**). **Refresh** shows which graphics renderer is in use. **Watch memory and processor use** (on by default) shows a meter at the right of the status bar: QuantumScope's own memory, how full the computer's memory is, and how busy the processor is. It turns amber when memory is getting full and red when it is nearly full, and QuantumScope then says once what to do. Before a very fine 3-D grid or a large kernel that may not fit, it asks first.
 - **Files:**
   - **Save and export to:** the default folder (**Browse…** or **Use Documents**);
   - **Autosave**;
   - **Probability report in PDF exports:** ask each time, always, or never;
   - **Recent circuits**, with **Clear recent list**.
-- **Updates:** the current version and **Check for updates…**.
+- **Updates and news:** the current version and **Check for updates…**, and **QuantumScope news**: *Ask me*, *Read weekly* or *Never*.
 
 ## 10. Troubleshooting
 
-**The 3-D view is blank, black or very slow.** Open **⚙ → Graphics**. Try **3D volume rendering: CPU**, which works on any computer. On a laptop with two graphics chips, try the other **Graphics device**, then restart. **Refresh** shows which renderer is actually in use; include it if you report a problem.
+**The 3-D view is blank, black or very slow.** Open **⚙ → Graphics and performance**. Try **3D volume rendering: CPU**, which works on any computer. On a laptop with two graphics chips, try the other **Graphics device**, then restart. **Refresh** shows which renderer is actually in use; include it if you report a problem.
 
 **Everything is too small on a projector or a high-resolution screen.** Set **⚙ → Appearance → Interface size** to 125–175% and restart.
 
@@ -343,7 +378,14 @@ The same expression means the same in both modes; switching recalculates the cur
 
 **Check for updates says it cannot connect.** Check your internet connection and try again later. GitHub also limits how often it can be asked, so wait a while if you have checked many times. You can always download the latest release from the Releases page.
 
-**Reporting a problem.** Open an issue on GitHub (github.com/Onimee58/QuantumScope). Describe what you did, what happened, your system, and the version shown in **ⓘ**.
+**Reporting a problem.** Press **⚑** (top right), or **Report a problem…** in **ⓘ**. Describe what happened and, if you like, what you expected. The dialog shows the whole report before anything leaves your computer: your description, the QuantumScope version, your system and the tab you were in, and nothing personal. **QuantumScope sends nothing itself:**
+- **Send by email…** opens your email program with the report filled in, addressed to the QuantumScope team. It appears once a support address has been published in the news.
+- **Open a GitHub issue…** opens a new issue in your browser. It needs a GitHub account, and issues are public.
+- Either way the full report is copied to your clipboard, and, if you leave the box ticked, a screenshot of the window is saved to your Files folder for you to attach.
+
+**If something goes wrong unexpectedly,** QuantumScope keeps running and offers **Report it…**, with the error's details already in the report. If anything looks wrong afterwards, save your work and restart.
+
+**News.** The first time QuantumScope starts, a bar under the header asks whether it may read the QuantumScope news once a week: one public file on github.com, with nothing about you sent. If you allow it, announcements of new courses, workshops and features appear in that bar, one at a time; **✕** closes one for good. Change your choice in **⚙ → Updates and news**.
 
 ## 11. Mouse and keyboard reference
 

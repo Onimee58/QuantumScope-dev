@@ -160,7 +160,7 @@ def test_classifiers_choose_the_classes_of_a_many_class_dataset(app):
     picker = k.data
     picker.source.setCurrentIndex(picker.source.findData('mnist'))
     picker.qubits.setValue(4)
-    assert picker.class_row.isVisibleTo(k) and picker.class_a.count() == 10
+    assert picker.class_row.isVisibleTo(k) and picker.class_a.count() == 11                # + All 10 classes (v0.9.3)
     assert (picker.class_a.currentText(), picker.class_b.currentText()) == ('0', '1')     # the suggestion
     picker.class_a.setCurrentIndex(picker.class_a.findText('3'))
     picker.class_b.setCurrentIndex(picker.class_b.findText('8'))
@@ -169,7 +169,7 @@ def test_classifiers_choose_the_classes_of_a_many_class_dataset(app):
     picker.class_b.setCurrentIndex(picker.class_b.findText('3'))
     assert picker.prepared() is None and 'two different classes' in picker.summary.text()
     picker.source.setCurrentIndex(picker.source.findData('iris'))
-    assert picker.class_row.isVisibleTo(k) and picker.class_a.count() == 3
+    assert picker.class_row.isVisibleTo(k) and picker.class_a.count() == 4
     for key in ('circles', 'breast_cancer', 'store'):                                       # two classes, or prepared
         picker.source.setCurrentIndex(picker.source.findData(key))
         assert not picker.class_row.isVisibleTo(k), key

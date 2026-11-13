@@ -796,13 +796,19 @@ class CircuitWorkspace(QWidget):
         explain.setWordWrap(True);explain.setObjectName('muted');layout.addWidget(explain)
         self.expectation_label=QLabel('');self.expectation_label.setWordWrap(True);layout.addWidget(self.expectation_label)
         opt=QHBoxLayout();opt.addWidget(QLabel('Optimize'))
-        from quantumscope.gui.variational_views import METHODS
+        from quantumscope.gui.variational_views import METHODS,METHOD_TIPS,SHOTS
         self.opt_method=QComboBox()
-        for label,key in METHODS:self.opt_method.addItem(label,key)
-        self.opt_method.setToolTip('BFGS uses exact parameter-shift gradients; gradient descent shows the plain method '
-                                   '(it can crawl across flat regions); COBYLA and Nelder–Mead need no gradients')
+        for k,(label,key) in enumerate(METHODS):
+            self.opt_method.addItem(label,key);self.opt_method.setItemData(k,METHOD_TIPS[key],Qt.ItemDataRole.ToolTipRole)
+        self.opt_method.currentIndexChanged.connect(lambda *_:self.opt_method.setToolTip(METHOD_TIPS[self.opt_method.currentData()]))
+        self.opt_method.setToolTip(METHOD_TIPS[self.opt_method.currentData()])
         opt.addWidget(self.opt_method,1)
         opt.addWidget(QLabel('max steps'));self.opt_steps=QSpinBox();self.opt_steps.setRange(5,2000);self.opt_steps.setValue(200);opt.addWidget(self.opt_steps)
+        self.opt_shots=QComboBox()
+        for label,value in SHOTS:self.opt_shots.addItem(label,value)
+        self.opt_shots.setToolTip('Exact: the optimizer sees exact energies. With shots, each term of the observable is '
+                                  'estimated from that many measurements, as on real hardware, so the optimizer sees noisy values.')
+        opt.addWidget(self.opt_shots)
         layout.addLayout(opt);opt=QHBoxLayout()                 # second line: starts and the two buttons
         opt.addSpacing(4)
         self.opt_multi=QCheckBox('Best of');self.opt_multi.setToolTip('Also start from random parameters and keep the best result '
@@ -825,7 +831,7 @@ class CircuitWorkspace(QWidget):
         if dialog is None:
             dialog=self._optimize_dialog=OptimizeDialog(self,self.opt_method.currentData(),self.opt_steps.value())
         dialog.configure(self.opt_method.currentData(),self.opt_steps.value(),
-                         self.opt_starts.value() if self.opt_multi.isChecked() else 1)
+                         self.opt_starts.value() if self.opt_multi.isChecked() else 1,self.opt_shots.currentData())
         dialog.show();dialog.raise_();dialog.activateWindow()
         dialog.start(on_finished=self._optimized)               # in the background; the window stays live
         return dialog
@@ -1780,6 +1786,14 @@ class CircuitWorkspace(QWidget):
         simultaneous gates share a column (simulation order is unchanged)."""
         self.model.set_circuit(n,ops,columns,measured,measurement_column,total_columns,initial_states,blocks,noise,noise_model,classical,conditions)
         self._sync_view();self.grid.horizontalScrollBar().setValue(0);self.refresh()
+    def show_generated_circuit(self,n,ops,observable='',note='',measured=None):
+        """Load a circuit made elsewhere in the app (such as an anneal as gates), measuring every
+        qubit (or `measured`), with an observable to evaluate; the note goes in the status line."""
+        self.model.snapshot()
+        self.set_circuit(n,ops,measured=tuple(range(n)) if measured is None else tuple(measured))
+        self.model.observable=observable
+        self._refresh_parameter_panel()
+        self.status.setText(note)
     def _layout(self):
         """Gates in simulation order with their columns, for saving."""
         gates,columns,_,_=self.model.layout()

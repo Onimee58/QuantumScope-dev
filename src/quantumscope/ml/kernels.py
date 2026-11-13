@@ -217,3 +217,42 @@ class SVM:
 
     def predict(self, K_test):
         return np.where(self.decision(K_test) >= 0, 1, -1)
+
+
+class OneVsRest:
+    """Any number of classes (v0.9.3): one binary classifier per class, "this class (+1) or any other
+    (−1)", all sharing one kernel matrix, so k classes cost k cheap fits but no extra circuits. Labels
+    are 0 … k−1; the prediction is the class whose classifier is most confident (largest decision)."""
+
+    def __init__(self, make_model, k):
+        self.make_model, self.k = make_model, int(k)
+
+    def fit(self, K, y):
+        y = np.asarray(y)
+        self.models = [self.make_model().fit(K, np.where(y == c, 1, -1)) for c in range(self.k)]
+        return self
+
+    @property
+    def support(self):
+        """Training points used by at least one of the classifiers."""
+        used = [np.flatnonzero(np.abs(m.alpha) > 1e-8) for m in self.models]
+        return np.unique(np.concatenate(used)) if used else np.array([], int)
+
+    def decision(self, K_test):
+        """test × k decision values, one column per class."""
+        return np.column_stack([m.decision(K_test) for m in self.models])
+
+    def predict(self, K_test):
+        return np.argmax(self.decision(K_test), axis=1)
+
+
+def classifier(method, strength, k=2):
+    """A fresh classifier: 'svm' (C = strength) or 'ridge' (λ = strength), one-vs-rest when k > 2."""
+    make = (lambda: SVM(C=strength)) if method == 'svm' else (lambda: KernelRidge(strength))
+    return make() if k <= 2 else OneVsRest(make, k)
+
+
+def classes_in(y):
+    """The number of classes behind labels: 2 for ±1 labels, else max + 1 (labels 0 … k−1)."""
+    y = np.asarray(y)
+    return 2 if np.all(np.isin(y, (-1, 1))) and np.any(y == -1) else int(y.max()) + 1
