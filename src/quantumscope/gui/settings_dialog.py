@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog, QForm
 
 from quantumscope.gui import preferences as prefs
 
-SECTIONS = ('Appearance', 'Circuits', 'Graphics', 'Files', 'Updates and news')
+SECTIONS = ('Appearance', 'Circuits', 'Graphics and performance', 'Files', 'Updates and news')
 
 
 class SettingsDialog(QDialog):
@@ -163,7 +163,7 @@ class SettingsDialog(QDialog):
         v.addStretch()
 
     def _graphics(self, page):
-        v, form = self._page(page, 'Graphics')
+        v, form = self._page(page, 'Graphics and performance')
         linux = sys.platform.startswith('linux')
         self.device = self._combo('graphics/device', (('auto', 'Automatic'), ('integrated', 'Integrated graphics'),
                                                       ('nvidia', 'NVIDIA (PRIME offloading)')))
@@ -177,6 +177,12 @@ class SettingsDialog(QDialog):
         form.addRow('3D volume rendering', self.volume)
         form.addRow(self._note('How 3D orbital clouds are drawn. CPU is slower but works on any computer; '
                                'surfaces are not affected.'))
+        self.monitor = QCheckBox('Watch memory and processor use')
+        self.monitor.setChecked(prefs.get('performance/monitor'))
+        self.monitor.toggled.connect(lambda on: self._changed('performance/monitor', on))
+        form.addRow(self.monitor)
+        form.addRow(self._note('Shows a meter in the status bar, warns when the computer\'s memory is nearly full, '
+                               'and asks before a task that may not fit (a very fine 3-D grid, a large kernel).'))
         info_head = QLabel('Graphics information')
         info_head.setStyleSheet('font-weight: 600; margin-top: 8px;')
         v.addWidget(info_head)
@@ -284,7 +290,7 @@ class SettingsDialog(QDialog):
             widget.setValue(prefs.get(key))
             widget.blockSignals(False)
         for widget, key in ((self.confirm_clear, 'circuits/confirm_clear'),
-                            (self.autosave, 'files/autosave')):
+                            (self.autosave, 'files/autosave'), (self.monitor, 'performance/monitor')):
             widget.blockSignals(True)
             widget.setChecked(prefs.get(key))
             widget.blockSignals(False)

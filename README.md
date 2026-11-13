@@ -7,7 +7,7 @@
 
   An open-source, cross-platform quantum visualization and circuit simulation studio built with Python and PySide6.
 
-  [![Version](https://img.shields.io/badge/version-v0.9.5-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
+  [![Version](https://img.shields.io/badge/version-v0.9.6-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
   [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
   [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
   [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-555)](https://github.com/Onimee58/QuantumScope/releases)
@@ -45,6 +45,28 @@ Use it for self-study, classroom demonstrations, coursework or experimenting wit
 - **Quantum Gate Explorer**: double-click a gate in the *left palette* for its definition, circuit symbol, matrix/operation and basic state transformations. Double-clicking a placed parameterized gate opens its parameter editor instead.
 
 **Supported operations:** `H`, `X`, `Y`, `Z`, `S`, `T`, `Sdg`, `Tdg`, `SX`, `RX`, `RY`, `RZ`, `U`/`U3`, `P`, `CX`, `CZ`, `SWAP`, `CCX`, `CSWAP`, and terminal `M`.
+
+## System requirements
+
+**Systems:** Windows 10 (version 1809 or later) or Windows 11, 64-bit; macOS 14.4 or later on Apple Silicon; Ubuntu 24.04 or Debian 13 or later, 64-bit.
+
+| | Minimum | Recommended | Best |
+|---|---|---|---|
+| **Processor** | 64-bit, 2 cores | 4 cores | 6 or more cores |
+| **Memory (RAM)** | 4 GB | 8 GB | 16 GB |
+| **Graphics** | OpenGL 3.2 (most integrated graphics since 2015) | Recent integrated graphics (Intel Iris Xe, AMD Radeon, Apple M1) | A dedicated graphics card (NVIDIA or AMD) |
+| **Disk space** | 1.5 GB free | 2 GB free | 2 GB free (SSD) |
+| **Screen** | 1280 × 720 | 1920 × 1080 | 1920 × 1080 or larger |
+| **What runs well** | 3-D orbitals up to 96 points per axis; circuits up to 10 qubits; Quantum ML up to a few hundred samples | Everything, including the comparison 3-D view and larger datasets | The finest 3-D grids (160 points per axis) with both viewers, and the largest models, smoothly |
+
+## What's new in v0.9.6?
+
+**Lighter, and watching its own use.**
+
+- **Installers about 20% smaller:** only the parts of VTK (the 3-D library) that QuantumScope uses are bundled.
+- **A resource meter** in the status bar shows QuantumScope's memory, how full the computer's memory is, and how busy the processor is. It warns when memory is nearly full, and asks before a very fine 3-D grid or a large kernel that may not fit.
+- **System requirements** (minimum, recommended, best) are stated here, in the guide and on the releases page.
+- **Check boxes** are now clearly visible in the dark theme (and the light one).
 
 ## What's new in v0.9.5?
 

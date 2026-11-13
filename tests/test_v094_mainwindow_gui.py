@@ -98,3 +98,22 @@ def test_v095_report_button_news_bar_and_about(window, monkeypatch):
     window.news_bar.decline.click()
     assert not window.news_bar.isVisible()
     prefs._settings().remove('news/check')
+
+
+def test_v096_meter_and_hydrogen_memory_check(window, monkeypatch):
+    from quantumscope.gui import resource_monitor as RM
+    w = window
+    assert w.resource_monitor.label in w.statusBar().findChildren(QtWidgets.QLabel)
+    assert w.resource_monitor.tick().total > 0 and w.resource_monitor.label.text().startswith(('QuantumScope', '⚠'))
+    asked = []
+    monkeypatch.setattr(RM, 'confirm_memory', lambda parent, needed, what, sample=None: asked.append((needed, what)) or False)
+    w._memory_accepted = set()
+    density = w.density
+    w.resolution.setValue(160)
+    w.refresh()
+    assert asked and asked[-1][1].startswith('A 160³ grid') and w.density is density      # not redrawn
+    assert 'Not drawn' in w.statusBar().currentMessage()
+    monkeypatch.setattr(RM, 'confirm_memory', lambda parent, needed, what, sample=None: asked.append(what) or True)
+    w.resolution.setValue(48)
+    w.refresh()
+    assert w.density.shape == (48, 48, 48)

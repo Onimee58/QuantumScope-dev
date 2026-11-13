@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-VERSION="${1:-0.9.5}"
+VERSION="${1:-0.9.6}"
 ARCH=amd64
 APP_DIR="dist/QuantumScope"
 if [ ! -x "$APP_DIR/QuantumScope" ]; then echo "Missing $APP_DIR/QuantumScope. Run PyInstaller --onedir first." >&2; exit 1; fi
@@ -34,7 +34,7 @@ Priority: optional
 Architecture: $ARCH
 Maintainer: QuantumScope contributors <https://github.com/Onimee58/QuantumScope>
 Homepage: https://github.com/Onimee58/QuantumScope
-Depends: libc6, libgl1, libegl1, libxkbcommon-x11-0
+Depends: libc6 (>= 2.39), libgl1, libegl1, libxkbcommon-x11-0, libxcb-cursor0
 Description: QuantumScope quantum visualization studio
  Interactive visualization of hydrogen orbitals, quantum dynamics and double-slit interference.
 EOF

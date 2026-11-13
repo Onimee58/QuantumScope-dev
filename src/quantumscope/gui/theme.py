@@ -329,6 +329,23 @@ def theme_palette(resolved):
     return palette
 
 
+def indicator_rules(resolved):
+    """Check boxes drawn explicitly (v0.9.6): an outlined box that shows on every panel colour and a
+    white tick on a coloured fill, in both themes. Fusion's default box vanished on dark panels."""
+    from importlib.resources import files
+    tick = str(files('quantumscope').joinpath('assets/check.svg')).replace('\\', '/')
+    if resolved == 'light':
+        box, edge, hover, fill, off = '#ffffff', '#6f90a8', '#1f7fa8', '#1f7fa8', '#c3d2de'
+    else:
+        box, edge, hover, fill, off = '#0d1824', '#7d9fbd', '#8fd6ee', '#1f7aa3', '#3a4f63'
+    return (f'QCheckBox::indicator {{ width: 14px; height: 14px; border: 1px solid {edge}; border-radius: 3px; '
+            f'background: {box}; }}\n'
+            f'QCheckBox::indicator:hover {{ border-color: {hover}; }}\n'
+            f'QCheckBox::indicator:checked {{ background: {fill}; border-color: {fill}; image: url("{tick}"); }}\n'
+            f'QCheckBox::indicator:disabled {{ border-color: {off}; background: transparent; }}\n'
+            f'QCheckBox::indicator:checked:disabled {{ background: {off}; border-color: {off}; }}\n')
+
+
 def apply_theme(choice):
     """Apply 'dark', 'light' or 'system' to the running application; returns 'dark' or 'light'."""
     from PySide6.QtWidgets import QApplication
@@ -337,7 +354,7 @@ def apply_theme(choice):
     app = QApplication.instance()
     app.setProperty('quantumscope_light', resolved == 'light')
     app.setPalette(theme_palette(resolved))          # never fall back to the OS palette (e.g. Windows light)
-    app.setStyleSheet(LIGHT_STYLESHEET if resolved == 'light' else STYLESHEET)
+    app.setStyleSheet((LIGHT_STYLESHEET if resolved == 'light' else STYLESHEET) + indicator_rules(resolved))
     for widget in app.allWidgets():
         widget.update()
     return resolved

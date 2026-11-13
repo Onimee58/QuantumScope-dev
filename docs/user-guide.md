@@ -1,10 +1,23 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.5** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.6** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
 ## 1. Installing and updating
+
+**System requirements.** Windows 10 (version 1809 or later) or Windows 11, 64-bit; macOS 14.4 or later on Apple Silicon; Ubuntu 24.04 or Debian 13 or later, 64-bit.
+
+| | Minimum | Recommended | Best |
+|---|---|---|---|
+| **Processor** | 64-bit, 2 cores | 4 cores | 6 or more cores |
+| **Memory (RAM)** | 4 GB | 8 GB | 16 GB |
+| **Graphics** | OpenGL 3.2 (most integrated graphics since 2015) | Recent integrated graphics (Intel Iris Xe, AMD Radeon, Apple M1) | A dedicated graphics card (NVIDIA or AMD) |
+| **Disk space** | 1.5 GB free | 2 GB free | 2 GB free (SSD) |
+| **Screen** | 1280 × 720 | 1920 × 1080 | 1920 × 1080 or larger |
+| **What runs well** | 3-D orbitals up to 96 points per axis; circuits up to 10 qubits; Quantum ML up to a few hundred samples | Everything, including the comparison 3-D view and larger datasets | The finest 3-D grids (160 points per axis) with both viewers, and the largest models, smoothly |
+
+QuantumScope itself uses about half a gigabyte of memory; a very fine 3-D orbital grid or a large Quantum ML dataset can add one to two more. It watches memory while it runs (chapter 9) and asks before a task that may not fit.
 
 QuantumScope runs on **Windows** (64-bit), **macOS** (Apple Silicon) and **Ubuntu or Debian Linux** (64-bit). Download the installer for your system from the project's **Releases** page on GitHub (github.com/Onimee58/QuantumScope):
 
@@ -345,7 +358,7 @@ The same expression means the same in both modes; switching recalculates the cur
   - **Gate angles** in degrees or radians, and **Bit order in labels**, q0 leftmost (textbook) or rightmost (Qiskit);
   - **Amplitudes** shown exactly (1/√2) or as decimals, with **Decimal places**;
   - **Ask before clearing a circuit**.
-- **Graphics:** **Graphics device** (**Automatic**, **Integrated graphics**, or **NVIDIA (PRIME offloading)** on Linux laptops with two GPUs; applies after a restart) and **3D volume rendering** (**Auto**, **GPU** or **CPU**). **Refresh** shows which graphics renderer is in use.
+- **Graphics and performance:** **Graphics device** (**Automatic**, **Integrated graphics**, or **NVIDIA (PRIME offloading)** on Linux laptops with two GPUs; applies after a restart) and **3D volume rendering** (**Auto**, **GPU** or **CPU**). **Refresh** shows which graphics renderer is in use. **Watch memory and processor use** (on by default) shows a meter at the right of the status bar: QuantumScope's own memory, how full the computer's memory is, and how busy the processor is. It turns amber when memory is getting full and red when it is nearly full, and QuantumScope then says once what to do. Before a very fine 3-D grid or a large kernel that may not fit, it asks first.
 - **Files:**
   - **Save and export to:** the default folder (**Browse…** or **Use Documents**);
   - **Autosave**;
@@ -355,7 +368,7 @@ The same expression means the same in both modes; switching recalculates the cur
 
 ## 10. Troubleshooting
 
-**The 3-D view is blank, black or very slow.** Open **⚙ → Graphics**. Try **3D volume rendering: CPU**, which works on any computer. On a laptop with two graphics chips, try the other **Graphics device**, then restart. **Refresh** shows which renderer is actually in use; include it if you report a problem.
+**The 3-D view is blank, black or very slow.** Open **⚙ → Graphics and performance**. Try **3D volume rendering: CPU**, which works on any computer. On a laptop with two graphics chips, try the other **Graphics device**, then restart. **Refresh** shows which renderer is actually in use; include it if you report a problem.
 
 **Everything is too small on a projector or a high-resolution screen.** Set **⚙ → Appearance → Interface size** to 125–175% and restart.
 

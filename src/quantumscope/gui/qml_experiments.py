@@ -797,6 +797,12 @@ class KernelExperiment(QWidget):
         if p.X_train.shape[1] > D.MAX_QUBITS:
             self.result.setText('Too many features for the qubits: reduce them in the Datasets tab.')
             return None
+        from quantumscope import resources as R
+        from quantumscope.gui.resource_monitor import confirm_memory
+        if not confirm_memory(self, R.kernel_matrix(len(p.y_train), len(p.y_test), p.X_train.shape[1]),
+                              f'A kernel for {len(p.y_train)} training samples on {p.X_train.shape[1]} qubits'):
+            self.result.setText('Not trained: use fewer samples or qubits.')
+            return None
         settings = dict(kind=self.feature_map.currentData(), reps=self.reps.value(), bandwidth=self.bandwidth.value(),
                         shots=self.shots.value(), method=self.method.currentData(), strength=self.strength.value(),
                         dataset=self.data.key())

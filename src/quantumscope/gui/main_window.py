@@ -219,6 +219,8 @@ class MainWindow(QMainWindow):
             self.circuit_widget.apply_preferences()
         if hasattr(self, "news_bar"):                     # the news choice may have changed
             self.news_bar.start()
+        if hasattr(self, "resource_monitor"):
+            self.resource_monitor.apply_preferences()
 
     def graphics_information(self):
         """Renderer, vendor and OpenGL version of the 3D view's actual context."""
@@ -372,6 +374,8 @@ class MainWindow(QMainWindow):
         self._show_placeholder("math")                   # so does Math (v0.9.0)
         self._select_category("hydrogen")
         self.statusBar().showMessage("Ready  ·  Choose an experiment or explore hydrogen orbitals")
+        from quantumscope.gui.resource_monitor import ResourceMonitor    # memory and processor (v0.9.6)
+        self.resource_monitor = ResourceMonitor(self)
 
     def _select_category(self, category):
         tabs=self.workspaces[category]
@@ -911,7 +915,26 @@ class MainWindow(QMainWindow):
             self.zoom_factor.setValue(1.3)
             self._change_camera()
 
+    def _memory_allows(self):
+        """A fine grid, twice with the comparison viewer, can need a lot of memory: ask first if the
+        computer may not have it (once per grid size and viewer count)."""
+        from quantumscope import resources as R
+        from quantumscope.gui.resource_monitor import confirm_memory
+        viewers = 2 if self.compare_enable.isChecked() else 1
+        key = (self.resolution.value(), viewers)
+        if key in getattr(self, "_memory_accepted", set()):
+            return True
+        needed = R.hydrogen_grid(self.resolution.value(), viewers)
+        if not confirm_memory(self, needed, f"A {self.resolution.value()}³ grid"
+                              + (" in both viewers" if viewers == 2 else "")):
+            return False
+        self._memory_accepted = getattr(self, "_memory_accepted", set()) | {key}
+        return True
+
     def refresh(self):
+        if not self._memory_allows():
+            self.statusBar().showMessage("Not drawn: lower the grid points or turn off the comparison viewer", 6000)
+            return
         self._rendering = True
         try:
             self.statusBar().showMessage("Rendering…")

@@ -1,3 +1,23 @@
+## v0.9.6 — Lighter, and watching its own use
+
+### Smaller installers
+- **Only the VTK modules QuantumScope uses are bundled** (38 of about 150; tools/pyinstaller_vtk_args.py builds the list into the release workflow). In a test build on Linux, the installed app went from 970 MB to 770 MB and the compressed download from 314 MB to 258 MB; Windows and macOS shrink similarly.
+- **Safeguards:** the list came from every module the whole GUI test suite and the user-guide build load; a test checks that nothing the app loads is missing from it, and the packaged self-test now imports every listed module and builds a contour and a volume pipeline, so a missing piece fails the build instead of a student's session.
+
+### Memory and processor
+- **A meter in the status bar** shows QuantumScope's own memory, how full the computer's memory is, and how busy the processor is, every few seconds (psutil, on all three systems).
+- **Warnings:** amber when memory is getting full, red when it is nearly full; then QuantumScope says once what to do (save, lower the grid, fewer samples, close other programs, restart), until memory recovers. A processor fully busy for 30 seconds is noted in the status bar, without a dialog.
+- **Asking before a big task:** a 3-D orbital grid (once per grid size and viewer count) and a quantum kernel estimate the memory they need, from measurements, and ask first if it would take more than 70% of what is free.
+- **⚙ → Graphics and performance** (renamed from Graphics) has **Watch memory and processor use**, on by default.
+
+### System requirements
+- **Minimum, recommended and best** (processor, memory, graphics, disk, screen, and what runs well at each) are in the guide, the README and the public releases page, from measurements of the app's memory use: about 0.5 GB on its own, plus 0.1–0.3 GB for a fine 3-D grid per viewer, and up to about 0.15 GB for a 1,000-sample kernel.
+- **Supported systems** follow what the installers are built with: Windows 10 (1809 or later) or 11; macOS 14.4 or later on Apple Silicon; Ubuntu 24.04 or Debian 13 or later. PySide6 is held below 6.13, because Qt 6.12 is the last version that supports Windows 10.
+- **The Linux package says what it needs:** glibc 2.39 or later (so apt refuses an older system with a clear message instead of the app failing to start) and libxcb-cursor0 (which Qt's X11 support needs).
+
+### Fixed
+- **Check boxes** were nearly invisible on dark panels (the Double-Slit's which-path detectors, among others): unticked boxes had no visible edge. Every check box now has an outlined box and a white tick on a coloured fill, in both themes; a test measures their contrast.
+
 ## v0.9.5 — Report a problem, and news
 
 ### Report a problem

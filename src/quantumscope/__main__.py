@@ -22,6 +22,19 @@ def _self_test():
         app = QApplication.instance() or QApplication(sys.argv[:1])
         lines.append(f"Qt platform: {app.platformName()}")
         import pyvista, pyvistaqt, pyqtgraph, vtkmodules  # noqa: F401  (bundling check)
+        # Installers bundle only the VTK modules the app uses (v0.9.6): all must load, and a
+        # contour and a volume pipeline must build (without drawing: CI machines have no GPU).
+        from quantumscope.visualization.vtk_modules import import_all
+        import numpy as np
+        count = import_all()
+        grid = pyvista.ImageData(dimensions=(12, 12, 12))
+        grid.point_data["v"] = np.linspace(0, 1, grid.n_points)
+        surface = grid.contour([0.5], scalars="v")
+        from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkSmartVolumeMapper
+        vtkSmartVolumeMapper().SetInputData(grid)
+        if surface.n_points == 0:
+            raise RuntimeError("VTK contour pipeline produced nothing")
+        lines.append(f"VTK: {count} modules load; contour ({surface.n_points} points) and volume pipelines build")
         import quantumscope.gui.main_window  # noqa: F401  (imports every workspace module)
         from quantumscope.gui.circuit_workspace import CircuitWorkspace
         from quantumscope.physics.circuit_examples import EXAMPLE_NAMES
