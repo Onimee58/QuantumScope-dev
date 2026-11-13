@@ -116,10 +116,13 @@ def main():
         app.styleHints().colorSchemeChanged.connect(window._follow_system_theme)
     except AttributeError:
         pass
+    from quantumscope.gui.report_dialog import install_crash_catcher
+    install_crash_catcher(window)                     # unexpected errors offer a report (v0.9.5)
     window.show()
     if splash is not None:
         splash.close()
     window.offer_recovery()
+    window.start_news()                               # asks once; then reads the news weekly, if allowed
     return app.exec()
 
 

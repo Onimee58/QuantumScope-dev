@@ -64,8 +64,11 @@ class AboutDialog(QDialog):
         self.guide_button=QPushButton('User guide')
         self.guide_button.setToolTip('Open the QuantumScope User Guide (PDF)')
         self.guide_button.clicked.connect(open_user_guide)
+        self.report_button=QPushButton('Report a problem…')
+        self.report_button.setToolTip('Fills in an email or a GitHub issue for you to check and send')
+        self.report_button.clicked.connect(lambda: parent.report_problem() if hasattr(parent,'report_problem') else None)
         update_row=QHBoxLayout();update_row.addStretch();update_row.addWidget(self.update_button)
-        update_row.addWidget(self.guide_button);update_row.addStretch()
+        update_row.addWidget(self.guide_button);update_row.addWidget(self.report_button);update_row.addStretch()
         layout.addLayout(update_row)
         tagline=QLabel('Explore  •  Visualize  •  Simulate');tagline.setAlignment(Qt.AlignmentFlag.AlignCenter)
         tagline.setStyleSheet('color:#5ad1e9;font-size:12px;');layout.addWidget(tagline)
@@ -80,7 +83,7 @@ class AboutDialog(QDialog):
         for line in ('Developer & maintainer','Postdoctoral Fellow','Southern Methodist University, Dallas'):
             label=QLabel(line);label.setObjectName('muted');label.setWordWrap(True);identity.addWidget(label)
         self._load_avatar()
-        desc=QLabel('Open-source scientific software for hydrogen orbitals, quantum principles, and interactive quantum circuits.')
+        desc=QLabel('Scientific software for teaching hydrogen orbitals, quantum principles, quantum circuits and quantum machine learning.')
         desc.setWordWrap(True);desc.setAlignment(Qt.AlignmentFlag.AlignCenter);layout.addWidget(desc)
         features=QLabel('Hydrogen Explorer & Dynamics  •  Double Slit  •  Superposition & Entanglement  •  Circuit Simulator  •  QASM Converter')
         features.setObjectName('muted');features.setWordWrap(True)
@@ -214,6 +217,8 @@ class MainWindow(QMainWindow):
             self.renderer.setCurrentText(prefs.get("graphics/volume_method"))
         if hasattr(self, "circuit_widget"):
             self.circuit_widget.apply_preferences()
+        if hasattr(self, "news_bar"):                     # the news choice may have changed
+            self.news_bar.start()
 
     def graphics_information(self):
         """Renderer, vendor and OpenGL version of the 3D view's actual context."""
@@ -247,6 +252,18 @@ class MainWindow(QMainWindow):
         from quantumscope.gui import preferences as prefs
         if prefs.get("appearance/theme") == "system":
             self.apply_theme("system")
+
+    def report_problem(self, error=None):
+        """Help → Report a problem: shows the whole report, then fills in an email or a GitHub issue."""
+        from quantumscope.gui.report_dialog import ReportDialog
+        dialog = ReportDialog(self, error)
+        self._report_dialog = dialog
+        dialog.exec()
+        return dialog
+
+    def start_news(self):
+        """After the window appears: ask once about the news, or read it if a week has passed."""
+        return self.news_bar.start()
 
     def _header_button(self, label, tooltip, action):
         button = QToolButton(self)
@@ -293,9 +310,13 @@ class MainWindow(QMainWindow):
         new_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         new_button.setMenu(self._experiment_menu(new_button))
         row.addWidget(new_button)
+        row.addWidget(self._header_button("⚑", "Report a problem", self.report_problem))
         row.addWidget(self._header_button("⚙", "Settings", self._show_settings))
         row.addWidget(self._header_button("ⓘ", "About QuantumScope (and check for updates)", self.show_about))
         outer.addWidget(header)
+        from quantumscope.gui.news_bar import NewsBar          # announcements, after the user allows them (v0.9.5)
+        self.news_bar = NewsBar(self)
+        outer.addWidget(self.news_bar)
         self.categories = QTabWidget()
         self.categories.setObjectName("categoryWorkspace")
         self.categories.setDocumentMode(True)

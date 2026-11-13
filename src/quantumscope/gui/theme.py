@@ -32,6 +32,8 @@ QToolButton#newExperiment:hover { background: #236b88; }
 QToolButton#headerTool { background: #1b2f45; color: #bdebf8; border: 1px solid #314a62;
   border-radius: 8px; min-width: 35px; min-height: 35px; font-size: 19px; }
 QToolButton#headerTool:hover, QToolButton#tabAddButton:hover { background: #2a4c67; }
+QFrame#newsBar { background: #12324a; border: 1px solid #2c5a78; border-radius: 6px; }
+QFrame#newsBar QLabel { color: #d8f1fb; background: transparent; }
 QToolButton#quickValue { background: #20344b; color: #ebf5ff; border: 1px solid #34506c; border-radius: 5px; padding: 3px 7px; }
 QToolButton#quickValue:hover { background: #2b4966; border-color: #4c9bc1; }
 QToolButton#quickValue:pressed { background: #16334c; }
@@ -109,6 +111,8 @@ QTreeView::item:disabled { color: #6b8296; }
 QPushButton:disabled { background: #eef3f8; color: #8aa0b3; border-color: #cbd9e5; }
 QMenu::item:selected { background: #ceeafa; }
 QToolButton#headerTool { background: #e4eef7; color: #226276; border-color: #b2cede; }
+QFrame#newsBar { background: #e3f1f8; border: 1px solid #9fc9dc; }
+QFrame#newsBar QLabel { color: #16384d; }
 QToolButton#tabAddButton { background: #e7f1fa; color: #17657d; border-color: #b2cede; }
 QToolButton#quickValue { background: #e4eef7; color: #23435c; border: 1px solid #b0c7db; }
 QToolButton#quickValue:hover { background: #d1e6f4; }

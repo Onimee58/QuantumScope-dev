@@ -78,3 +78,23 @@ def test_too_few_qubits_for_the_classes_are_explained(window):
     v.data.qubits.setValue(3)
     v.data.class_a.setCurrentIndex(v.data.class_a.findData(Q.ALL))
     assert v.train() is None and 'use at least 4 qubits' in v.result.text()
+
+
+def test_v095_report_button_news_bar_and_about(window, monkeypatch):
+    from quantumscope.gui import preferences as prefs
+    from quantumscope.gui import report_dialog as R
+    from quantumscope.gui.main_window import AboutDialog
+    tools = {b.toolTip(): b for b in window.findChildren(QtWidgets.QToolButton)}
+    assert 'Report a problem' in tools
+    opened = []
+    monkeypatch.setattr(R.ReportDialog, 'exec', lambda self: opened.append(self))
+    tools['Report a problem'].click()
+    assert opened and opened[0].info()['Area'] and 'Open tab' in opened[0].info()
+    about = AboutDialog(window)
+    about.report_button.click()
+    assert len(opened) == 2
+    prefs._settings().remove('news/check')
+    assert window.start_news() is None and window.news_bar.isVisible()          # asks; reads nothing yet
+    window.news_bar.decline.click()
+    assert not window.news_bar.isVisible()
+    prefs._settings().remove('news/check')

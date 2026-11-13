@@ -1,3 +1,26 @@
+## v0.9.5 — Report a problem, and news
+
+### Report a problem
+- **⚑ in the header** (and **Report a problem…** in **ⓘ**) opens a report: what happened, what you expected, and a preview of everything the report contains — the QuantumScope version, how it was installed, the system, Python, PySide6 and NumPy versions, and the area and tab you were in. No names, paths or files.
+- **QuantumScope sends nothing itself.** **Send by email…** opens your email program with the report filled in; **Open a GitHub issue…** opens a new public issue in your browser. The full report is always copied to the clipboard, and long reports are shortened in the link with a note to paste the full one.
+- **A screenshot** of the window can be saved to your Files folder, to attach.
+- **The email button** appears once a support address is published in the news (see below); until then, GitHub and Copy report work.
+
+### The crash catcher
+- **An unexpected error** used to print only to a hidden console. Now QuantumScope keeps running, says what happened, and offers **Report it…** with the error's details in the report. Each distinct error is offered once; developers still see it printed.
+
+### News
+- **The first start asks once**, in a bar under the header, whether QuantumScope may read its news: one public file (news.json in github.com/Onimee58/QuantumScope), at most once a week, with nothing about the user sent.
+- **If allowed,** the first current announcement appears in that bar, with **Learn more ↗** when it has a link; **✕** closes it for good. Announcements can be limited to dates and versions, and are plain text only.
+- **Offline,** the last news read is shown, and the next start tries again.
+- **⚙ → Updates and news** holds the choice (Ask me, Read weekly, Never). Restore defaults asks again but keeps closed announcements closed.
+- **Maintainers** edit news.json on GitHub, with no new release; docs/releases-repository/NEWS-HOWTO.md explains the format.
+
+### Also
+- **The About page** describes QuantumScope as teaching software for all five areas.
+- **The guide** covers Report a problem, the crash catcher and news.
+- **Tests:** news files (valid, malformed, dates, versions, dismissal, the weekly rhythm, downloads refused when they are not news), reports (contents, nothing personal, titles, email and issue links, shortening), and in the window the news bar's consent, announcements, links, closing and offline behaviour, the report dialog's email and GitHub routes with the screenshot, the crash catcher, and the setting.
+
 ## v0.9.4 — One circuit, many classes
 
 ### The Variational Classifier, for any number of classes

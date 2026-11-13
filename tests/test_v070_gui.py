@@ -74,8 +74,8 @@ def test_settings_has_an_updates_section(app):
         def check_for_updates(self):
             calls.append(True)
     d = SettingsDialog(Host())
-    assert 'Updates' in SECTIONS
-    d.nav.setCurrentRow(SECTIONS.index('Updates'))
+    assert 'Updates and news' in SECTIONS
+    d.nav.setCurrentRow(SECTIONS.index('Updates and news'))
     button = next(b for b in d.findChildren(QtWidgets.QPushButton) if b.text() == 'Check for updates…')
     button.click()
     assert calls == [True]

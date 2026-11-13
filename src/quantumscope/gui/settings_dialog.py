@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog, QForm
 
 from quantumscope.gui import preferences as prefs
 
-SECTIONS = ('Appearance', 'Circuits', 'Graphics', 'Files', 'Updates')
+SECTIONS = ('Appearance', 'Circuits', 'Graphics', 'Files', 'Updates and news')
 
 
 class SettingsDialog(QDialog):
@@ -196,14 +196,19 @@ class SettingsDialog(QDialog):
 
     def _updates(self, page):
         from quantumscope import __version__
-        v, form = self._page(page, 'Updates', f'You have QuantumScope {__version__}.')
-        form.addRow(self._note('QuantumScope never checks automatically. When you press the button, it asks for '
-                               'permission, makes one request to github.com for the newest full release, and '
+        v, form = self._page(page, 'Updates and news', f'You have QuantumScope {__version__}.')
+        form.addRow(self._note('QuantumScope never checks for updates by itself. When you press the button, it asks '
+                               'for permission, makes one request to github.com for the newest full release, and '
                                'shows its notes. Downloads are verified with the release checksum before '
                                'anything is installed.'))
         check = QPushButton('Check for updates…')
         check.clicked.connect(lambda: self._call('check_for_updates'))
         form.addRow(check)
+        self.news = self._combo('news/check', (('ask', 'Ask me'), ('weekly', 'Read weekly'), ('never', 'Never')))
+        form.addRow('QuantumScope news', self.news)
+        form.addRow(self._note('Announcements of new courses, workshops and features, shown in a bar under the '
+                               'header, and the support address for Report a problem. QuantumScope reads one '
+                               'public file on github.com at most once a week; nothing about you is sent.'))
         v.addStretch()
 
     def _files(self, page):
@@ -269,7 +274,7 @@ class SettingsDialog(QDialog):
                          (self.angle_units, 'circuits/angle_units'), (self.bit_order, 'circuits/bit_order'),
                          (self.number_format, 'circuits/number_format'),
                          (self.device, 'graphics/device'), (self.volume, 'graphics/volume_method'),
-                         (self.pdf_report, 'files/pdf_report')):
+                         (self.pdf_report, 'files/pdf_report'), (self.news, 'news/check')):
             box.blockSignals(True)
             box.setCurrentIndex(max(0, box.findData(prefs.get(key))))
             box.blockSignals(False)

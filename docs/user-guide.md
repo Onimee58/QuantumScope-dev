@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.4** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.5** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -19,7 +19,7 @@ QuantumScope runs on **Windows** (64-bit), **macOS** (Apple Silicon) and **Ubunt
 - **Windows:** if SmartScreen appears, choose **More info → Run anyway**.
 - **macOS:** if the app is blocked, open **System Settings → Privacy & Security** and choose **Open Anyway**.
 
-**Updating.** Open **ⓘ** (top right) and choose **Check for updates…**, or use **⚙ → Updates**. QuantumScope asks before it connects to GitHub. If a newer version exists, it shows the release notes; **Update now** downloads the installer, checks it against its published SHA-256 checksum, and installs it:
+**Updating.** Open **ⓘ** (top right) and choose **Check for updates…**, or use **⚙ → Updates and news**. QuantumScope asks before it connects to GitHub. If a newer version exists, it shows the release notes; **Update now** downloads the installer, checks it against its published SHA-256 checksum, and installs it:
 
 - **Windows:** the installer takes over, and QuantumScope closes.
 - **Ubuntu:** enter your password when asked; QuantumScope waits for the installation and offers **Restart now**.
@@ -34,7 +34,7 @@ Nothing is downloaded or installed without your confirmation, and a download tha
 - **Areas:** the five tabs under the title, **Hydrogen**, **Quantum Principles**, **Quantum Circuits**, **Quantum ML** and **Math**, are the five areas of the app.
 - **Experiment tabs:** each area holds experiment tabs. Open more with **+** on the right of the tab bar, or with **+ New Experiment** at the top. Every tab can be closed with its **×**. A closed tab is only hidden, so opening it again brings it back exactly as you left it. An area with no open tabs shows a **Start** page with its experiments as buttons.
 - **📖 Learn** opens the lessons for the current area (chapter 8).
-- **⚙** opens **Settings** (chapter 9). **ⓘ** shows **About QuantumScope**, including **Check for updates…** and **User guide**, which opens this document.
+- **⚑** opens **Report a problem** (chapter 10). **⚙** opens **Settings** (chapter 9). **ⓘ** shows **About QuantumScope**, including **Check for updates…** and **User guide**, which opens this document.
 - **Charts:** right-click any chart for **View All**, the axis options, **Save image…** (PNG or JPEG at twice the screen resolution), **Copy image** and **Save data (CSV)…**.
 - **Long computations** (training, **Optimize**, **Best of N**, the landscape) run in the background with their progress shown, so the window never freezes; **Stop** or **Cancel** ends them early.
 
@@ -351,7 +351,7 @@ The same expression means the same in both modes; switching recalculates the cur
   - **Autosave**;
   - **Probability report in PDF exports:** ask each time, always, or never;
   - **Recent circuits**, with **Clear recent list**.
-- **Updates:** the current version and **Check for updates…**.
+- **Updates and news:** the current version and **Check for updates…**, and **QuantumScope news**: *Ask me*, *Read weekly* or *Never*.
 
 ## 10. Troubleshooting
 
@@ -365,7 +365,14 @@ The same expression means the same in both modes; switching recalculates the cur
 
 **Check for updates says it cannot connect.** Check your internet connection and try again later. GitHub also limits how often it can be asked, so wait a while if you have checked many times. You can always download the latest release from the Releases page.
 
-**Reporting a problem.** Open an issue on GitHub (github.com/Onimee58/QuantumScope). Describe what you did, what happened, your system, and the version shown in **ⓘ**.
+**Reporting a problem.** Press **⚑** (top right), or **Report a problem…** in **ⓘ**. Describe what happened and, if you like, what you expected. The dialog shows the whole report before anything leaves your computer: your description, the QuantumScope version, your system and the tab you were in, and nothing personal. **QuantumScope sends nothing itself:**
+- **Send by email…** opens your email program with the report filled in, addressed to the QuantumScope team. It appears once a support address has been published in the news.
+- **Open a GitHub issue…** opens a new issue in your browser. It needs a GitHub account, and issues are public.
+- Either way the full report is copied to your clipboard, and, if you leave the box ticked, a screenshot of the window is saved to your Files folder for you to attach.
+
+**If something goes wrong unexpectedly,** QuantumScope keeps running and offers **Report it…**, with the error's details already in the report. If anything looks wrong afterwards, save your work and restart.
+
+**News.** The first time QuantumScope starts, a bar under the header asks whether it may read the QuantumScope news once a week: one public file on github.com, with nothing about you sent. If you allow it, announcements of new courses, workshops and features appear in that bar, one at a time; **✕** closes one for good. Change your choice in **⚙ → Updates and news**.
 
 ## 11. Mouse and keyboard reference
 
