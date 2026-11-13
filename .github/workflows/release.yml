@@ -4,9 +4,27 @@ on:
   push:
     tags: ['v*']
 permissions:
-  contents: write
+  contents: read            # publishing uses RELEASES_TOKEN, for the public releases repository
 jobs:
+  draft:                    # one draft release, created before the three builds upload into it
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create the draft release in the public releases repository
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          PUBLIC: ${{ vars.RELEASES_REPOSITORY || 'Onimee58/QuantumScope' }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::The RELEASES_TOKEN secret is missing: installers cannot be published to $PUBLIC"
+            exit 1
+          fi
+          gh release view "$GITHUB_REF_NAME" -R "$PUBLIC" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" -R "$PUBLIC" --draft --title "QuantumScope $GITHUB_REF_NAME" \
+              --notes "Installers for QuantumScope $GITHUB_REF_NAME. Release notes follow."
   installers:
+    needs: draft
+    if: ${{ !cancelled() && (needs.draft.result == 'success' || needs.draft.result == 'skipped') }}
     strategy:
       fail-fast: false
       matrix:
@@ -130,14 +148,17 @@ jobs:
           name: QuantumScope-${{ env.VERSION }}-${{ matrix.platform }}-installer
           path: dist/installers/*
           if-no-files-found: error
-      - name: Publish installers with tagged release
+      # The source is private; installers are published to the public releases repository, whose
+      # name (Onimee58/QuantumScope) every installed copy's updater asks. RELEASES_TOKEN is a
+      # fine-grained token allowed to write contents to that repository only.
+      - name: Upload installers to the draft release (publish it by hand, with its notes)
         if: startsWith(github.ref, 'refs/tags/v')
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          PUBLIC: ${{ vars.RELEASES_REPOSITORY || 'Onimee58/QuantumScope' }}
         shell: bash
         run: |
-          gh release view "$GITHUB_REF_NAME" || gh release create "$GITHUB_REF_NAME" --title "QuantumScope $GITHUB_REF_NAME" --notes "Native Windows and Ubuntu installers; test on target systems."
-          gh release upload "$GITHUB_REF_NAME" dist/installers/* --clobber
+          gh release upload "$GITHUB_REF_NAME" -R "$PUBLIC" dist/installers/* --clobber
           if [ "${{ matrix.platform }}" = "linux" ]; then      # the user guide, once
-            gh release upload "$GITHUB_REF_NAME" src/quantumscope/assets/QuantumScope-User-Guide.pdf --clobber
+            gh release upload "$GITHUB_REF_NAME" -R "$PUBLIC" src/quantumscope/assets/QuantumScope-User-Guide.pdf --clobber
           fi

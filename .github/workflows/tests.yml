@@ -1,15 +1,23 @@
-name: Tests (Linux, Windows and macOS)
+name: Tests
+# On a private repository every minute counts, and macOS and Windows minutes count several times
+# over: each push runs the tests once on Linux; the full matrix (Linux, Windows and macOS, two
+# Python versions) runs on pull requests into main and on request (Actions → Tests → Run workflow).
+# Tagged releases are tested on all three systems by the release workflow anyway.
 on:
   push:
+    branches: ['**']
+    tags-ignore: ['**']
   pull_request:
+    branches: [main]
+  workflow_dispatch:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.11", "3.12"]
+        os: ${{ github.event_name == 'push' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "windows-latest", "macos-latest"]') }}
+        python-version: ${{ github.event_name == 'push' && fromJSON('["3.12"]') || fromJSON('["3.11", "3.12"]') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
