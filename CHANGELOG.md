@@ -1,3 +1,12 @@
+## v0.9.7 — Protected code
+
+- **QuantumScope's own code is compiled to native machine code in the installers** (.so on Linux and macOS, .pyd on Windows, with Cython). Before, the installers carried Python bytecode, which free tools turn back into readable source. All 94 modules the app uses are compiled; only the package files (`__init__`) and the start script remain Python, and they hold no logic.
+- **How:** `tools/cython_compile.py` compiles the modules in the release workflow; PyInstaller still analyses the Python source (so it finds every library exactly as before), and `tools/pyinstaller_compiled.py` then swaps each module's bytecode for its compiled file. The build stops if any module would ship as bytecode, and the packaged self-test fails on all three systems if a loaded module is not native.
+- **Behaving exactly like Python:** compiled with Python's own rules (no strict type checks from annotations). Cython computes `2 ** len(x)` as a decimal (8.0) where Python gives a whole number; three places did this (a reshape, a truth table and the Gate Explorer's "8×8" text) and are written with `<<` now, and the build stops if such a power appears again. The whole test suite and the GUI test suite pass against the compiled modules.
+- **Size:** the compiled modules add about 16 MB to the installed app (built small, without debugging data); the VTK savings of v0.9.6 remain.
+- **Error reports** still name the file, line and function where an error happened.
+- The packaged self-test also checks that the memory meter can read memory (psutil is bundled).
+
 ## v0.9.6 — Lighter, and watching its own use
 
 ### Smaller installers

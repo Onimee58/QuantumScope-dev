@@ -83,6 +83,17 @@ def _self_test():
                      'fashion_mnist': 2000, 'penguins': 344, 'seeds': 210, 'glass': 214}:      # v0.9.3: + 4
             raise RuntimeError(f"Bundled datasets incomplete: {sizes}")
         lines.append(f"Datasets: {len(sizes)} bundled ({sum(sizes.values())} samples)")
+        from quantumscope import resources
+        if resources.snapshot().total <= 0:                      # psutil bundled (the memory meter needs it)
+            raise RuntimeError("Memory reading failed")
+        # v0.9.7: installers carry QuantumScope's modules as native code, not readable bytecode
+        from importlib.machinery import EXTENSION_SUFFIXES
+        ours = [m for name, m in sorted(sys.modules.items()) if name.startswith("quantumscope.")
+                and getattr(m, "__file__", None) and not m.__file__.endswith(("__init__.py", "__init__.pyc"))]
+        python = [m.__name__ for m in ours if not m.__file__.endswith(tuple(EXTENSION_SUFFIXES))]
+        if python and os.environ.get("QUANTUMSCOPE_EXPECT_NATIVE") == "1":
+            raise RuntimeError(f"Not compiled to native code: {python}")
+        lines.append(f"Code: {len(ours) - len(python)} of {len(ours)} loaded modules native")
         lines.append("RESULT: PASS")
         status = 0
     except Exception:

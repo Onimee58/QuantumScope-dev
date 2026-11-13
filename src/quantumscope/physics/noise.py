@@ -310,7 +310,7 @@ def partial_trace(rho, n, keep):
     rest = [q for q in range(n) if q not in keep]
     t = rho.reshape((2,) * (2 * n))
     t = np.transpose(t, keep + rest + [q + n for q in keep] + [q + n for q in rest])
-    dk, dr = 2 ** len(keep), 2 ** len(rest)
+    dk, dr = 1 << len(keep), 1 << len(rest)
     return np.trace(t.reshape(dk, dr, dk, dr), axis1=1, axis2=3)
 
 

@@ -150,7 +150,7 @@ class BlockExplorer(QDialog):
             matrix=QTextBrowser();matrix.setHtml('<p>Basis order lists '+', '.join(f'q{q}' for q in block.qubits)+' (first = leftmost bit).</p>'+html+'</table>')
             tabs.addTab(matrix,'Matrix')
         else:
-            note=QLabel(f'The matrix of a {len(block.qubits)}-qubit block is {2**len(block.qubits)}×{2**len(block.qubits)}; '
+            note=QLabel(f'The matrix of a {len(block.qubits)}-qubit block is {1 << len(block.qubits)}×{1 << len(block.qubits)}; '
                         'use the State Inspector to see its effect on a state.');note.setWordWrap(True)
             tabs.addTab(note,'Matrix')
         close=QPushButton('Close');close.clicked.connect(self.accept);v.addWidget(close)

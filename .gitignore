@@ -25,3 +25,4 @@ dist/
 Thumbs.db
 docs/.guide-settings.ini
 docs/.guide-data/
+/QuantumScope.spec
