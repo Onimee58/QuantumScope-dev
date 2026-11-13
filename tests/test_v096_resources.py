@@ -70,6 +70,8 @@ grid.contour([0.5], scalars="v")
 print(" ".join(sorted({m.split(".")[1] for m in sys.modules if m.startswith("vtkmodules.") and m.count(".") >= 1})))
 '''
     out = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, timeout=300)
+    if out.returncode != 0 and 'cannot open shared object file' in out.stderr:
+        pytest.skip('Qt cannot load here (a system library is missing): ' + out.stderr.strip().splitlines()[-1])
     loaded = set(out.stdout.split()[-200:]) if out.returncode == 0 else None
     assert loaded, out.stderr[-2000:]
     from quantumscope.visualization.vtk_modules import VTK_MODULES
