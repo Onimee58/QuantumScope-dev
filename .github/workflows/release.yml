@@ -150,12 +150,6 @@ jobs:
               pathlib.Path(f'{path}.sha256').write_text(f'{digest}  {path.name}\n')
               print(path.name, digest)
           PY
-      - name: Upload installers as workflow artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: QuantumScope-${{ env.VERSION }}-${{ matrix.platform }}-installer
-          path: dist/installers/*
-          if-no-files-found: error
       # The source is private; installers are published to the public releases repository, whose
       # name (Onimee58/QuantumScope) every installed copy's updater asks. RELEASES_TOKEN is a
       # fine-grained token allowed to write contents to that repository only.
@@ -170,3 +164,15 @@ jobs:
           if [ "${{ matrix.platform }}" = "linux" ]; then      # the user guide, once
             gh release upload "$GITHUB_REF_NAME" -R "$PUBLIC" src/quantumscope/assets/QuantumScope-User-Guide.pdf --clobber
           fi
+      # Workflow artifacts count against the private repository's storage quota, which three installers
+      # (about 750 MB) fill at once. So installers are kept as artifacts only for manual runs, which have no
+      # release to upload to, or if publishing to the release failed — for 3 days, and never blocking.
+      - name: Keep installers as workflow artifacts (manual runs, or if publishing failed)
+        if: ${{ always() && (failure() || !startsWith(github.ref, 'refs/tags/v')) }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuantumScope-${{ env.VERSION }}-${{ matrix.platform }}-installer
+          path: dist/installers/*
+          if-no-files-found: warn
+          retention-days: 3

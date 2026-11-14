@@ -85,3 +85,14 @@ def test_the_release_workflow_compiles_and_checks():
              'PyInstaller --noconfirm --clean QuantumScope.spec']
     assert [workflow.index(step) for step in order] == sorted(workflow.index(step) for step in order)
     assert workflow.count('QUANTUMSCOPE_EXPECT_NATIVE') == 3 and 'cython>=3.1' in workflow
+
+
+def test_installers_are_not_kept_as_artifacts_on_tagged_releases():
+    """Artifacts count against the private repository's storage quota (0.9.9 fix): tagged releases publish
+    to the public release only; artifacts are kept for manual runs or a failed publish, for 3 days."""
+    workflow = open('.github/workflows/release.yml').read()
+    step = workflow[workflow.index('uses: actions/upload-artifact'):]
+    assert 'retention-days: 3' in step[:400] and 'continue-on-error: true' in workflow
+    head = workflow[:workflow.index('uses: actions/upload-artifact')]
+    assert "failure() || !startsWith(github.ref, 'refs/tags/v')" in head[-400:]
+    assert workflow.index('gh release upload') < workflow.index('uses: actions/upload-artifact')
