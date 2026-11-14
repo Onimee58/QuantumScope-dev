@@ -36,7 +36,6 @@ PREFS = {p.key: p for p in (
     Pref('circuits/decimals', 4, minimum=2, maximum=8),
     # Graphics
     Pref('graphics/device', 'auto', ('auto', 'integrated', 'nvidia'), restart=True),
-    Pref('graphics/volume_method', 'Auto (GPU preferred)', ('Auto (GPU preferred)', 'GPU', 'CPU')),
     Pref('performance/monitor', True, (True, False)),     # the status-bar meter and memory warnings (v0.9.6)
     # Files
     Pref('files/folder', ''),                         # '' means the user's Documents folder

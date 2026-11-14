@@ -1,8 +1,6 @@
 """Interactive hydrogen superposition volume animation; density is computed from eigenstates."""
 from __future__ import annotations
 import numpy as np
-import pyvista as pv
-from pyvistaqt import QtInteractor
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (QDialog, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
     QScrollArea, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QSlider,
@@ -12,6 +10,7 @@ from quantumscope.physics.dynamics import HydrogenSuperposition, suggested_half_
 from quantumscope.gui.controls import Debouncer, with_action, with_quick_values
 from quantumscope.gui.dynamics_3d_scene import HydrogenScene3D
 from quantumscope.gui.dynamics_dialog import beat_played
+from quantumscope.visualization.gl3d import View3D
 
 STATES = [(1,0,0),(2,0,0),(2,1,0),(2,1,1),(3,0,0),(3,1,0),(3,2,0),(4,0,0),(4,1,0)]
 
@@ -95,8 +94,7 @@ class HydrogenDynamics3DDialog(QDialog):
         self.note.setWordWrap(True); form.addRow(self.note)
         scroll.setWidget(options)
         splitter.addWidget(scroll)
-        self.plotter = QtInteractor(self)
-        self.plotter.set_background('#101820')
+        self.plotter = View3D(self)
         self.scene = HydrogenScene3D(self.plotter)
         splitter.addWidget(self.plotter)
         splitter.setStretchFactor(0,0); splitter.setStretchFactor(1,1)
@@ -143,7 +141,7 @@ class HydrogenDynamics3DDialog(QDialog):
         clipped=' The view clips part of the states: try Fit to states.' if self.halfwidth.value()<fit-1e-9 else ''
         self.info.setText((f'Beat period: {period:.6f} fs' if np.isfinite(period)
             else 'Degenerate levels: stationary density (no finite beat period)')
-            + f'\n3D grid: {n}³; active renderer: OpenGL / VTK' + clipped)
+            + f'\n3D grid: {n}³; drawn with OpenGL' + clipped)
 
     def _fit_extent(self):
         a,b = self.a.currentData(),self.b.currentData()
@@ -168,7 +166,7 @@ class HydrogenDynamics3DDialog(QDialog):
     def _export_png(self):
         path,_=QFileDialog.getSaveFileName(self,'Export 3D view','hydrogen_3d.png','PNG (*.png)')
         if path:
-            try: self.plotter.screenshot(path)
+            try: self.plotter.save(path if path.lower().endswith('.png') else path+'.png')
             except Exception as exc: QMessageBox.warning(self,'PNG export error',str(exc))
 
     def _export_gif(self):
@@ -188,8 +186,7 @@ class HydrogenDynamics3DDialog(QDialog):
             for k in range(n):
                 self.slider.setValue(round(1000*k/n))
                 QApplication.processEvents()
-                rgb=self.plotter.screenshot(return_img=True)
-                frames.append(Image.fromarray(np.asarray(rgb,dtype=np.uint8)[:,:,:3]).convert('RGB'))
+                frames.append(Image.fromarray(self.plotter.rgb()))
             frames[0].save(path,save_all=True,append_images=frames[1:],loop=0,
                            duration=round(1000/self.gif_fps.value()))
         except Exception as exc:

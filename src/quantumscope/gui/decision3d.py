@@ -5,7 +5,7 @@ separation), with the classifier's decision boundary as a surface (f = 0) and, f
 margins (f = ±1). With more than two classes (v0.9.3), each class's region has its own surface,
 in its colour, where it takes over from the next most confident class. With more than three features this is a slice through the data's mean: the caption
 gives the share of points where the slice agrees with the real classifier. Drag to rotate, scroll to
-zoom, Shift-drag to pan; click a point to see its sample. Nothing is computed until the tab is opened.
+zoom, Ctrl-drag to pan; click a point to see its sample. Nothing is computed until the tab is opened.
 """
 import numpy as np
 from PySide6.QtCore import Qt
@@ -18,9 +18,11 @@ PLUS, MINUS, WRONG, HALO = '#5ae6ff', '#ff9a5a', '#ff4d4d', '#fff3a0'
 
 
 def make_plotter(parent):
-    """The 3-D widget (replaced by an off-screen one in tests)."""
-    from pyvistaqt import QtInteractor
-    return QtInteractor(parent)
+    """The 3-D widget."""
+    from quantumscope.visualization.gl3d import View3D
+    view = View3D(parent, background='#0b1420')
+    view.setMinimumHeight(300)                   # room to turn it, even when the tab is short
+    return view
 
 
 class Decision3DView(QWidget):
@@ -143,86 +145,65 @@ class Decision3DView(QWidget):
         if self.plotter is None:
             self.plotter = make_plotter(self)
             self.holder.addWidget(self.plotter)
-            self.plotter.set_background('#0b1420')
-            self.plotter.enable_point_picking(callback=self._picked, left_clicking=True, show_message=False,
-                                              show_point=False, pickable_window=True)
+            self.plotter.clicked.connect(self._clicked)
         return self.plotter
 
     def render(self, reset_camera=False):
-        import pyvista as pv
+        from quantumscope.visualization import gl3d
         g = self.geometry
         if g is None:
             return
         plotter = self._ensure_plotter()
-        camera = None if reset_camera else plotter.camera_position
+        camera = None if reset_camera else plotter.camera()
         plotter.clear()
         p, r = self.result['prepared'], self.result
         ticks, f = g['ticks'], g['f']
+        origin, spacing = [float(t[0]) for t in ticks], [float(t[1] - t[0]) for t in ticks]
         from quantumscope.gui.qml_experiments import palette
         colours = palette(p.k)
+        opacity = self.opacity.value() / 100
         if f.ndim == 4 and self.show_boundary.isChecked():           # each class's region, in its colour
-            spacing = [float(t[1] - t[0]) for t in ticks]
             margins = W.class_margins(f)
-            opacity = self.opacity.value() / 100
             for c, colour in colours:
                 if (margins[..., c] > 0).any():
-                    volume = pv.ImageData(dimensions=f.shape[:3], spacing=spacing, origin=[float(t[0]) for t in ticks])
-                    volume.point_data['m'] = margins[..., c].ravel(order='F')
-                    surface = volume.contour([0.0], scalars='m')
-                    if surface.n_points:
-                        plotter.add_mesh(surface, color=colour, opacity=opacity * 0.7, smooth_shading=True,
-                                         name=f'region{c}')
+                    plotter.surface(*gl3d.contour(margins[..., c], 0.0, origin, spacing), colour,
+                                    opacity=opacity * 0.7, name=f'region{c}')
         elif self.show_boundary.isChecked() or self.show_margins.isChecked():
-            spacing = [float(t[1] - t[0]) for t in ticks]
-            volume = pv.ImageData(dimensions=f.shape, spacing=spacing, origin=[float(t[0]) for t in ticks])
-            volume.point_data['f'] = f.ravel(order='F')                 # x varies fastest in VTK
-            opacity = self.opacity.value() / 100
             if self.show_boundary.isChecked():
-                surface = volume.contour([0.0], scalars='f')
-                if surface.n_points:
-                    plotter.add_mesh(surface, color='#f0f4ff', opacity=opacity, smooth_shading=True, name='boundary')
+                plotter.surface(*gl3d.contour(f, 0.0, origin, spacing), '#f0f4ff', opacity=opacity, name='boundary')
             if self.show_margins.isChecked() and self.show_margins.isEnabled():
                 for level, colour in ((1.0, PLUS), (-1.0, MINUS)):
-                    margin = volume.contour([level], scalars='f')
-                    if margin.n_points:
-                        plotter.add_mesh(margin, color=colour, opacity=opacity * 0.4, name=f'margin{level}')
+                    plotter.surface(*gl3d.contour(f, level, origin, spacing), colour, opacity=opacity * 0.4,
+                                    name=f'margin{level}')
         wrong = r['predicted'] != p.y_test
         everything = np.r_[g['P_train'], g['P_test']]
         size = 0.018 * float(np.max(everything.max(axis=0) - everything.min(axis=0)) or 1.0)   # markers follow the data
         for label, colour in colours:
             pts = g['P_train'][p.y_train == label]
             if len(pts):
-                plotter.add_mesh(pv.PolyData(pts).glyph(geom=pv.Sphere(radius=size), scale=False, orient=False),
-                                 color=colour, smooth_shading=True)
+                plotter.surface(*gl3d.glyphs(pts, 'sphere', size), colour, name=f'train{label}')
             pts = g['P_test'][(p.y_test == label) & ~wrong]
             if len(pts):
-                plotter.add_mesh(pv.PolyData(pts).glyph(geom=pv.Cube(x_length=2 * size, y_length=2 * size, z_length=2 * size),
-                                                        scale=False, orient=False), color=colour)
+                plotter.surface(*gl3d.glyphs(pts, 'cube', size), colour, smooth=False, name=f'test{label}')
         if wrong.any():
-            plotter.add_mesh(pv.PolyData(g['P_test'][wrong]).glyph(geom=pv.Cube(x_length=2.6 * size, y_length=2.6 * size,
-                                                                                z_length=2.6 * size), scale=False,
-                                                                   orient=False), color=WRONG)
+            plotter.surface(*gl3d.glyphs(g['P_test'][wrong], 'cube', 1.3 * size), WRONG, smooth=False, name='mistakes')
         support = getattr(r.get('model'), 'support', None)
         if self.show_support.isChecked() and support is not None and len(support):
-            plotter.add_mesh(pv.PolyData(g['P_train'][support]).glyph(geom=pv.Sphere(radius=1.8 * size), scale=False,
-                                                                      orient=False),
-                             color=HALO, opacity=0.25)
-        short = g['axes']['short']                                    # full names are in the caption
-        plotter.add_axes(xlabel=short[0], ylabel=short[1], zlabel=short[2], color='#d8e6f3')
+            plotter.surface(*gl3d.glyphs(g['P_train'][support], 'sphere', 1.8 * size), HALO, opacity=0.25,
+                            name='support')
+        plotter.axes(g['axes']['short'])                               # full names are in the caption
         if camera is not None:
-            plotter.camera_position = camera
+            plotter.set_camera(camera)
         else:
-            plotter.view_isometric()
-            plotter.reset_camera()
-        plotter.render()
+            plotter.fit('isometric', everything.min(axis=0), everything.max(axis=0))
 
     def preset(self, name):
         if self.plotter is None or self.geometry is None:
             return
-        {'Front': self.plotter.view_xz, 'Top': self.plotter.view_xy, 'Side': self.plotter.view_yz,
-         'Isometric': self.plotter.view_isometric}.get(name, self.plotter.view_isometric)()
-        self.plotter.reset_camera()
-        self.plotter.render()
+        g = self.geometry
+        everything = np.r_[g['P_train'], g['P_test']]
+        self.plotter.fit({'Front': 'xz', 'Top': 'xy', 'Side': 'yz'}.get(name, 'isometric'),
+                         everything.min(axis=0), everything.max(axis=0))
 
     # ---- picking ------------------------------------------------------------------------------
     def nearest(self, point):
@@ -242,6 +223,16 @@ class Decision3DView(QWidget):
             return
         self.on_pick(*self.nearest(point))
 
+    def _clicked(self, x, y):
+        """A click on the view: the sample drawn nearest the mouse, if one is close."""
+        g = self.geometry
+        if g is None:
+            return
+        points = np.r_[g['P_train'], g['P_test']]
+        k = self.plotter.nearest_on_screen(points, x, y)
+        if k is not None:
+            self._picked(points[k])
+
     # ---- saving -------------------------------------------------------------------------------
     def save_image(self, path=None):
         if self.plotter is None or self.geometry is None:
@@ -252,7 +243,7 @@ class Decision3DView(QWidget):
                 return None
         if not path.lower().endswith('.png'):
             path += '.png'
-        self.plotter.screenshot(path, scale=2)
+        self.plotter.save(path, scale=2)
         return path
 
     def save_gif(self, path=None, frames=36):
@@ -266,13 +257,11 @@ class Decision3DView(QWidget):
                 return None
         if not path.lower().endswith('.gif'):
             path += '.gif'
-        camera = self.plotter.camera_position
+        camera = self.plotter.camera()
         images = []
-        for _ in range(frames):
-            self.plotter.camera.azimuth += 360 / frames
-            self.plotter.render()
-            images.append(Image.fromarray(self.plotter.screenshot(return_img=True)))
-        self.plotter.camera_position = camera
-        self.plotter.render()
+        for k in range(frames):
+            self.plotter.set_camera({**camera, 'azimuth': camera['azimuth'] + 360 * (k + 1) / frames})
+            images.append(Image.fromarray(self.plotter.rgb()))
+        self.plotter.set_camera(camera)
         images[0].save(path, save_all=True, append_images=images[1:], duration=80, loop=0)
         return path

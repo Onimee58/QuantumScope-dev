@@ -6,7 +6,7 @@ def _self_test():
     """Start the packaged application's core without showing a window.
 
     Used by CI after packaging: it checks that Qt (including its platform
-    plugin), the 3D visualization libraries and the circuit workspace load
+    plugin), the 3D (OpenGL) libraries and the circuit workspace load
     and simulate inside the frozen bundle. The OpenGL main window itself is
     not created, because CI machines have no GPU. Returns 0 on success.
     A report is written to $QUANTUMSCOPE_SELF_TEST_REPORT when set, since
@@ -21,20 +21,21 @@ def _self_test():
         from PySide6.QtWidgets import QApplication
         app = QApplication.instance() or QApplication(sys.argv[:1])
         lines.append(f"Qt platform: {app.platformName()}")
-        import pyvista, pyvistaqt, pyqtgraph, vtkmodules  # noqa: F401  (bundling check)
-        # Installers bundle only the VTK modules the app uses (v0.9.6): all must load, and a
-        # contour and a volume pipeline must build (without drawing: CI machines have no GPU).
-        from quantumscope.visualization.vtk_modules import import_all
+        # The 3-D views (v0.9.11: OpenGL through pyqtgraph). PyOpenGL loads its platform support
+        # on import; a contour, a lit mesh and a volume must build (drawing needs a GPU, which CI lacks).
         import numpy as np
-        count = import_all()
-        grid = pyvista.ImageData(dimensions=(12, 12, 12))
-        grid.point_data["v"] = np.linspace(0, 1, grid.n_points)
-        surface = grid.contour([0.5], scalars="v")
-        from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkSmartVolumeMapper
-        vtkSmartVolumeMapper().SetInputData(grid)
-        if surface.n_points == 0:
-            raise RuntimeError("VTK contour pipeline produced nothing")
-        lines.append(f"VTK: {count} modules load; contour ({surface.n_points} points) and volume pipelines build")
+        import pyqtgraph.opengl  # noqa: F401
+        from OpenGL import GL  # noqa: F401
+        from quantumscope.visualization import gl3d
+        x = np.linspace(-1, 1, 12)
+        field = x[:, None, None] ** 2 + x[None, :, None] ** 2 + x[None, None, :] ** 2
+        verts, faces = gl3d.contour(field, 0.5, -1.0, float(x[1] - x[0]))
+        if len(faces) == 0:
+            raise RuntimeError("3-D contour produced nothing")
+        gl3d.Mesh(vertexes=verts, faces=faces).vertexNormals()
+        gl3d.lut("phase"), gl3d.lut("viridis")                        # colour maps ship with pyqtgraph
+        pyqtgraph.opengl.GLVolumeItem(np.zeros((4, 4, 4, 4), np.uint8))
+        lines.append(f"3-D: OpenGL module loads; contour ({len(faces)} triangles), mesh and volume build")
         import quantumscope.gui.main_window  # noqa: F401  (imports every workspace module)
         from quantumscope.gui.circuit_workspace import CircuitWorkspace
         from quantumscope.physics.circuit_examples import EXAMPLE_NAMES
@@ -119,7 +120,10 @@ def main():
     # Graphics device and interface size must be set before Qt or OpenGL start.
     from quantumscope.gui.preferences import apply_startup_environment
     apply_startup_environment()
+    from PySide6.QtCore import QCoreApplication, Qt
     from PySide6.QtWidgets import QApplication
+    # Every 3-D view, in any window, shares OpenGL resources: pyqtgraph compiles each shader once (v0.9.11).
+    QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
     app = QApplication.instance() or QApplication(sys.argv)
     # The splash appears before the slow imports below (the 3-D libraries), so it covers the wait.

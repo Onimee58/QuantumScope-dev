@@ -8,32 +8,19 @@ if os.environ.get('QUANTUMSCOPE_GUI_TESTS') != '1':
     pytest.skip('GUI tests are opt-in: set QUANTUMSCOPE_GUI_TESTS=1', allow_module_level=True)
 
 QtWidgets = pytest.importorskip('PySide6.QtWidgets')
-pv = pytest.importorskip('pyvista')
-pv.OFF_SCREEN = True
-
-
-class OffscreenInteractor(QtWidgets.QWidget):
-    def __init__(self, parent=None, *a, **k):
-        super().__init__(parent)
-        self.__dict__['_p'] = pv.Plotter(off_screen=True, window_size=(300, 300))
-
-    def __getattr__(self, name):
-        return getattr(self.__dict__['_p'], name)
-
-    def render(self, *a, **k):
-        return self.__dict__['_p'].render()
+from gl_support import opengl_app  # noqa: E402
 
 
 @pytest.fixture(scope='module')
 def window():
-    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-    import quantumscope.gui.main_window as module
-    original = module.QtInteractor
-    module.QtInteractor = OffscreenInteractor
-    w = module.MainWindow()
+    app = opengl_app()                       # the window's 3-D views need OpenGL (v0.9.11)
+    from quantumscope.gui.main_window import MainWindow
+    w = MainWindow()
     w.show()
+    app.processEvents()
     yield w
-    module.QtInteractor = original
+    w.close()
+    app.processEvents()
 
 
 def evaluate(view, text):

@@ -79,7 +79,7 @@ NEEDED_FILES = ['PySide6/Qt/lib/libQt6Core.so.6', 'PySide6/Qt6Gui.dll', 'PySide6
                 'PySide6/Qt/lib/libQt6OpenGL.so.6', 'PySide6/Qt/lib/libQt6Network.so.6', 'PySide6/Qt/lib/libQt6Svg.so.6',
                 'PySide6/Qt/plugins/platforms/libqxcb.so', 'PySide6/Qt/plugins/platforms/qwindows.dll',
                 'PySide6/Qt/plugins/platforms/libqcocoa.dylib', 'PySide6/Qt/plugins/imageformats/libqjpeg.so',
-                'PySide6/Qt/plugins/imageformats/libqsvg.so', 'vtkmodules/libvtkCommonCore.so', 'quantumscope/assets/check.svg']
+                'PySide6/Qt/plugins/imageformats/libqsvg.so', 'pyqtgraph/colors/maps/viridis.csv', 'quantumscope/assets/check.svg']
 
 
 @pytest.mark.parametrize('path', UNUSED_FILES)

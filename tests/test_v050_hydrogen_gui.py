@@ -1,7 +1,7 @@
 """Optional checks of the Hydrogen Dynamics windows (QUANTUMSCOPE_GUI_TESTS=1).
 
-The 3D checks render with an off-screen PyVista plotter in place of the
-OpenGL Qt widget, so they need a VTK build that can render off-screen.
+The 3D checks draw in the real OpenGL view (v0.9.11), so they need a display; tools/run_gui_tests.sh
+starts a virtual one when there is none.
 """
 import os
 import warnings
@@ -13,9 +13,7 @@ if os.environ.get('QUANTUMSCOPE_GUI_TESTS') != '1':
     pytest.skip('GUI tests are opt-in: set QUANTUMSCOPE_GUI_TESTS=1', allow_module_level=True)
 
 QtWidgets = pytest.importorskip('PySide6.QtWidgets')
-pv = pytest.importorskip('pyvista')
 warnings.filterwarnings('ignore')
-pv.OFF_SCREEN = True
 
 
 @pytest.fixture(scope='module')
@@ -23,62 +21,64 @@ def app():
     return QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 
 
-class OffscreenInteractor(QtWidgets.QWidget):
-    """Stand-in for pyvistaqt.QtInteractor backed by an off-screen Plotter."""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.__dict__['_p'] = pv.Plotter(off_screen=True, window_size=(300, 300))
-
-    def __getattr__(self, name):
-        return getattr(self.__dict__['_p'], name)
-
-    def render(self, *a, **k):
-        return self.__dict__['_p'].render()
-
-    def close(self):
-        self.__dict__['_p'].close()
-        return QtWidgets.QWidget.close(self)
-
-
 @pytest.fixture
-def dialog3d(app, monkeypatch):
+def dialog3d(app):
+    from gl_support import opengl_app
+    opengl_app()
     import quantumscope.gui.dynamics_3d_dialog as module
-    monkeypatch.setattr(module, 'QtInteractor', OffscreenInteractor)
     dlg = module.HydrogenDynamics3DDialog()
+    dlg.show()
     dlg.npoints.setValue(48)
     dlg._rebuild_later.flush()
+    app.processEvents()
     yield dlg
     dlg.close()
 
 
-def direction(camera_position):
-    d = np.subtract(camera_position[0], camera_position[1])
-    return d / np.linalg.norm(d)
-
-
 def test_reset_camera_restores_the_isometric_view(dialog3d):
     p = dialog3d.plotter
-    iso = direction(p.camera_position)
-    p.camera.azimuth = 75
-    p.camera.elevation = 30
-    p.render()
-    assert not np.allclose(direction(p.camera_position), iso)
+    iso = p.direction()
+    p.orbit(30, -12)
+    assert not np.allclose(p.direction(), iso)
     dialog3d.reset_camera.click()
-    assert np.allclose(direction(p.camera_position), iso)
+    assert np.allclose(p.direction(), iso) and np.allclose(iso, np.ones(3) / np.sqrt(3))
+    assert np.allclose(p.camera()['center'], 0, atol=1e-9)
 
 
 @pytest.mark.parametrize('view,axis', [('xy', [0, 0, 1]), ('xz', [0, -1, 0]), ('yz', [1, 0, 0])])
 def test_standard_views(dialog3d, view, axis):
     dialog3d.view_buttons[view].click()
-    assert np.allclose(direction(dialog3d.plotter.camera_position), axis)
+    assert np.allclose(dialog3d.plotter.direction(), axis, atol=1e-9)
 
 
-def test_playback_and_appearance_changes_reuse_the_scene(dialog3d):
-    actor, data = dialog3d.scene._actor, dialog3d.scene._aa
+def test_playback_and_appearance_changes_reuse_the_scene(dialog3d, app):
+    volume, data = dialog3d.scene._volume, dialog3d.scene._aa
+    assert volume is not None and dialog3d.plotter.named['cloud'] == [volume]
     dialog3d.slider.setValue(500)
-    assert dialog3d.scene._actor is actor
+    assert dialog3d.scene._volume is volume                       # playback replaces the data in place
     dialog3d.opacity.setValue(3.0)
     assert dialog3d.scene._aa is data          # no re-sampling for appearance
+    dialog3d.render_mode.setCurrentIndex(1)
+    assert 'surface' in dialog3d.plotter.named and 'cloud' not in dialog3d.plotter.named
+    camera = dialog3d.plotter.camera()
+    dialog3d.slider.setValue(700)
+    assert dialog3d.plotter.camera() == camera                    # playback keeps the user's view
+
+
+def test_exports(dialog3d, app, tmp_path, monkeypatch):
+    from PIL import Image
+    from PySide6.QtWidgets import QFileDialog
+    png, gif = tmp_path / 'frame.png', tmp_path / 'beat.gif'
+    monkeypatch.setattr(QFileDialog, 'getSaveFileName', lambda *a, **k: (str(png), ''))
+    dialog3d.export_png.click()
+    image = np.asarray(Image.open(png).convert('RGB'))
+    assert image.shape[:2] == (dialog3d.plotter.height(), dialog3d.plotter.width())
+    assert (image.reshape(-1, 3) != image[0, 0]).any(axis=1).mean() > 0.001    # something was drawn
+    monkeypatch.setattr(QFileDialog, 'getSaveFileName', lambda *a, **k: (str(gif), ''))
+    dialog3d.gif_frames.setValue(12)
+    dialog3d.export_gif.click()
+    with Image.open(gif) as animation:
+        assert animation.n_frames == 12
 
 
 def test_quick_values_and_fit(dialog3d):

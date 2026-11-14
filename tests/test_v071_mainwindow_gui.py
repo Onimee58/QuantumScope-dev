@@ -1,6 +1,5 @@
 """Optional main-window checks for v0.7.1 (QUANTUMSCOPE_GUI_TESTS=1). They build the whole window,
-whose 3-D view is replaced by an off-screen stand-in, so tools/run_gui_tests.sh runs them in the
-same separate process as the Hydrogen tests."""
+3-D views included (which need OpenGL), so tools/run_gui_tests.sh runs each such file in its own process."""
 import os
 
 import pytest
@@ -9,40 +8,19 @@ if os.environ.get('QUANTUMSCOPE_GUI_TESTS') != '1':
     pytest.skip('GUI tests are opt-in: set QUANTUMSCOPE_GUI_TESTS=1', allow_module_level=True)
 
 QtWidgets = pytest.importorskip('PySide6.QtWidgets')
-pv = pytest.importorskip('pyvista')
-pv.OFF_SCREEN = True
-
-
-class OffscreenInteractor(QtWidgets.QWidget):
-    def __init__(self, parent=None, *a, **k):
-        super().__init__(parent)
-        self.__dict__['_p'] = pv.Plotter(off_screen=True, window_size=(300, 300))
-
-    def __getattr__(self, name):
-        return getattr(self.__dict__['_p'], name)
-
-    def render(self, *a, **k):
-        return self.__dict__['_p'].render()
+from gl_support import opengl_app  # noqa: E402
 
 
 @pytest.fixture(scope='module')
 def window():
-    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-    import quantumscope.gui.main_window as module
-    original = module.QtInteractor
-    module.QtInteractor = OffscreenInteractor
-    w = module.MainWindow()
+    app = opengl_app()                       # the window's 3-D views need OpenGL (v0.9.11)
+    from quantumscope.gui.main_window import MainWindow
+    w = MainWindow()
     w.show()
     app.processEvents()
     yield w
-    # Close the off-screen VTK plotters and the window while Qt still runs (avoids a crash at exit).
-    for plotter in (getattr(w, 'plotter', None), getattr(w, 'compare_plotter', None)):
-        if plotter is not None:
-            plotter.__dict__['_p'].close()
     w.close()
-    w.deleteLater()
     app.processEvents()
-    module.QtInteractor = original
 
 
 def test_every_plus_menu_entry_opens_in_its_own_area(window):
