@@ -28,6 +28,7 @@ current circuit; a step is done when all of its checks pass:
     verified                         the example's own check passes
     qml …                            Quantum ML: see quantumscope.ml.progress.check (dataset, accuracy, …)
     anneal …                         Quantum annealing: see quantumscope.physics.annealing_progress.check
+    did …, calc …                    the other experiments and the calculator: see quantumscope.learn.progress
 """
 import numpy as np
 
@@ -50,6 +51,12 @@ def check(model, condition):
     if kind == 'qml':                                # what the student did in the Quantum ML area
         from quantumscope.ml import progress
         return progress.check(rest)
+    if kind == 'did':                                # what the student did in another experiment (0.9.9)
+        from . import progress
+        return progress.did(rest)
+    if kind == 'calc':                               # what the student computed in the calculator (0.9.9)
+        from . import progress
+        return progress.calc(rest)
     if kind == 'anneal':                             # what the student did in the Quantum annealing experiment
         from quantumscope.physics import annealing_progress
         return annealing_progress.check(rest)

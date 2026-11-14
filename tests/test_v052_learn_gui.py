@@ -203,3 +203,16 @@ def test_mathematics_area_and_math_you_need_links(app):
     assert 'Math you need' in w.reader.toPlainText()
     w._link(QUrl('qs:lesson/math/07-tensor-products'))
     assert w.lesson.key == 'math/07-tensor-products'
+
+
+def test_v099_experiment_labs_tick_as_the_student_works(setup):
+    from quantumscope.learn import progress
+    window, _ = setup
+    progress.reset()
+    window.open_lesson('hydrogen/92-lab-quantum-beats')
+    assert window.lab_status.text() == 'Lab progress: 0/4 steps'
+    progress.record('beat', pair='1s+2p', a='1s', b='2p', p=0.5, period=0.4055, view='2d')
+    assert window.lab_status.text() == 'Lab progress: 1/4 steps'                  # told at once, no click needed
+    progress.record('beat', pair='1s+2p', a='1s', b='2p', p=0.9, period=0.4055, view='3d')
+    assert window.lab_status.text() == 'Lab progress: 4/4 steps  🎉 Complete!'      # later steps count earlier ones
+    progress.reset()

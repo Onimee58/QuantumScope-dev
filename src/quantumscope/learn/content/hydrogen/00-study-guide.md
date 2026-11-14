@@ -13,7 +13,7 @@ Hydrogen is the one atom quantum mechanics solves exactly. In this area you use 
 
 **Who it is for:** students of physics, chemistry and engineering, and anyone curious why atoms look the way they do. It is optional for quantum computing, but it shows the same quantum rules at work in a real system.
 
-**Time:** about 4–5 hours — roughly 45 minutes per lecture.
+**Time:** about 7–8 hours — roughly 45 minutes per lecture and per lab.
 
 ## Before you start
 
@@ -27,13 +27,17 @@ Calculus helps for the radial probability, but every result is also given in wor
 
 ## Suggested path
 
-| Week | Lecture | You will be able to |
+| Week | Lecture or lab | You will be able to |
 |---|---|---|
 | 1 | [The Schrödinger equation and the hydrogen atom](qs:lesson/hydrogen/01-schrodinger-and-hydrogen) | explain the reduced mass and separate ψ into R(r) Y(θ, φ) |
 | 1 | [Quantum numbers and orbitals](qs:lesson/hydrogen/02-quantum-numbers-and-orbitals) | list allowed n, ℓ, m and count nodes |
+| 1 | [Lab: a tour of orbitals](qs:lesson/hydrogen/90-lab-orbital-tour) | draw orbitals and read their nodes |
 | 2 | [Probability density and radial probability](qs:lesson/hydrogen/03-probability-density) | tell the probability density from the radial probability r²R² and find ⟨r⟩ |
+| 2 | [Lab: where is the electron?](qs:lesson/hydrogen/91-lab-where-is-the-electron) | read peaks and nodes on the radial chart |
 | 2 | [Energy levels and spectra](qs:lesson/hydrogen/04-energy-levels-and-spectra) | compute levels and wavelengths of spectral lines |
+| 2 | [Lab: predict a spectral line](qs:lesson/hydrogen/93-lab-predict-a-spectral-line) | compute Balmer and Lyman wavelengths |
 | 3 | [Superposition and quantum beats](qs:lesson/hydrogen/05-superposition-and-quantum-beats) | compute a beat period and read the Dynamics views |
+| 3 | [Lab: watch a quantum beat](qs:lesson/hydrogen/92-lab-quantum-beats) | play superpositions and check their periods |
 | 3 | [What the model leaves out](qs:lesson/hydrogen/06-what-the-model-leaves-out) | estimate fine structure and know when the model is enough |
 
 ## How to study each lecture

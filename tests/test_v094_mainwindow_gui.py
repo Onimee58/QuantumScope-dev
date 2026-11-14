@@ -117,3 +117,14 @@ def test_v096_meter_and_hydrogen_memory_check(window, monkeypatch):
     w.resolution.setValue(48)
     w.refresh()
     assert w.density.shape == (48, 48, 48)
+
+
+def test_v099_drawing_an_orbital_is_recorded_for_labs(window):
+    from quantumscope.learn import progress
+    progress.reset()
+    w = window
+    w.n.setValue(3)
+    w.l.setCurrentIndex(w.l.findData(2))
+    w.refresh()
+    assert progress.did('orbital n=3 l=2 view=cloud basis=complex enclosed=90')[0], progress.EVENTS
+    progress.reset()

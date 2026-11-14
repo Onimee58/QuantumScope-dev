@@ -515,13 +515,17 @@ class EntanglementDialog(QWidget):
         self.meter.set_value(s, error, f'setting {min(done + 1, 4)} of 4' if done < 4 else 'all four settings measured')
 
     def _finish(self):
+        from quantumscope.learn import progress                         # for labs (0.9.9)
+        state, clean = self.state.currentData(), self.visibility.value() / 100
         if self._bell is None:
             n = int(self.grid.counts.sum())
             e = (self.grid.counts[0, 0] + self.grid.counts[1, 1] - self.grid.counts[0, 1] - self.grid.counts[1, 0]) / n
+            progress.record('pairs', state=state, clean=clean, alice=self.a, bob=self.b, E=float(e), n=n)
             self.explain.setText(f'{n} pairs at these axes: correlation E = {e:+.3f} '
                                  f'(quantum prediction {B.correlation(self.rho(), self.a, self.b):+.3f}).')
             return
         value, error = abs(self.meter.value), self.meter.error
+        progress.record('bell', state=state, clean=clean, S=float(value), error=float(error))
         if value - 2 * error > B.CLASSICAL_LIMIT:
             verdict = 'beats the classical limit of 2: no local hidden-variable model can explain these results.'
         elif value + 2 * error < B.CLASSICAL_LIMIT:

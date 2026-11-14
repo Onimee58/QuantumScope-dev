@@ -300,6 +300,8 @@ class CalculatorView(QWidget):
     def _show(self, text, result, mode):
         self.result = result
         value = result.value
+        from quantumscope.learn import progress                         # for labs (0.9.9)
+        progress.record_calc(text, value, mode)
         if not self.history_inputs or self.history_inputs[-1] != text:
             self.history_inputs.append(text)
         self._recall = None

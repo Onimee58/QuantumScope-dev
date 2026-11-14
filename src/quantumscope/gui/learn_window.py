@@ -135,6 +135,8 @@ class LearnWindow(QWidget):
         progress.listen(self._circuit_changed)
         from quantumscope.physics import annealing_progress   # so do annealing labs
         annealing_progress.listen(self._circuit_changed)
+        from quantumscope.learn import progress as experiment_progress   # and the experiments' and calculator's (0.9.9)
+        experiment_progress.listen(self._circuit_changed)
 
     # ---- contents -------------------------------------------------------------------------
     @property

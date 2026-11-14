@@ -165,6 +165,10 @@ class SuperpositionDialog(QWidget):
         if self._pending<=0:
             self._stop()
             counts=self.tally.counts
+            from quantumscope.learn import progress                       # for labs (0.9.9)
+            expected=spin_probabilities(qubit_state(self.theta.value(),self.phi.value()),self.axis.value())[0]
+            progress.record('superposition',theta=self.theta.value(),phi=self.phi.value(),axis=self.axis.value(),
+                            copies=int(sum(counts)),up=counts[0]/max(1,sum(counts)),expected=float(expected))
             self.result.setText(f'{sum(counts)} fresh copies: +1 {counts[0]} times, −1 {counts[1]} times. '
                                 'Each result was random; together they follow the Born rule (dashed lines).')
 

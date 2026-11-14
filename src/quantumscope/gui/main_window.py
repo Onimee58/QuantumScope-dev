@@ -979,6 +979,12 @@ class MainWindow(QMainWindow):
                                        padding=0)
             self.radial_plot.setYRange(0, float(max(probability)) * 1.12, padding=0)
             captured = captured_probability(self.axis, self.density)
+            from quantumscope.learn import progress                     # for labs (0.9.9)
+            progress.record('orbital', n=self.state.n, l=self.state.l, m=self.state.m,
+                            basis={'Real cosine': 'cosine', 'Real sine': 'sine'}.get(self.basis.currentText(), 'complex'),
+                            view={'Probability enclosure': 'enclosure', 'Real(psi)': 'real',
+                                  'Imag(psi)': 'imag'}.get(self.mode.currentText(), 'cloud'),
+                            enclosed=self.enclosed.value(), compare=int(self.compare_enable.isChecked()))
             orbital = "spdf"[self.state.l]
             state_name = getattr(self.state, "label", f"{self.state.n}{orbital} (m={self.state.m})")
             self.details.setText(

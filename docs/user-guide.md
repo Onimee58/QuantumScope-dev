@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.8** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.9** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -340,7 +340,7 @@ The same expression means the same in both modes; switching recalculates the cur
 - **Lectures** explain a topic, always in the same order: **The idea** in a few sentences, the main content, a **Worked example** with numbers, **Common mistakes**, **In the app** (what to try, with Try it links), four questions and a **Summary**. **Math you need** at the top links to the Mathematics lessons it builds on.
 - **Try it** links open the matching experiment or circuit in the main window.
 - **Quizzes** check your understanding: click an answer to see whether it is right, and why.
-- **Labs** give step-by-step tasks in the circuit simulator or the Quantum ML experiments, and check each step as you complete it.
+- **Labs** give step-by-step tasks in every area — in the circuit simulator, the experiments, the Hydrogen views, Quantum ML or the calculator — and check each step as you complete it. A step ticks as soon as you have done it, and stays ticked when you move on.
 - **The glossary:** underlined terms, such as *Hermitian*, show a short definition when clicked, with related terms and **Learn more**. **Glossary** in the contents lists all of them.
 - **Reading:** **◀ Back** and **Forward ▶** move through the lessons you have visited, and **A−** and **A+** change the text size.
 - **Export PDF…** saves the lesson as a handout, ending with the terms it uses.

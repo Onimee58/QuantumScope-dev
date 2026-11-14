@@ -11,6 +11,7 @@ from quantumscope.physics.hydrogen import HydrogenAtom
 from quantumscope.physics.dynamics import HydrogenSuperposition, suggested_half_width
 from quantumscope.gui.controls import Debouncer, with_action, with_quick_values
 from quantumscope.gui.dynamics_3d_scene import HydrogenScene3D
+from quantumscope.gui.dynamics_dialog import beat_played
 
 STATES = [(1,0,0),(2,0,0),(2,1,0),(2,1,1),(3,0,0),(3,1,0),(3,2,0),(4,0,0),(4,1,0)]
 
@@ -162,7 +163,7 @@ class HydrogenDynamics3DDialog(QDialog):
     def _toggle(self):
         if self.model is None: return
         if self.timer.isActive(): self.timer.stop(); self.play.setText('Play')
-        else: self.timer.start(); self.play.setText('Pause')
+        else: self.timer.start(); self.play.setText('Pause'); beat_played(self, '3d')
 
     def _export_png(self):
         path,_=QFileDialog.getSaveFileName(self,'Export 3D view','hydrogen_3d.png','PNG (*.png)')

@@ -168,3 +168,23 @@ check: qml variational test >= 0.85 the variational classifier's last test accur
 ```
 
 Steps tick as soon as an experiment is run. Link to the experiments with `qs:open/qml_datasets`, `qs:open/qml_kernel` and `qs:open/qml_variational`.
+
+## Labs in every area (v0.9.9)
+
+Quantum Principles, Hydrogen and Mathematics now have labs too (15 in all). Their steps check what the student does in the experiments and the calculator, and your own labs can use the same checks:
+
+```
+check: did orbital n=3 l=2 view=real              an orbital drawn in the Hydrogen Explorer
+check: did superposition theta=60 axis=0 up=0.75±0.06 copies>=500
+                                                  copies measured in the Superposition experiment
+check: did slit separation=200 whichpath=1        particles fired in the Double-slit experiment
+check: did bell state=psi- S>=2.5                 a Bell test in the Entanglement experiment
+check: did pairs state=psi- alice=0 bob=0 E<=-0.99
+                                                  pairs sent at fixed axes
+check: did beat pair=1s+2p p=0.5                  a superposition played in Hydrogen Dynamics (2D or 3D)
+check: calc gives exp(i*pi)                       a calculator result equal to this expression's value
+check: calc gives 486.3±0.2                       … within a tolerance
+check: calc typed eig(                            an input that contains this text (spaces and * ignored)
+```
+
+Each `did` condition is `key=value`, `key>=value`, `key<=value`, `key>value`, `key<value`, `key!=value`, `key~text` (contains) or `key=value±tolerance`; a step passes when any one recorded event meets all of its conditions, so it stays done after the student moves on. The fields of each event are listed in `quantumscope/learn/progress.py`. Link to the experiments with `qs:open/orbital`, `qs:open/superposition`, `qs:open/doubleslit`, `qs:open/entanglement`, `qs:open/dynamics2d`, `qs:open/dynamics3d` and `qs:open/calculator`.

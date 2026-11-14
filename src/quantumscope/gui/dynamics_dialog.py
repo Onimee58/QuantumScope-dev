@@ -152,7 +152,7 @@ class HydrogenDynamicsDialog(QDialog):
     def _toggle(self):
         if self.model is None: return
         if self.timer.isActive(): self.timer.stop(); self.play.setText('Play')
-        else: self.timer.start(); self.play.setText('Pause')
+        else: self.timer.start(); self.play.setText('Pause'); beat_played(self, '2d')
 
     def _tick(self):
         self.slider.setValue((self.slider.value() + 8) % 1001)
@@ -287,3 +287,13 @@ class HydrogenDynamicsDialog(QDialog):
     def closeEvent(self,event):
         self.timer.stop()
         super().closeEvent(event)
+
+
+def beat_played(dialog, view):
+    """Tell the labs a superposition is playing (0.9.9)."""
+    from quantumscope.learn import progress
+    model = dialog.model
+    name = lambda s: f"{s.n}{'spdf'[s.l]}"                                   # noqa: E731
+    first, second = sorted((model.first, model.second), key=lambda s: (s.n, s.l, s.m))
+    progress.record('beat', pair=f'{name(first)}+{name(second)}', a=name(model.first), b=name(model.second),
+                    p=dialog.prob.value() / 100, period=float(model.beat_period_fs), view=view)

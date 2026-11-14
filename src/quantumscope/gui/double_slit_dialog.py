@@ -180,6 +180,10 @@ class DoubleSlitDialog(QDialog):
         self._render_hist()
         if self._pending <= 0:
             self._stop_firing()
+            from quantumscope.learn import progress                     # for labs (0.9.9)
+            progress.record('slit', wavelength=self.wavelength.value(), width=self.width.value(),
+                            separation=self.separation.value(), distance=self.distance.value(),
+                            whichpath=int(self.which_path.isChecked()), particles=len(self.samples))
 
     def _stop_firing(self):
         if hasattr(self, '_timer') and self._timer.isActive():

@@ -1,3 +1,18 @@
+## v0.9.9 — Labs in every area
+
+### New labs (15)
+- **Quantum Principles (5):** find states on the Bloch sphere; build up an interference pattern; run a Bell test; reveal a hidden phase; pure, mixed and entangled.
+- **Hydrogen (4):** a tour of orbitals; where is the electron?; watch a quantum beat; predict a spectral line.
+- **Mathematics (6), in the calculator:** complex numbers and interference; states, overlaps and gate products; unitary gates and eigenvalues; tensor products and entanglement; Pauli algebra and rotations; an exact gradient from two circuits.
+- Each has 3–5 checked steps and one or two questions; the three study guides place them in the suggested path. The course now has 40 labs.
+
+### Labs that follow the experiments
+- **The experiments and the calculator tell the labs what the student did:** an orbital drawn, spin copies measured along an axis, particles fired at the slits, pairs sent or a Bell test run, a superposition played, a calculator result. Steps tick at once, with no button to press, and stay ticked once done.
+- **New lab checks** for teachers' own labs: `did KIND key=value …` (with >=, <=, >, <, !=, ~ for contains and ± for a tolerance) and `calc gives EXPRESSION` / `calc typed TEXT`; documented in LEARN.md.
+
+### Also
+- Tests solve every new lab the way it describes, check that wrong answers do not tick, and check that each experiment records what it should.
+
 ## v0.9.8 — A fuller course
 
 ### Lectures
