@@ -21,6 +21,13 @@ def _self_test():
         from PySide6.QtWidgets import QApplication
         app = QApplication.instance() or QApplication(sys.argv[:1])
         lines.append(f"Qt platform: {app.platformName()}")
+        from quantumscope.visualization.glplatform import opengl_environment
+        opengl_environment(app)                       # before OpenGL is imported (v0.9.11 fix)
+        if sys.platform.startswith("linux"):          # both Linux interfaces must be bundled
+            import importlib
+            for name in ("OpenGL.platform.glx", "OpenGL.platform.egl"):
+                importlib.import_module(name)
+            lines.append(f"OpenGL interfaces bundled: GLX and EGL; using {os.environ.get('PYOPENGL_PLATFORM', 'default')}")
         # The 3-D views (v0.9.11: OpenGL through pyqtgraph). PyOpenGL loads its platform support
         # on import; a contour, a lit mesh and a volume must build (drawing needs a GPU, which CI lacks).
         import numpy as np
@@ -126,6 +133,9 @@ def main():
     QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
     app = QApplication.instance() or QApplication(sys.argv)
+    # PyOpenGL must use the same windowing interface as Qt (GLX or EGL), before anything imports it.
+    from quantumscope.visualization.glplatform import opengl_environment
+    opengl_environment(app)
     # The splash appears before the slow imports below (the 3-D libraries), so it covers the wait.
     from quantumscope.gui.splash import show_splash
     splash = show_splash(app)

@@ -147,3 +147,24 @@ def test_packaging_and_requirements_have_no_vtk():
 def test_the_volume_rendering_setting_is_gone():
     from quantumscope.gui import preferences as prefs
     assert 'graphics/volume_method' not in prefs.PREFS and 'graphics/device' in prefs.PREFS
+
+
+# ---- PyOpenGL follows Qt's windowing interface (the Linux start-up fix) -------------------------------
+@pytest.mark.parametrize('qt,environ,system,expected', [
+    ('xcb', {'WAYLAND_DISPLAY': 'wayland-0'}, 'linux', 'glx'),       # XWayland: PyOpenGL alone would pick EGL
+    ('wayland', {}, 'linux', 'egl'),
+    ('xcb', {'PYOPENGL_PLATFORM': 'osmesa'}, 'linux', None),         # the user's own choice stays
+    ('offscreen', {}, 'linux', None),
+    ('windows', {}, 'win32', None), ('cocoa', {}, 'darwin', None),
+])
+def test_pyopengl_uses_the_same_interface_as_qt(qt, environ, system, expected):
+    from quantumscope.visualization.glplatform import opengl_platform
+    assert opengl_platform(qt, environ, system) == expected
+
+
+def test_the_app_sets_the_interface_before_opengl_loads_and_bundles_both():
+    main = open(os.path.join(os.path.dirname(__file__), '..', 'src', 'quantumscope', '__main__.py')).read()
+    body = main[main.index('def main():'):]
+    assert body.index('opengl_environment(app)') < body.index('show_splash') < body.index('main_window')
+    workflow = open(os.path.join(os.path.dirname(__file__), '..', '.github', 'workflows', 'release.yml')).read()
+    assert '--hidden-import OpenGL.platform.egl' in workflow
