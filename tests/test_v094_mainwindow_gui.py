@@ -128,3 +128,22 @@ def test_v099_drawing_an_orbital_is_recorded_for_labs(window):
     w.refresh()
     assert progress.did('orbital n=3 l=2 view=cloud basis=complex enclosed=90')[0], progress.EVENTS
     progress.reset()
+
+
+def test_v0910_changing_only_the_display_reuses_the_grid(window):
+    import quantumscope.gui.main_window as module
+    w = window
+    module.HYDROGEN_GRIDS.clear()
+    w.n.setValue(2)
+    w.l.setCurrentIndex(w.l.findData(1))
+    w.resolution.setValue(48)
+    w.refresh()
+    density, misses = w.density, module.HYDROGEN_GRIDS.misses
+    w.mode.setCurrentText('Probability enclosure')
+    w.refresh()
+    assert w.density is density and module.HYDROGEN_GRIDS.misses == misses           # not recomputed
+    w.resolution.setValue(40)
+    w.refresh()
+    assert w.density is not density and w.density.shape == (40, 40, 40)              # a new grid when it must be
+    w.mode.setCurrentText('Density cloud')
+    module.HYDROGEN_GRIDS.clear()

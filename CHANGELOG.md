@@ -1,3 +1,16 @@
+## v0.9.10 — Faster and smaller
+
+### Faster
+- **Remembered orbitals:** the Hydrogen Explorer keeps the last four 3-D grids. Changing only the representation, opacity, camera or enclosed probability redraws at once instead of recomputing ψ on the grid (about 0.05 s at 96 points per axis, 0.4 s at 160).
+- **Remembered kernel matrices:** a quantum kernel is computed once for each dataset, feature map, repetitions and bandwidth. Retraining with another C or λ, the decision-region grid, and the combinations Search tries reuse it. Kernels estimated with shots are never remembered: each estimate is fresh, as on hardware.
+- **Memory first:** remembered results are read-only, kept within a budget (512 MB for grids, 256 MB for kernels), and all forgotten as soon as the memory meter turns amber.
+- **No C++ rewrite, on purpose:** profiling showed the numbers already run in compiled code (NumPy, SciPy, VTK, Qt, and QuantumScope's own Cython-compiled modules). A 1,500-sample ten-class SVM trains in about 0.6 s and a 160³ orbital grid takes 0.4 s, so a hand-written core would add build risk on three systems for little gain.
+
+### Smaller
+- **Unused Qt parts left out:** Qt Quick and QML (needed only by the on-screen virtual keyboard), the PDF image plugin, Qt Data Visualization, the embedded-Linux display plugins, and Qt's own dialog translations — 126 files (`tools/pyinstaller_trim.py`, applied after PyInstaller's analysis; a test checks that the libraries the app needs always stay).
+- **Debugging data stripped** from the bundled libraries on Linux and macOS (PyInstaller cannot on Windows).
+- **Measured on Linux:** about 785 MB installed → about 640 MB, and the download about 12% smaller. The packaged self-test passes and the app starts and draws as before.
+
 ## v0.9.9 — Labs in every area
 
 ### New labs (15)

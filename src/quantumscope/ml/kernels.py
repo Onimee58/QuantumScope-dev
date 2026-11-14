@@ -19,6 +19,8 @@ import numpy as np
 
 from quantumscope.physics.circuits import Gate
 
+from quantumscope import caching
+
 FEATURE_MAPS = {'angle': 'Angle encoding (RY on each qubit)', 'zz': 'ZZ feature map (entangling)'}
 
 
@@ -91,10 +93,20 @@ def hadamard_all(states, n):
 
 
 def kernel(A, B=None, kind='zz', reps=2, bandwidth=1.0):
-    """K[a, b] = |⟨φ(A[a])|φ(B[b])⟩|² (B defaults to A)."""
-    SA = states(A, kind, reps, bandwidth)
-    SB = SA if B is None else states(B, kind, reps, bandwidth)
-    return np.abs(SA.conj() @ SB.T) ** 2
+    """K[a, b] = |⟨φ(A[a])|φ(B[b])⟩|² (B defaults to A). Remembered (0.9.10): retraining with another
+    C or λ, and Search, ask for the same matrices again. The result is read-only; copy it to change it."""
+    A = np.asarray(A, float)
+    key = (caching.fingerprint(A), None if B is None else caching.fingerprint(np.asarray(B, float)),
+           kind, int(reps), float(bandwidth))
+
+    def compute():
+        SA = states(A, kind, reps, bandwidth)
+        SB = SA if B is None else states(B, kind, reps, bandwidth)
+        return np.abs(SA.conj() @ SB.T) ** 2
+    return KERNELS.get(key, compute)
+
+
+KERNELS = caching.Cache('kernel matrices', 256 * caching.MB, entries=24)
 
 
 def estimate(K, shots, rng=None, symmetric=False):
