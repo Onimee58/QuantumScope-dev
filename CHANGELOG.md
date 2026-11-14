@@ -1,3 +1,7 @@
+## v0.9.12 — Linux start-up fix
+
+- **Fixed: on Linux, 0.9.11 closed right after starting** on Wayland desktops (Ubuntu's default). The 3-D views' OpenGL library chose its connection to the graphics system from the desktop session (EGL on Wayland) rather than from Qt, and the installers carried only the X11 one (GLX). It now always uses the same one as Qt, and the installers carry both. The packaged self-test checks both are present.
+
 ## v0.9.11 — A lighter 3-D engine
 
 ### The 3-D views now draw with OpenGL through pyqtgraph, instead of VTK
