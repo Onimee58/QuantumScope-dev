@@ -1,0 +1,547 @@
+[
+ {
+  "step": "start",
+  "n": 3,
+  "gates": [],
+  "status": "3 qubits • 0 gates • 0 occupied columns • exact ideal simulation",
+  "verify": "Select an example to verify arithmetic, or inspect basis-state inputs.",
+  "rows": 0,
+  "observable": "",
+  "parameters": {},
+  "undo": 0,
+  "probs": [
+   1.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ]
+ },
+ {
+  "step": "bell",
+  "n": 3,
+  "gates": [
+   "CX@(0, 1)",
+   "H@(0, 0)"
+  ],
+  "status": "3 qubits • 2 gates • 2 occupied columns • exact ideal simulation",
+  "verify": "Select an example to verify arithmetic, or inspect basis-state inputs.",
+  "rows": 0,
+  "observable": "",
+  "parameters": {},
+  "undo": 1,
+  "probs": [
+   0.5,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.5,
+   0.0
+  ]
+ },
+ {
+  "step": "add H",
+  "n": 3,
+  "gates": [
+   "CX@(0, 1)",
+   "H@(0, 0)"
+  ],
+  "status": "3 qubits • 2 gates • 2 occupied columns • exact ideal simulation",
+  "verify": "Select an example to verify arithmetic, or inspect basis-state inputs.",
+  "rows": 0,
+  "observable": "",
+  "parameters": {},
+  "undo": 1,
+  "probs": [
+   0.5,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.5,
+   0.0
+  ]
+ },
+ {
+  "step": "undo",
+  "n": 3,
+  "gates": [],
+  "status": "3 qubits • 0 gates • 0 occupied columns • exact ideal simulation",
+  "verify": "Select an example to verify arithmetic, or inspect basis-state inputs.",
+  "rows": 0,
+  "observable": "",
+  "parameters": {},
+  "undo": 0,
+  "probs": [
+   1.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ]
+ },
+ {
+  "step": "redo",
+  "n": 3,
+  "gates": [
+   "CX@(0, 1)",
+   "H@(0, 0)"
+  ],
+  "status": "3 qubits • 2 gates • 2 occupied columns • exact ideal simulation",
+  "verify": "Select an example to verify arithmetic, or inspect basis-state inputs.",
+  "rows": 0,
+  "observable": "",
+  "parameters": {},
+  "undo": 1,
+  "probs": [
+   0.5,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.5,
+   0.0
+  ]
+ },
+ {
+  "step": "qubits 3",
+  "n": 3,
+  "gates": [
+   "CX@(0, 1)",
+   "H@(0, 0)"
+  ],
+  "status": "3 qubits • 2 gates • 2 occupied columns • exact ideal simulation",
+  "verify": "Select an example to verify arithmetic, or inspect basis-state inputs.",
+  "rows": 0,
+  "observable": "",
+  "parameters": {},
+  "undo": 1,
+  "probs": [
+   0.5,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.5,
+   0.0
+  ]
+ },
+ {
+  "step": "ghz",
+  "n": 2,
+  "gates": [
+   "CX@(0, 1)",
+   "H@(0, 0)"
+  ],
+  "status": "Loaded Bell pair • illustrative reversible circuit; input bits and work registers shown as gates.",
+  "verify": "First 4 computational-basis inputs; superposition-producing circuits are not assigned arithmetic PASS/FAIL.",
+  "rows": 4,
+  "observable": "",
+  "parameters": {},
+  "undo": 2,
+  "probs": [
+   0.5,
+   0.0,
+   0.0,
+   0.5
+  ]
+ },
+ {
+  "step": "teleport",
+  "n": 3,
+  "gates": [
+   "CX@(0, 2)",
+   "CX@(1, 1)",
+   "H@(0, 3)",
+   "H@(1, 0)",
+   "X@(2, 4)",
+   "Z@(2, 5)"
+  ],
+  "status": "Loaded Quantum teleportation • Teleports q0's state to q2 using a Bell pair and two classical bits.",
+  "verify": "Each input is teleported from q0 to q2; every measurement branch must end with q2 equal to the input.  10/10 PASS",
+  "rows": 10,
+  "observable": "",
+  "parameters": {},
+  "undo": 3,
+  "probs": [
+   0.125,
+   0.125,
+   0.125,
+   0.125,
+   0.125,
+   0.125,
+   0.125,
+   0.125
+  ]
+ },
+ {
+  "step": "verify",
+  "n": 3,
+  "gates": [
+   "CX@(0, 2)",
+   "CX@(1, 1)",
+   "H@(0, 3)",
+   "H@(1, 0)",
+   "X@(2, 4)",
+   "Z@(2, 5)"
+  ],
+  "status": "Loaded Quantum teleportation • Teleports q0's state to q2 using a Bell pair and two classical bits.",
+  "verify": "Each input is teleported from q0 to q2; every measurement branch must end with q2 equal to the input.  10/10 PASS",
+  "rows": 10,
+  "observable": "",
+  "parameters": {},
+  "undo": 3,
+  "probs": [
+   0.125,
+   0.125,
+   0.125,
+   0.125,
+   0.125,
+   0.125,
+   0.125,
+   0.125
+  ]
+ },
+ {
+  "step": "grover",
+  "n": 3,
+  "gates": [
+   "H@(0, 0)",
+   "H@(1, 0)",
+   "H@(2, 0)"
+  ],
+  "status": "Loaded Grover search • 2 iteration(s); optimal for N = 8 is 2.",
+  "verify": "2 oracle/diffusion iteration(s): sin²((2k+1)θ) with sin θ = 1/√8. Optimal: k = 2 (P = 0.9453).  1/1 PASS",
+  "rows": 1,
+  "observable": "",
+  "parameters": {},
+  "undo": 4,
+  "probs": [
+   0.007812,
+   0.007812,
+   0.007812,
+   0.007812,
+   0.007812,
+   0.945312,
+   0.007812,
+   0.007812
+  ]
+ },
+ {
+  "step": "qft",
+  "n": 3,
+  "gates": [],
+  "status": "Loaded Quantum Fourier transform • The input |x⟩ is set by the initial states; click a wire label to change it.",
+  "verify": "QFT|x⟩ = (1/√N) Σ_y e^{2πixy/N} |y⟩ with x, y read with q0 as the most significant bit. Compared with the textbook DFT matrix.  1/1 PASS",
+  "rows": 1,
+  "observable": "",
+  "parameters": {},
+  "undo": 5,
+  "probs": [
+   0.125,
+   0.125,
+   0.125,
+   0.125,
+   0.125,
+   0.125,
+   0.125,
+   0.125
+  ]
+ },
+ {
+  "step": "qpe",
+  "n": 4,
+  "gates": [
+   "CP@(0, 1)",
+   "CP@(1, 2)",
+   "CP@(2, 3)",
+   "H@(0, 0)",
+   "H@(1, 0)",
+   "H@(2, 0)"
+  ],
+  "status": "Loaded Quantum phase estimation • q0–q2 read out the best 3-bit estimate of φ = 3/8; the last qubit holds U's eigenstate |1⟩.",
+  "verify": "φ has an exact t-bit expansion, so the estimate is certain.  1/1 PASS",
+  "rows": 1,
+  "observable": "",
+  "parameters": {},
+  "undo": 6,
+  "probs": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   1.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ]
+ },
+ {
+  "step": "vqe",
+  "n": 2,
+  "gates": [
+   "CX@(0, 1)",
+   "RY@(0, 0)",
+   "RY@(0, 2)",
+   "RY@(1, 0)",
+   "RY@(1, 2)"
+  ],
+  "status": "Loaded Variational quantum eigensolver (VQE) • VQE for the H₂ molecule at 0.735 Å (energy in Hartree): press Optimize in the Parameters panel to lower ⟨H⟩ toward the exact ground energy.",
+  "verify": "⟨H⟩ is 0.7926 above the exact ground energy. Press Optimize in the Parameters panel (or move the sliders) to lower it. If it stops above the exact value, the circuit cannot represent the ground state: try more entangling layers (Change parameters…).  0/1 PASS",
+  "rows": 1,
+  "observable": "-0.332404256824 - 0.397937424843 Z0 + 0.397937424843 Z1 - 0.011280104256 Z0 Z1 + 0.180931199784 X0 X1",
+  "parameters": {
+   "θ0": 0.1,
+   "θ1": 0.2,
+   "θ2": 0.3,
+   "θ3": 0.4
+  },
+  "undo": 7,
+  "probs": [
+   0.891465,
+   0.080886,
+   0.018948,
+   0.008701
+  ]
+ },
+ {
+  "step": "vqe verify",
+  "n": 2,
+  "gates": [
+   "CX@(0, 1)",
+   "RY@(0, 0)",
+   "RY@(0, 2)",
+   "RY@(1, 0)",
+   "RY@(1, 2)"
+  ],
+  "status": "Loaded Variational quantum eigensolver (VQE) • VQE for the H₂ molecule at 0.735 Å (energy in Hartree): press Optimize in the Parameters panel to lower ⟨H⟩ toward the exact ground energy.",
+  "verify": "⟨H⟩ is 0.7926 above the exact ground energy. Press Optimize in the Parameters panel (or move the sliders) to lower it. If it stops above the exact value, the circuit cannot represent the ground state: try more entangling layers (Change parameters…).  0/1 PASS",
+  "rows": 1,
+  "observable": "-0.332404256824 - 0.397937424843 Z0 + 0.397937424843 Z1 - 0.011280104256 Z0 Z1 + 0.180931199784 X0 X1",
+  "parameters": {
+   "θ0": 0.1,
+   "θ1": 0.2,
+   "θ2": 0.3,
+   "θ3": 0.4
+  },
+  "undo": 7,
+  "probs": [
+   0.891465,
+   0.080886,
+   0.018948,
+   0.008701
+  ]
+ },
+ {
+  "step": "qaoa",
+  "n": 4,
+  "gates": [
+   "CX@(0, 1)",
+   "CX@(0, 3)",
+   "CX@(1, 4)",
+   "CX@(1, 6)",
+   "CX@(2, 7)",
+   "CX@(2, 9)",
+   "CX@(3, 10)",
+   "CX@(3, 12)",
+   "H@(0, 0)",
+   "H@(1, 0)",
+   "H@(2, 0)",
+   "H@(3, 0)",
+   "RX@(0, 13)",
+   "RX@(1, 13)",
+   "RX@(2, 13)",
+   "RX@(3, 13)",
+   "RZ@(0, 11)",
+   "RZ@(1, 2)",
+   "RZ@(2, 5)",
+   "RZ@(3, 8)"
+  ],
+  "status": "Loaded QAOA for MaxCut • QAOA for MaxCut on the square (4 nodes): ⟨H⟩ is minus the expected number of cut edges. Press Optimize, then measure: the likeliest results should be the best cuts.",
+  "verify": "A best cut is measured with probability 0.343. The likeliest result is a maximum cut.  2/2 PASS",
+  "rows": 2,
+  "observable": "0.5 Z0 Z1 + 0.5 Z1 Z2 + 0.5 Z2 Z3 + 0.5 Z3 Z0 - 2",
+  "parameters": {
+   "γ0": 0.4,
+   "β0": 0.3
+  },
+  "undo": 8,
+  "probs": [
+   0.004397,
+   0.047282,
+   0.047282,
+   0.067464,
+   0.047282,
+   0.171548,
+   0.067464,
+   0.047282,
+   0.047282,
+   0.067464,
+   0.171548,
+   0.047282,
+   0.067464,
+   0.047282,
+   0.047282,
+   0.004397
+  ]
+ },
+ {
+  "step": "bitflip",
+  "n": 5,
+  "gates": [
+   "CX@(0, 0)",
+   "CX@(0, 1)",
+   "CX@(0, 3)",
+   "CX@(1, 4)",
+   "CX@(1, 5)",
+   "CX@(2, 6)",
+   "X@(0, 8)",
+   "X@(1, 2)",
+   "X@(1, 8)",
+   "X@(2, 8)"
+  ],
+  "status": "Loaded Bit-flip code • Data q0–q2 encode q0's starting state; X (bit-flip) errors are detected by q3, q4 (measured into c0, c1) and corrected.",
+  "verify": "After correction, q0–q2 must hold the encoded input for every starting state.  6/6 PASS",
+  "rows": 6,
+  "observable": "",
+  "parameters": {},
+  "undo": 9,
+  "probs": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   1.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ]
+ },
+ {
+  "step": "clear",
+  "n": 5,
+  "gates": [],
+  "status": "5 qubits • 0 gates • 0 occupied columns • exact ideal simulation",
+  "verify": "Select an example to verify arithmetic, or inspect basis-state inputs.",
+  "rows": 0,
+  "observable": "",
+  "parameters": {},
+  "undo": 10,
+  "probs": [
+   1.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ]
+ },
+ {
+  "step": "rx",
+  "n": 2,
+  "gates": [
+   "RX@(0, 0)",
+   "X@(1, 1)"
+  ],
+  "status": "2 qubits • 2 gates • 2 occupied columns • exact ideal simulation",
+  "verify": "Select an example to verify arithmetic, or inspect basis-state inputs.",
+  "rows": 0,
+  "observable": "",
+  "parameters": {},
+  "undo": 13,
+  "probs": [
+   0.0,
+   0.5,
+   0.0,
+   0.5
+  ]
+ },
+ {
+  "step": "undo2",
+  "n": 2,
+  "gates": [
+   "RX@(0, 0)"
+  ],
+  "status": "2 qubits • 1 gates • 1 occupied columns • exact ideal simulation",
+  "verify": "Select an example to verify arithmetic, or inspect basis-state inputs.",
+  "rows": 0,
+  "observable": "",
+  "parameters": {},
+  "undo": 12,
+  "probs": [
+   0.5,
+   0.0,
+   0.5,
+   0.0
+  ]
+ }
+]

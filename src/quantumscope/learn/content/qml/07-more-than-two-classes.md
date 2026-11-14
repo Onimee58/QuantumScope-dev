@@ -1,0 +1,131 @@
+---
+title: More than two classes
+area: qml
+kind: lecture
+order: 7
+objectives: Build a k-class classifier from binary ones (one-vs-rest) | Read k classes from one circuit's measurement outcomes | Read a k × k confusion matrix and macro-averaged measures | Judge a multi-class score against chance and class imbalance
+math: 06-probability
+---
+# More than two classes
+
+## The idea
+
+An SVM answers a yes-or-no question: which side of a boundary is a point on? Many real questions have more answers: which of ten digits, which of three penguin species, which of six kinds of glass. Both of QuantumScope's classifiers handle them: choose **All classes** under Classes.
+
+## One-vs-rest
+
+The simplest way to build a $k$-class classifier from binary ones is **one-vs-rest**: train one classifier per class $c$, with that class as $+1$ and every other class as $-1$. Each gives a decision value $f_c(x)$, a measure of how confidently $x$ belongs to $c$. The prediction is the most confident class:
+
+$$\hat{y}(x) = \mathrm{argmax}_c \, f_c(x)$$
+
+For a quantum kernel this costs almost nothing extra. The kernel $K(x, x')$ depends only on the data, not on the labels, so all $k$ classifiers share **one** kernel matrix: the circuits are run once, and only the cheap classical training is repeated $k$ times.
+
+An alternative, **one-vs-one**, trains a classifier for every pair of classes, $k(k-1)/2$ of them (45 for ten digits), and lets them vote. Each is trained on less data, but there are many more of them.
+
+## One circuit, many outcomes
+
+A variational circuit can name the classes itself. Measuring $r$ qubits gives one of $2^r$ outcomes, so $r = \lceil \log_2 k \rceil$ qubits are enough for $k$ classes: 2 qubits for three penguin species, 4 for ten digits. Outcome $c$, written in binary on the first $r$ qubits, stands for class $c$; outcomes with no class (such as 11 for three classes) are discarded, and the rest renormalized. With a learned offset $b_c$ for each class:
+
+$$P(c \mid x) = \frac{p_c(x)\, e^{b_c}}{\sum_{c'} p_{c'}(x)\, e^{b_{c'}}}$$
+
+where $p_c(x)$ is the probability of outcome $c$. Training lowers the **cross-entropy**, the average of $-\log P(y_i \mid x_i)$ over the training data, with the same exact gradients as for two classes. On hardware, $p_c$ is estimated by measuring many times; **Open in circuit simulator** shows the trained circuit with its readout qubits measured.
+
+Unlike one-vs-rest, this is a single quantum model, and the number of measured qubits grows only like $\log_2 k$. But a small circuit must now separate every class at once, so it usually needs more layers, and it scores below the kernel classifier on the harder datasets.
+
+## Regions and boundaries
+
+With two classes there is one boundary, where $f(x) = 0$. With $k$ classes, the space is divided into $k$ regions: class $c$ wins where $f_c(x)$ is larger than every other $f_{c'}(x)$, and the boundaries lie where two classes are equally confident. In the **Decision regions** and **3-D view**, each region takes its class's colour.
+
+## Measuring success
+
+**Chance is lower.** Guessing is right half the time with two balanced classes, but only $1/k$ of the time with $k$. So 60% accuracy on ten classes is far better than 60% on two.
+
+**The confusion matrix is $k \times k$.** Each row is a true class and each column a predicted one; the diagonal holds the right answers. It shows *which* classes are confused: for handwritten digits, often 4, 7 and 9, which can look alike.
+
+**Per-class measures, then averages.** Precision, recall and $F_1$ are computed for each class, treating it as positive and the rest as negative. Their plain average over the classes is the **macro average**: every class counts equally, however many samples it has. The **balanced accuracy** is the macro-averaged recall:
+
+$$\mathrm{balanced\ accuracy} = \frac{1}{k}\sum_{c=1}^{k} \mathrm{recall}_c$$
+
+**One ROC curve per class.** Each class's curve compares its decision value $f_c$ for its own samples with that for the others; QuantumScope reports the mean of their areas.
+
+## Unbalanced classes
+
+In the **Glass** dataset, building windows have 70 and 76 samples, while tableware has only 9. A classifier that never predicts the small classes still scores well on plain accuracy. The balanced accuracy and the confusion matrix expose it. QuantumScope's checker leaves out classes with fewer than 10 samples, too few to both learn from and test, and caps the samples per class so that the rest are better balanced.
+
+## Easy and hard datasets
+
+| Dataset | Classes | What makes it hard |
+|---|---|---|
+| Iris, Seeds | 3 | little: well separated |
+| Palmer Penguins | 3 | missing values and text columns to prepare |
+| Glass | 6 | few samples, unbalanced, overlapping classes |
+| Digits, MNIST | 10 | many classes, from images, on few qubits |
+| Fashion-MNIST | 10 | shirts, T-shirts, pullovers and coats look alike |
+
+With one feature per qubit, more qubits keep more of an image's variation after PCA, and accuracy on ten classes rises with them.
+
+## Worked example
+
+One-vs-rest on three penguin species gives, for one penguin, the decision values $f_{\mathrm{Adélie}} = -0.4$, $f_{\mathrm{Chinstrap}} = 0.3$ and $f_{\mathrm{Gentoo}} = -1.2$. The prediction is the largest, Chinstrap, even though a value of 0.3 is not very confident.
+
+A variational classifier for the same three classes measures $\lceil \log_2 3 \rceil = 2$ qubits. Suppose the outcomes have probabilities $p_{00} = 0.5$, $p_{01} = 0.2$, $p_{10} = 0.2$ and $p_{11} = 0.1$, with all offsets $b_c = 0$. Outcome 11 names no class, so it is dropped and the rest renormalized by $0.9$: $P = 0.56,\ 0.22,\ 0.22$, and class 0 wins. If the true class is 1, this sample adds $-\log 0.22 \approx 1.5$ to the cross-entropy; a confident right answer would add almost nothing.
+
+## Common mistakes
+
+- **Comparing accuracies across different numbers of classes.** Compare each with chance, $1/k$, and with the balanced accuracy.
+- **Reading the confusion matrix by columns.** Rows are true classes; a row shows where that class's samples went.
+- **Expecting one small circuit to match one-vs-rest.** It separates all classes at once with few parameters; on hard datasets it usually scores lower.
+
+## In the app
+
+In the **Quantum Kernel Classifier**, choose a dataset with more than two classes and **All classes** under **Classes**, then **Train**. The **Decision regions** take one colour per class, and the **Evaluation** tab shows the $k \times k$ confusion matrix with macro-averaged measures and one ROC curve per class. In the **Variational Classifier**, the same setting reads the classes from the measured qubits; **Open in circuit simulator** shows them.
+
+[Try it: classify all three penguin species](qs:open/qml_kernel) · [with one circuit](qs:open/qml_variational)
+
+## Check your understanding
+
+```quiz
+Q: A one-vs-rest quantum kernel classifier separates 10 classes. How many kernel matrices must be computed on the quantum computer?
+* One: the kernel depends only on the data, so all 10 classifiers share it
+- Ten, one per classifier
+- 45, one per pair of classes
+E: The labels only enter the classical training. The same kernel matrix serves all ten one-vs-rest classifiers.
+```
+
+```quiz
+Q: A ten-class classifier has 55% test accuracy. What does that say?
+- It is barely better than guessing
+* It is far better than guessing, which would be right about 10% of the time
+- It is worse than guessing
+E: With ten balanced classes, chance is 1 in 10. Always compare a score with chance for that number of classes.
+```
+
+```quiz
+Q: In the confusion matrix, the row for digit 9 has 5 of its 10 samples in the column for 7. What does that mean?
+* Five true 9s were predicted to be 7s
+- Five true 7s were predicted to be 9s
+- The classifier never predicts 9
+E: Rows are true classes and columns are predictions. Whether 9 is ever predicted is read from its column, not its row.
+```
+
+```quiz
+Q: A variational classifier reads ten digit classes from its measurement outcomes. How many qubits must be measured?
+- Ten, one per class
+* Four: 2⁴ = 16 outcomes are enough for 10 classes
+- One, as for two classes
+E: r measured qubits give 2ʳ outcomes; ⌈log₂ 10⌉ = 4. The six unused outcomes are discarded.
+```
+
+```quiz
+Q: Why does the balanced accuracy suit the Glass dataset better than plain accuracy?
+- It ignores the small classes
+* Every class counts equally, so missing the small classes is not hidden by the large ones
+- It is always higher than plain accuracy
+E: Balanced accuracy is the average recall over the classes. A classifier that ignores tableware and headlamps loses a whole class's share of it.
+```
+
+## Summary
+
+- One-vs-rest trains one classifier per class on a single shared kernel and picks the most confident.
+- One circuit can name k classes with ⌈log₂ k⌉ measured qubits, trained on the cross-entropy.
+- Judge k-class scores against chance (1/k); use the k × k confusion matrix and balanced accuracy, especially with unbalanced classes.
