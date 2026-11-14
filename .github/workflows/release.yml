@@ -86,7 +86,8 @@ jobs:
           # modules excluded here and unused Qt files left out by the spec step (tools/pyinstaller_trim.py).
           STRIP="$([ "$RUNNER_OS" = "Windows" ] || echo --strip)"
           TRIM_ARGS="$(python tools/pyinstaller_trim.py)"
-          python -m PyInstaller.utils.cliutils.makespec --windowed --onedir --name QuantumScope --icon "$ICON" $STRIP $TRIM_ARGS --collect-data pyqtgraph --collect-data quantumscope --exclude-module pyqtgraph.examples src/quantumscope/__main__.py
+          # PyInstaller bundles only PyOpenGL's GLX interface on Linux; Wayland desktops need EGL too.
+          python -m PyInstaller.utils.cliutils.makespec --windowed --onedir --name QuantumScope --icon "$ICON" $STRIP $TRIM_ARGS --collect-data pyqtgraph --collect-data quantumscope --hidden-import OpenGL.platform.egl --exclude-module pyqtgraph.examples src/quantumscope/__main__.py
           python tools/pyinstaller_compiled.py QuantumScope.spec build/compiled
           python -m PyInstaller --noconfirm --clean QuantumScope.spec
       - name: Launch check of the packaged application (Linux)
