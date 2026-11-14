@@ -59,6 +59,9 @@ class ResourceMonitor(QObject):
             tips.append(f'The processor has been fully busy for {int(self.busy_for)} s: QuantumScope (or another '
                         f'program) is computing, so everything may respond slowly.')
         self.label.setToolTip('\n\n'.join(tips))
+        if level != 'ok':                                         # remembered results go first (0.9.10)
+            from quantumscope import caching
+            caching.clear_all()
         if level == 'critical' and not self.warned:
             self.warned = True                                    # once, until memory recovers
             self.warn(snap)

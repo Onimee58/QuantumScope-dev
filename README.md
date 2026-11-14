@@ -7,7 +7,7 @@
 
   An open-source, cross-platform quantum visualization and circuit simulation studio built with Python and PySide6.
 
-  [![Version](https://img.shields.io/badge/version-v0.9.9-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
+  [![Version](https://img.shields.io/badge/version-v0.9.10-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
   [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
   [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
   [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-555)](https://github.com/Onimee58/QuantumScope/releases)
@@ -58,6 +58,10 @@ Use it for self-study, classroom demonstrations, coursework or experimenting wit
 | **Disk space** | 1.5 GB free | 2 GB free | 2 GB free (SSD) |
 | **Screen** | 1280 × 720 | 1920 × 1080 | 1920 × 1080 or larger |
 | **What runs well** | 3-D orbitals up to 96 points per axis; circuits up to 10 qubits; Quantum ML up to a few hundred samples | Everything, including the comparison 3-D view and larger datasets | The finest 3-D grids (160 points per axis) with both viewers, and the largest models, smoothly |
+
+## What's new in v0.9.10?
+
+**Faster and smaller.** Changing only how an orbital is shown (representation, opacity, camera) no longer recomputes it, and retraining a quantum kernel classifier with a different C or λ, or searching settings, reuses kernel matrices it has already computed; both are forgotten automatically when memory runs short. The installers leave out parts of Qt that QuantumScope never uses and, on Linux and macOS, the libraries' debugging data: the installed app is about a fifth smaller.
 
 ## What's new in v0.9.9?
 
