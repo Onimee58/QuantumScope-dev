@@ -173,10 +173,6 @@ class SettingsDialog(QDialog):
             'Applies after restarting. NVIDIA uses PRIME offloading on Linux laptops with two GPUs.' if linux else
             'Your operating system chooses the graphics device (Windows: Settings → System → Display → Graphics; '
             'macOS chooses automatically).'))
-        self.volume = self._combo('graphics/volume_method', tuple((m, m) for m in prefs.PREFS['graphics/volume_method'].choices))
-        form.addRow('3D volume rendering', self.volume)
-        form.addRow(self._note('How 3D orbital clouds are drawn. CPU is slower but works on any computer; '
-                               'surfaces are not affected.'))
         self.monitor = QCheckBox('Watch memory and processor use')
         self.monitor.setChecked(prefs.get('performance/monitor'))
         self.monitor.toggled.connect(lambda on: self._changed('performance/monitor', on))
@@ -279,7 +275,7 @@ class SettingsDialog(QDialog):
         for box, key in ((self.theme, 'appearance/theme'), (self.scale, 'appearance/scale'),
                          (self.angle_units, 'circuits/angle_units'), (self.bit_order, 'circuits/bit_order'),
                          (self.number_format, 'circuits/number_format'),
-                         (self.device, 'graphics/device'), (self.volume, 'graphics/volume_method'),
+                         (self.device, 'graphics/device'),
                          (self.pdf_report, 'files/pdf_report'), (self.news, 'news/check')):
             box.blockSignals(True)
             box.setCurrentIndex(max(0, box.findData(prefs.get(key))))

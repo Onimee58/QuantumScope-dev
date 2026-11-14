@@ -1,3 +1,19 @@
+## v0.9.11 — A lighter 3-D engine
+
+### The 3-D views now draw with OpenGL through pyqtgraph, instead of VTK
+- **Hydrogen Explorer, Hydrogen Dynamics 3D and the Quantum Kernel Classifier's 3-D view** use one new view (`visualization/gl3d.py`) built on pyqtgraph, which QuantumScope already used for its charts. VTK, PyVista and pyvistaqt are no longer needed.
+- **Everything the views did, they still do:** the density cloud, probability enclosures (also coloured by phase, with a colour bar), Real(ψ) and Imag(ψ) surfaces, the axes marker, the coordinate box, the symbolic nucleus; the same camera positions, views and magnification; synchronized comparison cameras; PNG export at 1–4× and the Dynamics and decision-view GIFs; clicking a point in the decision view to see its sample. Exported images include the captions, colour bar and axes marker.
+- **Real(ψ) and Imag(ψ):** the lobes are now clearly red (positive) and blue (negative), with a caption saying so, instead of two pale tints and a colour bar whose ends no surface ever had.
+- **Panning** in the 3-D views is Ctrl-drag or middle-drag (it was Shift-drag in the decision view).
+- **Settings → Graphics:** the "3D volume rendering" choice (Auto/GPU/CPU) is gone: it chose between VTK's renderers. **Graphics device** and the renderer information stay.
+
+### Smaller
+- **Measured on Linux:** the installed app is about 350 MB, from about 640 MB in v0.9.10 and 785 MB in v0.9.9 (under half), and the download about 150 MB, from about 220 MB. VTK and the libraries only it needed (matplotlib among them) were most of the difference.
+- The release workflow no longer lists VTK modules (`tools/pyinstaller_vtk_args.py` and `visualization/vtk_modules.py` are removed); the packaged self-test builds a contour, a lit mesh and a volume with the new libraries.
+
+### Tests
+- New tests check the surfaces (closed, welded, in world coordinates), normals, colour maps, cameras and that nothing loads VTK; GUI tests now draw in the real OpenGL view (`tools/run_gui_tests.sh` starts a virtual display when there is none).
+
 ## v0.9.10 — Faster and smaller
 
 ### Faster

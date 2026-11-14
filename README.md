@@ -7,7 +7,7 @@
 
   An open-source, cross-platform quantum visualization and circuit simulation studio built with Python and PySide6.
 
-  [![Version](https://img.shields.io/badge/version-v0.9.10-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
+  [![Version](https://img.shields.io/badge/version-v0.9.11-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
   [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
   [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
   [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-555)](https://github.com/Onimee58/QuantumScope/releases)
@@ -58,6 +58,10 @@ Use it for self-study, classroom demonstrations, coursework or experimenting wit
 | **Disk space** | 1.5 GB free | 2 GB free | 2 GB free (SSD) |
 | **Screen** | 1280 × 720 | 1920 × 1080 | 1920 × 1080 or larger |
 | **What runs well** | 3-D orbitals up to 96 points per axis; circuits up to 10 qubits; Quantum ML up to a few hundred samples | Everything, including the comparison 3-D view and larger datasets | The finest 3-D grids (160 points per axis) with both viewers, and the largest models, smoothly |
+
+## What's new in v0.9.11?
+
+**A lighter 3-D engine.** The Hydrogen and Quantum ML 3-D views now draw with OpenGL through pyqtgraph instead of VTK. They look and work as before (clouds, enclosures, phase colours, cameras, comparison view, image and GIF export), and the installed app is under half its size of two versions ago (on Linux, about 350 MB instead of 785 MB).
 
 ## What's new in v0.9.10?
 
@@ -424,7 +428,7 @@ Check **[GitHub Releases](https://github.com/Onimee58/QuantumScope/releases)** f
 
 **macOS note:** The current DMG is unsigned/not notarized. macOS Gatekeeper may require explicit user approval under **System Settings → Privacy & Security**. Install only builds you trust. The successful macOS Actions build does **not** by itself confirm runtime or graphics compatibility.
 
-**Graphics note:** 3D rendering uses VTK/OpenGL and requires a compatible graphical environment and drivers; GPU availability and behavior differ by machine and operating system.
+**Graphics note:** 3D rendering uses OpenGL (through pyqtgraph) and requires a compatible graphical environment and drivers; GPU availability and behavior differ by machine and operating system.
 
 ### Run from source (Python 3.11+)
 

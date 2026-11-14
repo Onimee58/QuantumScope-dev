@@ -1,9 +1,5 @@
-"""v0.9.6: memory and processor use, estimates, requirements, and the VTK modules installers bundle (no window)."""
-import importlib
-import os
-import subprocess
-import sys
-
+"""v0.9.6: memory and processor use, estimates and requirements (no window). The VTK bundling checks
+went with VTK in v0.9.11."""
 import pytest
 
 from quantumscope import resources as R
@@ -52,45 +48,3 @@ def test_requirements_are_complete():
     for level in R.REQUIREMENTS.values():
         assert set(level) == {'cpu', 'memory', 'graphics', 'disk', 'screen', 'note'}
     assert 'Windows 10' in R.SYSTEMS and 'macOS 14.4' in R.SYSTEMS and 'Ubuntu 24.04' in R.SYSTEMS
-
-
-# ---- the VTK modules installers bundle ---------------------------------------------------------------
-def test_every_vtk_module_the_app_loads_is_bundled():
-    """Load what the app loads (its windows' modules, and a contour and volume pipeline) in a fresh
-    process: every VTK module that appears must be on the bundling list."""
-    code = '''
-import os, sys
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-from PySide6.QtWidgets import QApplication
-app = QApplication([])
-import quantumscope.gui.main_window, quantumscope.gui.decision3d, quantumscope.visualization.orbitals
-import pyvista, numpy as np
-grid = pyvista.ImageData(dimensions=(10, 10, 10)); grid.point_data["v"] = np.linspace(0, 1, grid.n_points)
-grid.contour([0.5], scalars="v")
-print(" ".join(sorted({m.split(".")[1] for m in sys.modules if m.startswith("vtkmodules.") and m.count(".") >= 1})))
-'''
-    out = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, timeout=300)
-    if out.returncode != 0 and 'cannot open shared object file' in out.stderr:
-        pytest.skip('Qt cannot load here (a system library is missing): ' + out.stderr.strip().splitlines()[-1])
-    loaded = set(out.stdout.split()[-200:]) if out.returncode == 0 else None
-    assert loaded, out.stderr[-2000:]
-    from quantumscope.visualization.vtk_modules import VTK_MODULES
-    assert loaded <= set(VTK_MODULES), sorted(loaded - set(VTK_MODULES))
-
-
-def test_the_listed_modules_all_exist_and_the_build_arguments_use_them():
-    from quantumscope.visualization import vtk_modules
-    for name in vtk_modules.VTK_MODULES:
-        importlib.import_module(f'vtkmodules.{name}')
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tools'))
-    try:
-        import pyinstaller_vtk_args as T
-    finally:
-        sys.path.pop(0)
-    args = T.arguments()
-    hidden = {a.split('vtkmodules.')[1] for a in args if a.startswith('--hidden-import=')}
-    excluded = {a.split('vtkmodules.')[1] for a in args if a.startswith('--exclude-module=')}
-    assert hidden == set(vtk_modules.VTK_MODULES) and not hidden & excluded
-    assert 'vtkWebCore' in excluded and 'all' in excluded and len(excluded) > 50
-    workflow = open('.github/workflows/release.yml').read()
-    assert 'python tools/pyinstaller_vtk_args.py' in workflow and '--collect-submodules vtkmodules' not in workflow
