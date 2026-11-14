@@ -22,6 +22,9 @@ from quantumscope.physics import HydrogenAtom, density_grid
 from quantumscope.physics.hydrogen import A_MU_METERS, captured_probability, RealHydrogenState
 from quantumscope.visualization.orbitals import draw_orbital, set_camera_view, probability_radius
 from quantumscope.gui.plots import tidy
+from quantumscope import caching
+
+HYDROGEN_GRIDS = caching.Cache('hydrogen grids', 512 * caching.MB, entries=4)   # 0.9.10
 
 
 
@@ -844,6 +847,12 @@ class MainWindow(QMainWindow):
         self.compare_m.blockSignals(False)
         self._auto_refresh()
 
+    def _grid(self, state, n, l, m, basis):
+        """The state's 3-D grid, remembered (0.9.10): changing only the display — representation,
+        opacity, camera, enclosed probability — redraws at once instead of recomputing ψ."""
+        resolution = self.resolution.value()
+        return HYDROGEN_GRIDS.get((n, l, m, basis, resolution), lambda: density_grid(state, resolution=resolution))
+
     def _make_state(self, n, l, m, basis):
         if basis == "Complex Y(l,m)":
             return self.atom.state(n, l, m)
@@ -940,8 +949,8 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Rendering…")
             self.state = self._make_state(self.n.value(), self.l.currentData(),
                                           self.m.currentData(), self.basis.currentText())
-            self.axis, self.density, self.psi = density_grid(
-                self.state, resolution=self.resolution.value())
+            self.axis, self.density, self.psi = self._grid(
+                self.state, self.n.value(), self.l.currentData(), self.m.currentData(), self.basis.currentText())
             self.primary_label.setText("Primary: " + getattr(self.state, "label", f"n={self.state.n}, l={self.state.l}, m={self.state.m}"))
             backend, radius = draw_orbital(
                 self.plotter, self.axis, self.density, self.psi,
@@ -955,8 +964,9 @@ class MainWindow(QMainWindow):
                     self.compare_n.value(), self.compare_l.currentData(),
                     self.compare_m.currentData(), self.compare_basis.currentText())
                 self.compare_label.setText("Comparison: " + getattr(self.compare_state, "label", f"n={self.compare_state.n}, l={self.compare_state.l}, m={self.compare_state.m}"))
-                self.compare_axis, self.compare_density, self.compare_psi = density_grid(
-                    self.compare_state, resolution=self.resolution.value())
+                self.compare_axis, self.compare_density, self.compare_psi = self._grid(
+                    self.compare_state, self.compare_n.value(), self.compare_l.currentData(),
+                    self.compare_m.currentData(), self.compare_basis.currentText())
                 draw_orbital(self.compare_plotter, self.compare_axis,
                              self.compare_density, self.compare_psi,
                              self.mode.currentText(), self.enclosed.value(),

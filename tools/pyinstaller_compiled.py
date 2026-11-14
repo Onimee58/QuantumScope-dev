@@ -49,7 +49,8 @@ def add_to_spec(spec, out):
     if anchor not in text:
         raise SystemExit(f'{spec}: no "pyz = PYZ(" line to add the step before')
     step = (f'\n{MARK}\nimport sys as _qs_sys\n_qs_sys.path.insert(0, {HERE!r})\n'
-            f'import pyinstaller_compiled as _qs_compiled\n_qs_compiled.swap(a, {os.path.abspath(out)!r})\n')
+            f'import pyinstaller_compiled as _qs_compiled\n_qs_compiled.swap(a, {os.path.abspath(out)!r})\n'
+            f'import pyinstaller_trim as _qs_trim\n_qs_trim.trim(a)\n')                 # unused Qt parts (0.9.10)
     open(spec, 'w', encoding='utf-8').write(text.replace(anchor, step + anchor, 1))
 
 
