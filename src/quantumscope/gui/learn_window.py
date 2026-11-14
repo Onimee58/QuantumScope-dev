@@ -1,0 +1,464 @@
+"""The Learn window: lectures and labs for each area, plus a teacher's own course folder."""
+import os
+
+from PySide6.QtCore import QPoint, Qt, QUrl
+from PySide6.QtGui import QCursor
+from PySide6.QtWidgets import (QApplication, QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton,
+                               QSplitter, QTextBrowser, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+
+from quantumscope.gui import preferences as prefs
+from quantumscope.learn import actions, labs
+from quantumscope.learn import glossary as glossary_module
+from quantumscope.learn.lessons import AREAS, COURSE, Lesson, builtin_lessons, content_folder, course_lessons, search
+from quantumscope.learn.render import steps_of, to_html
+
+GLOSSARY_KEY = 'glossary'
+KEY_ROLE = Qt.ItemDataRole.UserRole
+
+
+def run_action(action, workspace, launch=None):
+    """Carry out a lesson action on a circuit workspace. launch(view) opens other views
+    (the main window supplies it). Returns a short status message."""
+    launch = launch or (lambda view: None)
+    if action.kind in ('circuit', 'algorithm', 'example', 'try', 'inspector', 'gate'):
+        launch('circuits')
+    if action.kind == 'circuit':
+        p = action.params
+        workspace.set_circuit(p['n'], p['gates'], p.get('columns'), initial_states=p['states'],
+                              noise=p.get('elements', ()), conditions=p.get('conditions', ()))
+        for spec in p.get('bindings', ()):                   # bind=row:col:name[:factor]
+            row, col, name, *factor = spec
+            workspace.model.bind(int(row), int(col), 'angle', name, float(factor[0]) if factor else 1.0)
+        if p.get('observable'):
+            workspace.model.set_observable(p['observable'])
+        if p.get('bindings') or p.get('observable'):
+            workspace._changed();workspace._refresh_parameter_panel()
+    elif action.kind == 'algorithm':
+        workspace.load_library(action.target, action.params['values'])
+    if action.kind in ('circuit', 'algorithm'):
+        from quantumscope.physics.noise import NoiseModel
+        # A link without noise= starts ideal, so every Try it shows exactly what the lesson describes.
+        if workspace.model.set_noise_model(action.params.get('noise_model') or NoiseModel()):
+            workspace._changed()
+    elif action.kind == 'example':
+        titles = [workspace.examples.itemText(i) for i in range(workspace.examples.count())]
+        workspace.load_example(titles.index(action.target))
+    elif action.kind == 'try':
+        workspace.try_gate(action.target)
+    elif action.kind == 'gate':
+        workspace.show_gate_explorer(action.target)
+        return f'Opened {action.target} in the Gate Explorer'
+    elif action.kind == 'open':
+        launch(action.target)
+        return f'Opened {action.target}'
+    if action.kind == 'inspector' or action.params.get('inspector'):
+        workspace.open_state_inspector()
+    return 'Loaded in the Gate Circuit Simulator'
+
+
+class LearnWindow(QWidget):
+    """host (the main window) provides workspace() and launch(view); both optional in tests."""
+
+    def __init__(self, host=None, workspace=None, parent=None):
+        super().__init__(parent, Qt.WindowType.Window)
+        self.host, self._workspace = host, workspace
+        self.setWindowTitle('QuantumScope — Learn')
+        self.setObjectName('workspaceShell')
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.resize(1100, 760)
+        self.lesson = None
+        self.history, self.position = [], -1
+        self.revealed = {}                 # lesson key -> set of revealed quiz numbers
+        self.answers = {}                  # lesson key -> {quiz number: chosen option index}
+        self.font_size = 15
+        layout = QVBoxLayout(self)
+        split = QSplitter()
+        layout.addWidget(split)
+
+        side = QWidget()
+        sv = QVBoxLayout(side)
+        sv.setContentsMargins(0, 0, 0, 0)
+        self.search_box = QLineEdit()
+        self.search_box.setPlaceholderText('Search lessons…')
+        self.search_box.textChanged.connect(self._search)
+        sv.addWidget(self.search_box)
+        self.tree = QTreeWidget()
+        self.tree.setHeaderHidden(True)
+        self.tree.itemClicked.connect(self._tree_clicked)
+        sv.addWidget(self.tree)
+        course = QPushButton('My course folder…')
+        course.setToolTip('Choose a folder of your own lessons (Markdown .md files); they appear under My course')
+        course.clicked.connect(self._choose_course)
+        sv.addWidget(course)
+        split.addWidget(side)
+
+        main = QWidget()
+        mv = QVBoxLayout(main)
+        mv.setContentsMargins(0, 0, 0, 0)
+        bar = QHBoxLayout()
+        mv.addLayout(bar)
+        self.back = QPushButton('◀ Back')
+        self.back.clicked.connect(lambda: self._go(-1))
+        self.forward = QPushButton('Forward ▶')
+        self.forward.clicked.connect(lambda: self._go(1))
+        smaller = QPushButton('A−')
+        smaller.setToolTip('Smaller text')
+        smaller.clicked.connect(lambda: self._zoom(-1))
+        larger = QPushButton('A+')
+        larger.setToolTip('Larger text')
+        larger.clicked.connect(lambda: self._zoom(1))
+        export = QPushButton('Export PDF…')
+        export.setToolTip('Save this lesson as a PDF handout')
+        export.clicked.connect(self.export_pdf)
+        for widget in (self.back, self.forward, smaller, larger):
+            bar.addWidget(widget)
+        bar.addStretch()
+        self.lab_status = QLabel('')
+        bar.addWidget(self.lab_status)
+        bar.addWidget(export)
+        self.reader = QTextBrowser()
+        self.reader.setOpenLinks(False)
+        self.reader.anchorClicked.connect(self._link)
+        mv.addWidget(self.reader)
+        self.status = QLabel('')
+        self.status.setWordWrap(True)
+        mv.addWidget(self.status)
+        split.addWidget(main)
+        split.setSizes([280, 820])
+        self.refresh_contents()
+        # Labs tick off live: listen to the circuit editor, whether it was given directly
+        # (tests) or belongs to the main window (the real app).
+        editor = workspace if workspace is not None else getattr(host, 'circuit_widget', None)
+        if editor is not None and hasattr(editor, 'state_changed'):
+            editor.state_changed.connect(self._circuit_changed)
+        from quantumscope.ml import progress            # Quantum ML labs tick as experiments run
+        progress.listen(self._circuit_changed)
+        from quantumscope.physics import annealing_progress   # so do annealing labs
+        annealing_progress.listen(self._circuit_changed)
+        from quantumscope.learn import progress as experiment_progress   # and the experiments' and calculator's (0.9.9)
+        experiment_progress.listen(self._circuit_changed)
+
+    # ---- contents -------------------------------------------------------------------------
+    @property
+    def glossary(self):
+        if not hasattr(self, '_glossary'):
+            try:
+                self._glossary = glossary_module.builtin()
+            except (OSError, ValueError):                 # a missing or broken glossary never breaks Learn
+                self._glossary = None
+        return self._glossary
+
+    def glossary_page(self):
+        """The Glossary page, generated from the glossary (links only where it says [[Term]])."""
+        if self.glossary is None:
+            return None
+        names = tuple(self.glossary.terms)
+        return Lesson(GLOSSARY_KEY, 'Glossary', 'glossary', 'lecture', 0, self.glossary.page_markdown(),
+                      content_folder(), (), names)
+
+    def lessons(self):
+        page = self.glossary_page()
+        return builtin_lessons() + course_lessons(prefs.get('learn/course_folder')) + ([page] if page else [])
+
+    def refresh_contents(self):
+        self.tree.clear()
+        self._items = {}
+        all_lessons = self.lessons()
+        for area, title in list(AREAS.items()) + [(COURSE, 'My course')]:
+            mine = [l for l in all_lessons if l.area == area]
+            top = QTreeWidgetItem([title])
+            self.tree.addTopLevelItem(top)
+            if area == COURSE and not mine:
+                hint = QTreeWidgetItem(['(choose a folder of .md lessons below)'])
+                hint.setDisabled(True)
+                top.addChild(hint)
+            for kind, label in (('guide', ''), ('lecture', 'Lectures'), ('lab', 'Labs')):
+                group = [l for l in mine if l.kind == kind]
+                if not group:
+                    continue
+                parent = QTreeWidgetItem([label]) if area != COURSE and kind != 'guide' else top   # the study guide comes first, on its own
+                if parent is not top:
+                    top.addChild(parent)
+                for lesson in group:
+                    item = QTreeWidgetItem([lesson.title])
+                    item.setData(0, KEY_ROLE, lesson.key)
+                    parent.addChild(item)
+                    self._items[lesson.key] = item
+            top.setExpanded(True)
+            for i in range(top.childCount()):
+                top.child(i).setExpanded(True)
+        if self.glossary is not None:                   # every term, alphabetical and searchable
+            item = QTreeWidgetItem([f'Glossary  ({len(self.glossary.terms)} terms)'])
+            item.setData(0, KEY_ROLE, GLOSSARY_KEY)
+            self.tree.addTopLevelItem(item)
+            self._items[GLOSSARY_KEY] = item
+
+    def show_area(self, area):
+        """Open the first lesson of an area (used by each tab's Learn button)."""
+        first = next((l for l in self.lessons() if l.area == area), None)
+        if first is not None:
+            self.open_lesson(first.key)
+        else:
+            self.reader.setHtml(f'<p>No lessons for {AREAS.get(area, area)} yet.</p>')
+
+    def _tree_clicked(self, item):
+        key = item.data(0, KEY_ROLE)
+        if key:
+            self.open_lesson(key)
+
+    def _search(self, text):
+        if not text.strip():
+            self.refresh_contents()
+            return
+        self.tree.clear()
+        results = search(self.lessons(), text)
+        top = QTreeWidgetItem([f'{len(results)} result(s)'])
+        self.tree.addTopLevelItem(top)
+        for lesson in results:
+            item = QTreeWidgetItem([f'{lesson.title}  ·  {AREAS.get(lesson.area, "My course")}'])
+            item.setData(0, KEY_ROLE, lesson.key)
+            top.addChild(item)
+        top.setExpanded(True)
+
+    def _choose_course(self):
+        folder = QFileDialog.getExistingDirectory(self, 'Folder of your lessons', prefs.get('learn/course_folder')
+                                                  or prefs.default_folder())
+        if folder:
+            prefs.set('learn/course_folder', folder)
+            self.refresh_contents()
+            self.status.setText(f'My course: {len(course_lessons(folder))} lesson(s) from {folder}')
+
+    # ---- reading ------------------------------------------------------------------------------
+    def show_term(self, name, position=None):
+        """The small popup for a glossary term (definition, related terms, Learn more)."""
+        term = self.glossary.resolve(name) if self.glossary is not None else None
+        if term is None:
+            return None
+        if getattr(self, '_term_popup', None) is None:
+            self._term_popup = TermPopup(self)
+        self._term_popup.show_term(term, position or QCursor.pos())
+        return self._term_popup
+
+    def open_lesson(self, key, record=True):
+        lesson = next((l for l in self.lessons() if l.key == key), None)
+        if lesson is None:
+            self.status.setText(f'Lesson not found: {key}')
+            return False
+        self.lesson = lesson
+        if record:
+            self.history = self.history[:self.position + 1] + [key]
+            self.position = len(self.history) - 1
+        if key in getattr(self, '_items', {}):
+            self.tree.setCurrentItem(self._items[key])
+        self.setWindowTitle(f'QuantumScope — Learn — {lesson.title}')
+        self.render(scroll_top=True)
+        return True
+
+    def _theme(self):
+        app = QApplication.instance()
+        return 'light' if app is not None and app.property('quantumscope_light') else 'dark'
+
+    def _lab_steps(self):
+        if self.lesson is None or self.lesson.kind != 'lab' or self.workspace() is None:
+            return {}
+        model = self.workspace().model
+        return labs.progress(model, steps_of(self.lesson.body))
+
+    def render(self, scroll_top=False):
+        if self.lesson is None:
+            return
+        position = self.reader.verticalScrollBar().value()
+        steps = self._lab_steps()
+        html = to_html(self.lesson, self._theme(), os.path.join(content_folder(), 'eq'),
+                       self.revealed.get(self.lesson.key, set()), steps, self.font_size,
+                       self.answers.get(self.lesson.key, {}), glossary=self.glossary)
+        self.reader.document().setBaseUrl(QUrl.fromLocalFile(self.lesson.folder + os.sep))
+        self.reader.setHtml(html)
+        self.reader.verticalScrollBar().setValue(0 if scroll_top else position)
+        if self.lesson.kind == 'lab' and steps:
+            done = sum(steps.values())
+            self.lab_status.setText(f'Lab progress: {done}/{len(steps)} steps' + ('  🎉 Complete!' if done == len(steps) else ''))
+        else:
+            self.lab_status.setText('')
+        self.back.setEnabled(self.position > 0)
+        self.forward.setEnabled(self.position < len(self.history) - 1)
+
+    def _go(self, step):
+        target = self.position + step
+        if 0 <= target < len(self.history):
+            self.position = target
+            self.open_lesson(self.history[target], record=False)
+
+    def _zoom(self, step):
+        self.font_size = max(11, min(26, self.font_size + step))
+        self.render()
+
+    def apply_theme(self):
+        self.render()
+
+    def _circuit_changed(self):
+        if self.isVisible() and self.lesson is not None and self.lesson.kind == 'lab':
+            self.render()
+
+    # ---- links -----------------------------------------------------------------------------------
+    def workspace(self):
+        if self._workspace is not None:
+            return self._workspace
+        return getattr(self.host, 'circuit_widget', None)
+
+    def _link(self, url):
+        text = url.toString()
+        if text.startswith('glossary:'):
+            self.show_term(QUrl.fromPercentEncoding(text[len('glossary:'):].encode()))
+            return
+        if text.startswith('qsquiz:'):
+            parts = text.split(':')
+            if len(parts) == 3:                        # an option was chosen: check it at once
+                self.answers.setdefault(self.lesson.key, {})[int(parts[1])] = int(parts[2])
+            else:                                      # "Show answer"
+                self.revealed.setdefault(self.lesson.key, set()).add(int(parts[1]))
+            self.render()
+            return
+        if not text.startswith('qs:'):
+            from PySide6.QtGui import QDesktopServices
+            QDesktopServices.openUrl(url)             # ordinary web links open in the browser
+            return
+        try:
+            action = actions.parse(text)
+            if action.kind == 'lesson':
+                self.open_lesson(action.target)
+                return
+            if action.kind == 'calc':                      # the calculator, with the expression evaluated
+                opener = getattr(self.host, 'open_calculator', None)
+                if opener is None:
+                    raise ValueError('The calculator is not available')
+                opener(action.target, action.params.get('mode'))
+                self.status.setText(f'Opened the calculator: {action.target}')
+                return
+            workspace = self.workspace()
+            if workspace is None:
+                raise ValueError('The circuit simulator is not available')
+            launch = getattr(self.host, 'launch_view', None)
+            self.status.setText(run_action(action, workspace, launch))
+            self.render()
+        except (ValueError, KeyError, IndexError) as exc:
+            self.status.setText(f'Could not run this link: {exc}')
+
+    # ---- export -----------------------------------------------------------------------------------
+    def export_pdf(self, path=None):
+        """Save the lesson as a PDF handout (sizes in points, so it prints at its intended size)."""
+        if self.lesson is None:
+            return None
+        if not path:
+            suggestion = os.path.join(prefs.default_folder(), f'{self.lesson.title}.pdf'.replace('/', '-').replace(':', ''))
+            path, _ = QFileDialog.getSaveFileName(self, 'Export lesson as PDF', suggestion, 'PDF files (*.pdf)')
+        if not path:
+            return None
+        if not path.lower().endswith('.pdf'):
+            path += '.pdf'
+        from PySide6.QtPrintSupport import QPrinter
+        from PySide6.QtGui import QTextDocument
+        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+        printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+        printer.setOutputFileName(path)
+        document = QTextDocument()
+        font = document.defaultFont()
+        font.setPointSizeF(11)                         # headings scale from this: keep them above the text
+        document.setDefaultFont(font)
+        document.setBaseUrl(QUrl.fromLocalFile(self.lesson.folder + os.sep))
+        # Handouts print on white paper: always use the light theme's colors.
+        markup = to_html(self.lesson, 'light', os.path.join(content_folder(), 'eq'),
+                         self.revealed.get(self.lesson.key, set()), self._lab_steps(), 11, glossary=self.glossary)
+        document.setHtml(print_html(handout_terms(markup, self.glossary)))
+        try:
+            document.print_(printer)
+        except Exception as exc:                       # noqa: BLE001 - report any printing problem
+            QMessageBox.warning(self, 'PDF export failed', str(exc))
+            return None
+        self.status.setText(f'Saved {path}')
+        return path
+
+
+def print_html(markup, font_points=11):
+    """The lesson HTML with physical sizes for printing.
+
+    On screen the HTML sizes text and boxes in pixels; a high-resolution printer has 1200 of
+    them per inch, so pixel sizes printed microscopically (headings and equations were fine).
+    The body text becomes font_points, and every other CSS pixel size the same length in
+    points (1 px = 0.75 pt). Image width/height attributes are not CSS and are left alone."""
+    import re
+    markup = re.sub(r'(<body[^>]*font-size:)\s*[\d.]+px', lambda m: f'{m.group(1)}{font_points}pt', markup, count=1)
+    return re.sub(r'(?<=[:\s])(\d+(?:\.\d+)?)px', lambda m: f'{float(m.group(1)) * 0.75:g}pt', markup)
+
+
+def handout_terms(markup, glossary):
+    """For printing: glossary links become plain text, and a "Terms used" box lists their definitions."""
+    import html as html_module
+    import re
+    names = []
+    for name in re.findall(r'<a href="glossary:([^"]+)"', markup):
+        name = html_module.unescape(name)
+        if name not in names:
+            names.append(name)
+    markup = re.sub(r'<a href="glossary:[^"]*"[^>]*>(.*?)</a>', r'\1', markup)
+    if not names or glossary is None:
+        return markup
+    rows = ''.join(f'<p><b>{html_module.escape(n)}</b> — {html_module.escape(glossary.terms[n].definition)}</p>'
+                   for n in names if n in glossary.terms)
+    box = f'<div style="border-top:1px solid #9bb3c8; margin-top:12px"><h3>Terms used</h3>{rows}</div>'
+    return markup.replace('</body>', box + '</body>') if '</body>' in markup else markup + box
+
+
+class TermPopup(QFrame):
+    """A small popup next to a clicked term."""
+
+    def __init__(self, window):
+        super().__init__(window, Qt.WindowType.Popup)
+        self.window_ = window
+        self.setFrameShape(QFrame.Shape.StyledPanel)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 8, 10, 8)
+        self.text = QTextBrowser()
+        self.text.setOpenLinks(False)
+        self.text.setFrameShape(QFrame.Shape.NoFrame)
+        self.text.anchorClicked.connect(self._follow)
+        layout.addWidget(self.text)
+        self.setFixedWidth(380)
+        self.term = None
+
+    def show_term(self, term, position):
+        self.term = term
+        related = ', '.join(f'<a href="glossary:{t}">{t}</a>' for t in term.see)
+        links = []
+        if term.lesson:
+            links.append(f'<a href="qs:lesson/{term.lesson}">▶ Learn more</a>')
+        links.append('<a href="qs:glossary">All terms</a>')
+        self.text.setHtml(f'<p style="margin:0"><b style="font-size:15px">{term.name}</b></p>'
+                          f'<p>{term.definition}</p>'
+                          + (f'<p><i>Related:</i> {related}</p>' if related else '')
+                          + f'<p>{"  ·  ".join(links)}</p>')
+        self.text.document().setTextWidth(356)
+        height = int(self.text.document().size().height()) + 24
+        self.text.setFixedHeight(min(height, 320))
+        self.adjustSize()
+        screen = QApplication.screenAt(position) or QApplication.primaryScreen()
+        area = screen.availableGeometry()
+        x = min(position.x() + 8, area.right() - self.width())
+        y = position.y() + 16
+        if y + self.height() > area.bottom():
+            y = position.y() - self.height() - 8
+        self.move(x, y)
+        self.show()
+
+    def _follow(self, url):
+        text = url.toString()
+        if text.startswith('glossary:'):
+            term = self.window_.glossary.resolve(QUrl.fromPercentEncoding(text[9:].encode()))
+            if term is not None:
+                self.show_term(term, self.pos() - QPoint(8, 16))
+            return
+        self.hide()
+        if text == 'qs:glossary':
+            self.window_.open_lesson(GLOSSARY_KEY)
+        elif text.startswith('qs:lesson/'):
+            self.window_.open_lesson(text[len('qs:lesson/'):])

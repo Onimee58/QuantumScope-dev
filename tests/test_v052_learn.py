@@ -1,0 +1,524 @@
+"""v0.5.2 patch 2b: the Learn system and its built-in content."""
+import os
+import re
+
+import pytest
+
+from quantumscope.editor.circuit_model import CircuitModel
+from quantumscope.learn import actions, labs
+from quantumscope.learn.equations import THEME_COLORS, equations_in, image_name
+from quantumscope.learn.lessons import builtin_lessons, content_folder, course_lessons, parse, search
+from quantumscope.learn.render import parse_step, steps_of, to_html
+
+LESSONS = builtin_lessons()
+EQ = os.path.join(content_folder(), 'eq')
+
+
+def test_builtin_lessons_have_titles_objectives_and_kinds():
+    assert len(LESSONS) >= 3
+    for lesson in LESSONS:
+        assert lesson.title and lesson.objectives and lesson.kind in ('guide', 'lecture', 'lab')
+        assert lesson.area in ('circuits', 'principles', 'hydrogen', 'math', 'qml')
+
+
+@pytest.mark.parametrize('lesson', LESSONS, ids=[l.key for l in LESSONS])
+def test_every_equation_has_images_for_both_themes(lesson):
+    for tex, kind in equations_in(lesson.body):
+        for theme in THEME_COLORS:
+            assert os.path.exists(os.path.join(EQ, image_name(tex, kind, theme))), f'{tex!r}: run tools/render_equations.py'
+
+
+def test_no_stale_equation_images():
+    from quantumscope.learn.lessons import reference_pages
+    wanted = {image_name(tex, kind, theme) for l in LESSONS + reference_pages()
+              for tex, kind in equations_in(l.body) for theme in THEME_COLORS}
+    unused = [n for n in os.listdir(EQ) if n.endswith('.png') and n not in wanted]
+    assert not unused, 'run tools/render_equations.py --prune'
+
+
+@pytest.mark.parametrize('lesson', LESSONS, ids=[l.key for l in LESSONS])
+@pytest.mark.parametrize('theme', ['dark', 'light'])
+def test_every_lesson_renders_without_fallbacks(lesson, theme):
+    html = to_html(lesson, theme, EQ, revealed=range(20))
+    assert '<h2>' in html and 'font-family:monospace' not in html     # every equation found its image
+
+
+@pytest.mark.parametrize('lesson', LESSONS, ids=[l.key for l in LESSONS])
+def test_every_try_it_link_is_valid(lesson):
+    links = re.findall(r'\]\((qs:[^)\s]+)\)', lesson.body)
+    for link in links:
+        action = actions.parse(link)
+        if action.kind == 'lesson':
+            assert any(l.key == action.target for l in LESSONS)
+
+
+@pytest.mark.parametrize('lesson', LESSONS, ids=[l.key for l in LESSONS])
+def test_every_quiz_has_exactly_one_correct_answer_and_an_explanation(lesson):
+    for block in re.findall(r'```quiz\n(.*?)```', lesson.body, re.S):
+        lines = block.strip().splitlines()
+        assert sum(l.startswith('* ') for l in lines) == 1 and any(l.startswith('Q:') for l in lines)
+        assert sum(l.startswith(('- ', '* ')) for l in lines) >= 2 and any(l.startswith('E:') for l in lines)
+
+
+@pytest.mark.parametrize('lesson', [l for l in LESSONS if l.kind == 'lab'], ids=lambda l: l.key)
+def test_lab_checks_are_well_formed(lesson):
+    steps = steps_of(lesson.body)
+    assert steps and all(s['title'] and s['checks'] for s in steps)
+    m = CircuitModel(2)
+    for step in steps:
+        for condition in step['checks']:
+            labs.check(m, condition)                     # raises for an unknown check
+
+
+def test_bell_lab_can_be_completed_step_by_step():
+    lab = next(l for l in LESSONS if l.key == 'circuits/90-lab-bell-pair')
+    steps = steps_of(lab.body)
+    m = CircuitModel(2)
+    assert labs.progress(m, steps) == {0: False, 1: False, 2: False}
+    m.place('H', 0, 0)
+    assert labs.progress(m, steps) == {0: True, 1: False, 2: False}
+    m.place('CX', 1, 1)
+    m.add_operand(0, 1)
+    assert labs.progress(m, steps) == {0: True, 1: True, 2: True}   # step 1 stays done after the CX
+    m.place('X', 0, 2)                                   # an extra gate breaks the Bell state again
+    assert labs.progress(m, steps)[1] is False
+
+
+def test_lab_check_types():
+    m = CircuitModel(2)
+    m.place('H', 0, 0)
+    assert labs.check(m, 'qubits 2')[0] and labs.check(m, 'uses H')[0] and not labs.check(m, 'uses CX')[0]
+    assert labs.check(m, 'probability 00=0.5 10=0.5')[0] and labs.check(m, 'gates <= 1')[0]
+    assert not labs.check(m, 'entangled 0')[0]
+    from quantumscope.physics.initial_states import InitialState
+    m.set_initial_state(1, InitialState.preset('-'))
+    assert labs.check(m, 'starts 1:-')[0]
+    with pytest.raises(ValueError):
+        labs.check(m, 'teleport 0')
+
+
+@pytest.mark.parametrize('link,kind', [('qs:circuit?n=2&gates=H:0;CX:0,1&states=+,0', 'circuit'),
+                                       ('qs:algorithm/grover?n=2&marked=11', 'algorithm'),
+                                       ('qs:example/Full adder', 'example'), ('qs:example/Full%20adder', 'example'),
+                                       ('qs:gate/h', 'gate'), ('qs:try/CX', 'try'), ('qs:inspector', 'inspector'),
+                                       ('qs:open/dynamics3d', 'open'), ('qs:lesson/circuits/01-qubits', 'lesson')])
+def test_action_links(link, kind):
+    assert actions.parse(link).kind == kind
+
+
+def test_plus_state_survives_link_parsing():
+    assert actions.parse('qs:circuit?n=1&states=+').params['states'][0].label == '|+⟩'
+    assert actions.parse('qs:circuit?n=1&states=%2B').params['states'][0].label == '|+⟩'
+    assert actions.parse('qs:circuit?n=1&gates=RY:0:pi/2').params['gates'][0].angle == pytest.approx(1.5707963)
+
+
+@pytest.mark.parametrize('link', ['qs:circuit?n=2&gates=CX:0', 'qs:circuit?n=2&gates=FOO:0', 'qs:circuit?n=2&gates=H:5',
+                                  'qs:circuit?n=2&states=+', 'qs:algorithm/grover?n=9', 'qs:example/Nope',
+                                  'qs:open/kitchen', 'qs:teleport', 'https://example.com'])
+def test_bad_links_are_rejected(link):
+    with pytest.raises(ValueError):
+        actions.parse(link)
+
+
+def test_course_lessons_with_and_without_headers(tmp_path):
+    (tmp_path / 'week1.md').write_text('# Week 1: Spin\nSome text.', encoding='utf-8')
+    (tmp_path / 'week2.md').write_text('---\ntitle: Week 2\norder: 1\nkind: lab\n---\nBody', encoding='utf-8')
+    (tmp_path / 'notes.txt').write_text('ignored', encoding='utf-8')
+    lessons = course_lessons(str(tmp_path))
+    assert [l.title for l in lessons] == ['Week 2', 'Week 1: Spin'] and lessons[0].kind == 'lab'
+    assert all(l.area == 'course' and not l.builtin for l in lessons)
+    assert course_lessons(str(tmp_path / 'missing')) == []
+
+
+def test_course_lessons_cannot_inject_html_and_show_unrendered_math(tmp_path):
+    lesson = parse('# T\n<script>alert(1)</script> and $x^2$ and <b>bold</b>', 'course/t.md', str(tmp_path))
+    html = to_html(lesson, 'dark', EQ)
+    assert '<script>' not in html and '&lt;script&gt;' in html and '&lt;b&gt;' in html
+    assert 'x^2' in html                                 # no pre-rendered image: shown as source
+
+
+def test_tables_with_escaped_bars():
+    lesson = parse('# T\n| a | b |\n|---|---|\n| \\|0⟩ | x |', 'course/t.md', '.')
+    html = to_html(lesson, 'light', EQ)
+    assert '<td>|0⟩</td>' in html and '<th>a</th>' in html
+
+
+def test_search():
+    results = search(LESSONS, 'hadamard')
+    assert results and results[0].key == 'circuits/02-single-qubit-gates'
+    assert search(LESSONS, '') == [] and search(LESSONS, 'zzzunusedword') == []
+
+
+def test_step_parsing():
+    step = parse_step('title: A\ntext: do this\nhint: try that\ncheck: qubits 2\ncheck: uses H')
+    assert (step['title'], step['text'].strip(), step['hint']) == ('A', 'do this', 'try that')
+    assert step['checks'] == ['qubits 2', 'uses H']
+
+
+def test_lab_checks_on_a_circuit_of_the_wrong_size_are_simply_not_done():
+    m = CircuitModel(1)
+    for condition in ('state H:0;CX:0,1', 'probability 00=0.5 11=0.5', 'entangled 0', 'entangled 3', 'qubits 2'):
+        assert labs.check(m, condition)[0] is False
+
+
+# ---- every lab can be completed -------------------------------------------------------------
+
+from quantumscope.physics.circuits import Gate  # noqa: E402
+from quantumscope.physics.initial_states import InitialState  # noqa: E402
+
+LAB_SOLUTIONS = {
+    'circuits/90-lab-bell-pair': (2, [Gate('H', (0,)), Gate('CX', (0, 1))], '00'),
+    'circuits/91-lab-ghz': (3, [Gate('H', (0,)), Gate('CX', (0, 1)), Gate('CX', (1, 2))], '000'),
+    'circuits/92-lab-phase-kickback': (2, [Gate('CX', (0, 1)), Gate('H', (0,))], '+-'),
+    'circuits/93-lab-grover-by-hand': (2, [Gate('H', (0,)), Gate('H', (1,)), Gate('CZ', (0, 1)),
+                                           Gate('H', (0,)), Gate('H', (1,)), Gate('X', (0,)), Gate('X', (1,)),
+                                           Gate('CZ', (0, 1)), Gate('X', (0,)), Gate('X', (1,)),
+                                           Gate('H', (0,)), Gate('H', (1,))], '00'),
+    'circuits/94-lab-half-adder': (3, [Gate('CCX', (0, 1, 2)), Gate('CX', (0, 1))], '110'),
+    'circuits/95-lab-qft': (2, [Gate('H', (0,)), Gate('CP', (1, 0), 3.141592653589793 / 2), Gate('H', (1,)),
+                                Gate('SWAP', (0, 1))], '01'),
+    'circuits/96-lab-bell-decoherence': (2, [Gate('H', (0,)), Gate('CX', (0, 1))], '00',
+                                         [('depolarizing', 1, 2, 1.0)]),
+    # v0.6.1 labs: (n, gates, starts, noise, extra) with extra = columns, measures, resets, conditions
+    'circuits/97-lab-measure-in-the-middle': (2, [Gate('H', (0,)), Gate('CX', (0, 1))], '00', [],
+                                              {'measures': [(0, 2, 0), (1, 2, 1)]}),
+    'circuits/98-lab-reset-by-feed-forward': (1, [], '+', [], {'resets': [(0, 0)]}),
+    'circuits/99-lab-teleport-a-qubit': (3, [Gate('H', (1,)), Gate('CX', (1, 2)), Gate('CX', (0, 1)), Gate('H', (0,)),
+                                             Gate('X', (2,)), Gate('Z', (2,))], ('+i', '0', '0'), [],
+                                         {'columns': [0, 1, 2, 3, 5, 6], 'measures': [(0, 4, 0), (1, 4, 1)],
+                                          'conditions': [((2, 5), 1, 1), ((2, 6), 0, 1)]}),
+    'circuits/100-lab-superdense-coding': (2, [Gate('H', (0,)), Gate('CX', (0, 1)), Gate('Z', (0,)), Gate('CX', (0, 1)),
+                                               Gate('H', (0,))], '00', [], {'measures': [(0, 5, 0), (1, 5, 1)]}),
+    'circuits/101-lab-defer-the-measurement': (3, [Gate('H', (1,)), Gate('CX', (1, 2)), Gate('CX', (0, 1)),
+                                                   Gate('H', (0,)), Gate('CX', (1, 2)), Gate('CZ', (0, 2))],
+                                               ('+i', '0', '0'), [], {}),
+    # v0.6.2
+    'circuits/102-lab-bit-flip-code': (5, [Gate('CX', (0, 1)), Gate('CX', (0, 2)), Gate('X', (1,)), Gate('CX', (0, 3)),
+                                           Gate('CX', (1, 3)), Gate('CX', (1, 4)), Gate('CX', (2, 4)), Gate('X', (1,))],
+                                       ('1', '0', '0', '0', '0'), [],
+                                       {'columns': [0, 1, 2, 3, 4, 5, 6, 8], 'measures': [(3, 7, 0), (4, 7, 1)],
+                                        'conditions': [((1, 8), (0, 1), (1, 1))],
+                                        'labels': ['', '', '', 'syndrome', 'syndrome']}),
+    'circuits/103-lab-beat-the-noise': ('library', 'bit_flip_code', {'logical': '0', 'error': 'random', 'p': 0.1}),
+    'circuits/104-lab-phase-estimation': ('library', 'qpe', {'t': 6, 'phase': '1/3'}),
+    # v0.7.0: variational labs (examples optimized like a student would, or built by hand)
+    'circuits/105-lab-tune-by-hand': ('build', 'tune'),
+    'circuits/106-lab-h2-ground-energy': ('library', 'vqe', {'problem': 'h2', 'layers': 1}, True),
+    'circuits/107-lab-not-enough-layers': ('library', 'vqe', {'problem': 'heisenberg-3', 'layers': 2}, True),
+    'circuits/108-lab-qaoa-maxcut': ('library', 'qaoa', {'graph': 'ring4', 'layers': 2}, True),
+    'circuits/109-lab-solve-a-linear-system': ('library', 'vqls', {'problem': 'single', 'layers': 1}, True),
+    # Quantum ML labs (v0.8.0): each step done with the real ML code, recorded as the experiments do.
+    'qml/90-lab-classify-the-circles': ('qml', [('kernel', 'circles', 2, 'angle', 1.0), ('kernel', 'circles', 2, 'zz', 1.0)]),
+    'qml/91-lab-mnist-pixels-to-qubits': ('qml', [('prepare', 'mnist', 4), ('kernel', 'store', 4, 'angle', 1.0),
+                                                  ('kernel', 'store', 4, 'angle', 0.5)]),
+    'qml/92-lab-train-a-circuit': ('qml', [('variational', 'moons', 2), ('observable Z0',)]),
+    'qml/93-lab-ten-digits': ('qml', [('all', 'iris', 4), ('all', 'mnist', 8), ('all', 'fashion_mnist', 8),   # v0.9.3
+                                      ('circuit_all', 'iris', 4)]),                                          # v0.9.4
+    # v0.9.2: annealing, done with the real annealing code, recorded as the experiment does
+    'circuits/110-lab-anneal-fast-and-slow': ('anneal',),
+}
+
+
+def test_every_lab_has_a_tested_solution():
+    from test_v099_labs import SOLVED                              # the experiment and calculator labs (0.9.9)
+    labs_present = {l.key for l in LESSONS if l.kind == 'lab'}
+    assert labs_present == set(LAB_SOLUTIONS) | SOLVED
+
+
+@pytest.mark.parametrize('key', sorted(LAB_SOLUTIONS))
+def test_lab_solution_completes_every_step(key):
+    lesson = next(l for l in LESSONS if l.key == key)
+    if LAB_SOLUTIONS[key][0] == 'build':                       # built by hand, as the lab describes
+        import math
+        m = CircuitModel(1)
+        m.place('RY', 0, 0, angle=0.4)
+        m.bind(0, 0, 'angle', '\\theta')
+        m.set_observable('Z0')
+        m.set_parameter('θ', math.pi)
+        lesson = next(l for l in LESSONS if l.key == key)
+        assert all(labs.progress(m, steps_of(lesson.body)).values())
+        return
+    if LAB_SOLUTIONS[key][0] == 'anneal':
+        from quantumscope.physics import annealing as A, annealing_progress as progress
+        progress.reset()
+        hexagon, glass = A.maxcut('ring6'), A.spin_glass(8, 0)
+        steps = steps_of(lesson.body)
+        m = CircuitModel(1)
+        assert not any(labs.progress(m, steps).values())
+        progress.annealed(hexagon.key, 30, A.anneal(hexagon, 30, ground=False).final_success,
+                          A.spectrum(hexagon).minimum_gap)
+        assert labs.progress(m, steps)[0]
+        gap = A.spectrum(glass, points=81).minimum_gap
+        progress.annealed(glass.key, 10, A.anneal(glass, 10, ground=False).final_success, gap)
+        progress.curve(glass.key, gap)
+        m.set_circuit(6, A.circuit(hexagon, 10, 20))
+        m.set_observable(hexagon.observable)
+        assert all(labs.progress(m, steps).values()), progress.STATE
+        m.set_circuit(6, A.circuit(hexagon, 10, 5))           # too few steps: the energy is far off
+        m.set_observable(hexagon.observable)
+        assert not labs.progress(m, steps)[2]
+        progress.reset()
+        return
+    if LAB_SOLUTIONS[key][0] == 'qml':                         # Quantum ML: the real ML code, step by step
+        import numpy as np
+        from quantumscope.ml import datasets as D, kernels as K, progress, variational as V
+        progress.reset()
+        m, prepared = CircuitModel(1), None
+        for action in LAB_SOLUTIONS[key][1]:
+            if action[0] == 'prepare':
+                _, name, qubits = action
+                ds = D.load(name)
+                prepared = D.prepare(ds, D.check(ds, qubits=qubits)[2])
+                progress.prepared(name, prepared.X_train.shape[1], prepared.classes)
+            elif action[0] == 'kernel':
+                _, name, qubits, kind, bandwidth = action
+                p = prepared if name == 'store' else D.prepare(D.load(name), D.check(D.load(name), qubits=qubits)[2])
+                Ktr = K.kernel(p.X_train, kind=kind, bandwidth=bandwidth)
+                Kte = K.kernel(p.X_test, p.X_train, kind=kind, bandwidth=bandwidth)
+                svm = K.SVM().fit(Ktr, p.y_train)
+                progress.trained('kernel', train=K.accuracy(p.y_train, svm.predict(Ktr)),
+                                 test=K.accuracy(p.y_test, svm.predict(Kte)), map=kind, bandwidth=bandwidth, shots=0,
+                                 dataset=progress.STATE['dataset'] if name == 'store' else name)
+            elif action[0] == 'all':                         # every class, one-vs-rest (v0.9.3), as the lab says
+                _, name, qubits = action
+                ds = D.load(name)
+                p = D.prepare(ds, D.check(ds, qubits=qubits, max_classes=None)[2])
+                model = K.classifier('svm', 1.0, p.k).fit(K.kernel(p.X_train, kind='angle'), p.y_train)
+                progress.trained('kernel', train=1.0, test=K.accuracy(p.y_test, model.predict(
+                    K.kernel(p.X_test, p.X_train, kind='angle'))), map='angle', bandwidth=1.0, shots=0, dataset=name,
+                    classes=p.k)
+                steps_now = labs.progress(m, steps_of(lesson.body))
+                assert steps_now[[a[1] for a in LAB_SOLUTIONS[key][1]].index(name)], (name, progress.STATE)
+            elif action[0] == 'circuit_all':                 # one variational circuit, every class (v0.9.4)
+                _, name, qubits = action
+                ds = D.load(name)
+                p = D.prepare(ds, D.check(ds, qubits=qubits, max_samples=300, max_classes=None)[2])
+                model = V.MultiClassifier(qubits, p.k, layers=3, seed=0)
+                history = model.train(p.X_train, p.y_train, method='BFGS', steps=80)     # the app's defaults
+                progress.trained('variational', train=history[-1][2], dataset=name, classes=p.k,
+                                 test=float(np.mean(model.predict(p.X_test) == p.y_test)))
+            elif action[0] == 'variational':
+                _, name, qubits = action
+                p = D.prepare(D.load(name), D.check(D.load(name), qubits=qubits)[2])
+                model = V.Classifier(qubits, layers=3, seed=0)
+                history = model.train(p.X_train, p.y_train, method='BFGS', steps=80)
+                progress.trained('variational', train=history[-1][2],
+                                 test=float(np.mean(model.predict(p.X_test) == p.y_test)), dataset=name)
+                m = CircuitModel()                               # Open in circuit simulator
+                m.set_circuit(qubits, model.gates(p.X_test[0]))
+                m.set_observable('Z0')
+        assert all(labs.progress(m, steps_of(lesson.body)).values()), progress.STATE
+        progress.reset()
+        return
+    if LAB_SOLUTIONS[key][0] == 'library':                     # labs that start from an example
+        _, entry, params, *optimize_it = LAB_SOLUTIONS[key]
+        m = CircuitModel()
+        m.load_library(entry, params)
+        if optimize_it:
+            from quantumscope.editor.variational import optimize
+            for name, value in zip(list(m.parameters), optimize(m, 'BFGS', steps=300)[-1][0]):
+                m.set_parameter(name, value)
+        lesson = next(l for l in LESSONS if l.key == key)
+        assert all(labs.progress(m, steps_of(lesson.body)).values())
+        return
+    n, gates, starts, *rest = LAB_SOLUTIONS[key]
+    from quantumscope.physics.dynamic import Measure, Reset
+    from quantumscope.physics.noise import NoiseElement
+    noise = [(NoiseElement(kind, q, p), c) for kind, q, c, p in (rest[0] if rest else [])]
+    extra = rest[1] if len(rest) > 1 else {}
+    classical = [(Measure(q, b), c) for q, c, b in extra.get('measures', [])] + \
+                [(Reset(q), c) for q, c in extra.get('resets', [])]
+    states = [InitialState.preset(k) for k in (starts if isinstance(starts, tuple) else tuple(starts))]
+    m = CircuitModel(n)
+    m.set_circuit(n, gates, extra.get('columns'), initial_states=states, noise=noise, classical=classical,
+                  conditions=extra.get('conditions', ()))
+    for q, name in enumerate(extra.get('labels', [])):
+        if name:
+            m.set_label(q, name)
+    assert all(labs.progress(m, steps_of(lesson.body)).values())
+
+
+# ---- numbers quoted in the lessons match the app's physics -------------------------------------
+
+def lesson_text(key):
+    return next(l for l in LESSONS if l.key == key).body
+
+
+def test_hydrogen_energies_and_lines_match_the_model():
+    from scipy import constants as c
+    from quantumscope.physics.hydrogen import HydrogenAtom
+    atom, text = HydrogenAtom(), lesson_text('hydrogen/04-energy-levels-and-spectra')
+    for n in (1, 2, 3, 4):
+        assert f'{atom.state(n, 0, 0).energy_ev:.3f}'.replace('-', '−') in text
+    for (ni, nf), shown in (((2, 1), '121.6 nm'), ((3, 1), '102.6 nm'), ((3, 2), '656.5 nm')):
+        de = atom.state(ni, 0, 0).energy_ev - atom.state(nf, 0, 0).energy_ev
+        assert f'{c.h * c.c / (de * c.e) * 1e9:.1f} nm' == shown and shown in text
+
+
+def test_beat_periods_match_the_model():
+    from quantumscope.physics.dynamics import HydrogenSuperposition
+    from quantumscope.physics.hydrogen import HydrogenAtom
+    atom, text = HydrogenAtom(), lesson_text('hydrogen/05-superposition-and-quantum-beats')
+    for a, b in (((1, 0, 0), (2, 1, 0)), ((1, 0, 0), (3, 2, 0))):
+        period = HydrogenSuperposition(atom.state(*a), atom.state(*b)).beat_period_fs
+        assert f'{period:.4f} fs' in text
+
+
+def test_radii_quoted_in_lessons():
+    import numpy as np
+    from quantumscope.physics.dynamics import enclosing_radius
+    from quantumscope.physics.hydrogen import HydrogenAtom
+    atom = HydrogenAtom()
+    r = np.linspace(0, 80, 400001)
+    integrate = getattr(np, 'trapezoid', None) or np.trapz
+    for (n, l), mean in (((1, 0), 1.5), ((2, 0), 6), ((2, 1), 5), ((3, 2), 10.5)):
+        p = atom.state(n, l, 0).radial_probability(r)
+        assert integrate(r * p, r) / integrate(p, r) == pytest.approx(mean, abs=1e-3)
+    assert f'{enclosing_radius(atom.state(1, 0, 0)):.2f}' == '4.64'
+    assert '4.64' in lesson_text('hydrogen/03-probability-density')
+
+
+def test_grover_table_matches_the_formula():
+    from quantumscope.physics.algorithms import grover_optimal_iterations, grover_success
+    text = lesson_text('circuits/08-grover-search')
+    for n, shown in ((2, '| 4 | 30° | 1 | 1 |'), (3, '| 8 | 20.7° | 2 | 0.945 |'), (4, '| 16 | 14.5° | 3 | 0.961 |')):
+        k = grover_optimal_iterations(n)
+        assert shown in text and f'| {k} |' in shown
+        assert f'{grover_success(n, k):.3f}'.rstrip('0').rstrip('.') in shown
+
+
+def test_every_area_has_lessons():
+    areas = {l.area for l in LESSONS}
+    assert areas == {'circuits', 'principles', 'hydrogen', 'math', 'qml'}     # Mathematics 0.7.7, Quantum ML 0.8.0
+    assert sum(l.kind == 'lab' for l in LESSONS) == 40 and len(LESSONS) == 107       # + annealing (0.9.2), many classes (0.9.3), study guides (0.9.8), 15 labs (0.9.9)
+
+
+def test_png_size_matches_the_image_and_needs_no_qt():
+    from PIL import Image
+    from quantumscope.learn.render import png_size
+    name = sorted(os.listdir(EQ))[0]
+    assert png_size(os.path.join(EQ, name)) == Image.open(os.path.join(EQ, name)).size
+
+
+def test_objectives_are_not_split_inside_kets():
+    # '|' separates objectives, so a ket like |1⟩ in an objective would be cut in pieces.
+    for lesson in LESSONS:
+        for objective in lesson.objectives:
+            assert '⟩' not in objective and not objective.startswith(('1⟩', '0⟩')), (lesson.key, objective)
+
+
+def test_noise_lecture_numbers_match_the_simulator():
+    from quantumscope.physics import noise as N
+    from quantumscope.physics.circuits import evolution
+    text = lesson_text('circuits/11-noise-and-decoherence')
+    for key, values, shown in (('grover', {'n': 3, 'marked': '101', 'iterations': -1}, 'about 0.577'),
+                               ('bernstein_vazirani', {'n': 3, 's': '101'}, 'probability 0.919')):
+        m = CircuitModel()
+        m.load_library(key, values)
+        m.set_noise_model(N.PRESETS['Moderate'])
+        assert f'{m.noisy_verification()[0][0].probability:.3f}' in shown and shown in text
+    bell = evolution(2, [Gate('H', (0,)), Gate('CX', (0, 1))])[-1]
+    for p, shown in ((0.2, '0.85'), (0.4, '0.7')):
+        rho = N.depolarize(N.density(bell), 2, p, (1,))
+        assert f'{N.fidelity_with_pure(rho, bell):g}' == shown
+
+
+def test_bell_decoherence_lab_steps_follow_the_strength():
+    from quantumscope.physics.noise import NoiseElement
+    lab = next(l for l in LESSONS if l.key == 'circuits/96-lab-bell-decoherence')
+    steps = steps_of(lab.body)
+    m = CircuitModel(2)
+    m.set_circuit(2, [Gate('H', (0,)), Gate('CX', (0, 1))])
+    assert labs.progress(m, steps) == {0: True, 1: False, 2: False}
+    m.set_circuit(2, [Gate('H', (0,)), Gate('CX', (0, 1))], noise=[(NoiseElement('depolarizing', 1, 0.4), 2)])
+    assert labs.progress(m, steps) == {0: True, 1: True, 2: False}
+
+
+@pytest.mark.parametrize('link', ['qs:circuit?n=2&noise=Loud', 'qs:circuit?n=2&elements=depolarizing:5:0:0.1',
+                                  'qs:circuit?n=2&elements=depolarizing:0:0', 'qs:circuit?n=2&elements=boom:0:0:0.1',
+                                  'qs:algorithm/grover?n=2&marked=11&noise=Loud'])
+def test_bad_noise_links_are_rejected(link):
+    with pytest.raises(ValueError):
+        actions.parse(link)
+
+
+def test_noise_lab_checks():
+    from quantumscope.physics.noise import NoiseElement
+    m = CircuitModel(2)
+    m.set_circuit(2, [Gate('H', (0,)), Gate('CX', (0, 1))])
+    assert labs.check(m, 'fidelity >= 1')[0] and labs.check(m, 'purity >= 1')[0] and not labs.check(m, 'noise bit_flip')[0]
+    m.set_circuit(2, [Gate('H', (0,)), Gate('CX', (0, 1))], noise=[(NoiseElement('bit_flip', 0, 0.5), 2)])
+    assert labs.check(m, 'noise bit_flip')[0] and labs.check(m, 'purity <= 0.6')[0]
+
+
+def test_quiz_rendering_states():
+    from quantumscope.learn.lessons import parse
+    lesson = parse('# T\n```quiz\nQ: 1 + 1?\n- 3\n* 2\nE: Because.\n```', 'course/t.md', '.')
+    fresh = to_html(lesson, 'dark', EQ)
+    assert 'qsquiz:0:0' in fresh and 'qsquiz:0:1' in fresh and 'Show answer' in fresh
+    wrong = to_html(lesson, 'dark', EQ, answers={0: 0})
+    assert 'Not quite' in wrong and 'qsquiz:0:1' in wrong and 'Because.' not in wrong
+    right = to_html(lesson, 'light', EQ, answers={0: 1})
+    assert 'Correct!' in right and 'Because.' in right and 'qsquiz:0:' not in right
+    revealed = to_html(lesson, 'dark', EQ, revealed={0})
+    assert 'Because.' in revealed and 'Correct!' not in revealed
+
+
+def test_quiz_feedback_colors_are_readable():
+    from quantumscope.gui.theme import contrast_ratio
+    from quantumscope.learn.render import PALETTES
+    for name in ('dark', 'light'):
+        p = PALETTES[name]
+        assert contrast_ratio(p['wrong'], p['note_bg']) >= 4.5 and contrast_ratio(p['answer'], p['note_bg']) >= 4.5
+
+
+
+def test_error_correction_lecture_numbers_match_the_sweep():
+    from quantumscope.editor import qec_analysis as qa
+    model, data = qa.example_model('bit_flip', 'bit_flip')
+    at = lambda p: qa.logical_failure(model, p, data)
+    text = lesson_text('circuits/19-logical-error-rates')
+    assert f'{at(0.1):.3f}' == '0.028' and '0.028' in text and '3.6 times' in text
+    assert round(0.1 / at(0.1), 1) == 3.6
+    assert f'{at(0.2):.3f}' == '0.104' and '0.104' in lesson_text('circuits/19-logical-error-rates')
+    lab = lesson_text('circuits/103-lab-beat-the-noise')
+    assert '2.8%' in lab and '3.6 times' in lab
+
+
+def test_phase_estimation_lab_peaks_match_the_simulator():
+    from quantumscope.physics.algorithms import marginal
+    text = lesson_text('circuits/104-lab-phase-estimation')
+    for t, bits, shown in ((3, '011', '3/8 = 0.375'), (6, '010101', '21/64 ≈ 0.328')):
+        m = CircuitModel()
+        m.load_library('qpe', {'t': t, 'phase': '1/3'})
+        probs = marginal(m.circuit_view().final_state, m.n, list(range(t)))
+        assert max(probs, key=probs.get) == bits and bits in text and shown in text
+
+
+def test_learn_more_targets_exist():
+    from quantumscope.learn.lessons import EXAMPLE_LESSONS
+    from quantumscope.physics.algorithms import ENTRIES
+    keys = {l.key for l in LESSONS}
+    assert set(EXAMPLE_LESSONS.values()) <= keys and set(EXAMPLE_LESSONS) <= set(ENTRIES)
+
+
+
+def test_variational_lecture_numbers_match_the_simulator():
+    import math
+    from quantumscope.editor.variational import Evaluator, optimize
+    from quantumscope.physics.algorithms import H2_HAMILTONIAN
+    from quantumscope.physics.observables import ground_energy, parse
+    assert f'{ground_energy(2, parse(H2_HAMILTONIAN)):.6f}' == '-1.137306' and '-1.137306' in lesson_text('circuits/24-vqe')
+    m = CircuitModel()
+    m.load_library('vqe', {'problem': 'heisenberg-3', 'layers': 1})
+    assert optimize(m, 'BFGS')[-1][1] == pytest.approx(-(1 + 2 * math.sqrt(2)), abs=1e-6)
+    assert '1 + 2\\sqrt{2}' in lesson_text('circuits/24-vqe')
+    ratios = {}
+    for graph, layers, edges in (('ring6', 1, 6), ('ring6', 2, 6), ('ring4', 2, 4)):
+        q = CircuitModel()
+        q.load_library('qaoa', {'graph': graph, 'layers': layers})
+        ratios[(graph, layers)] = -optimize(q, 'BFGS')[-1][1] / edges
+    assert ratios[('ring6', 1)] == pytest.approx(0.75, abs=1e-6) and ratios[('ring6', 2)] == pytest.approx(5 / 6, abs=1e-6)
+    assert ratios[('ring4', 2)] == pytest.approx(1, abs=1e-6)
+    text = lesson_text('circuits/26-qaoa-maxcut')
+    assert '3/4' in text and '5/6' in text and '-0.6' in text
