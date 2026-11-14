@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.10** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.11** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -57,18 +57,18 @@ When QuantumScope starts, its logo appears for a moment while the 3-D libraries 
 
 The **Hydrogen Explorer** draws the hydrogen atom's orbitals in 3-D, exactly solved for the Schrödinger equation (with the proton's finite mass).
 
-![The Hydrogen Explorer's controls and radial probability chart](images/hydrogen-controls.png)
+![The Hydrogen Explorer: its controls, the 3-D density cloud of the 3d (m = 0) orbital, and the radial probability chart](images/hydrogen-controls.png)
 
 **Choosing a state.** Under **Hydrogen quantum state**, set **Principal n**, **Angular l** and **Magnetic m**. **Orbital basis** chooses between the complex orbitals **Y(l,m)** and the **Real cosine** or **Real sine** combinations (the familiar p<sub>x</sub>, d<sub>xy</sub> shapes). Press **Render state** to draw it; with **Update when changing state/mode** ticked, it redraws by itself.
 
 **How it is drawn.** Under **Visualization**:
 
-- **Representation:** **Density cloud** (a glowing cloud), **Probability enclosure** (a surface containing a chosen share of the probability), **Real(psi)** or **Imag(psi)**.
+- **Representation:** **Density cloud** (a glowing cloud), **Probability enclosure** (a surface containing a chosen share of the probability), **Real(psi)** or **Imag(psi)** (red where that part of ψ is positive, blue where it is negative).
 - **Enclosed probability** sets that share for the enclosure, for example 90%.
 - **Grid points/axis** trades detail for speed, and **Cloud visibility** adjusts the cloud's brightness.
 - **Color enclosure by wavefunction phase** colours the surface by the phase of ψ.
 
-**The view.** Drag in the 3-D view to turn it, and scroll to zoom. Under **Camera & scientific display**, **View** jumps to **Perspective**, **+X**, **+Y** or **+Z**, and **Magnification** zooms. **Show axes and coordinates (a_mu)** adds axes in units of the (reduced-mass) Bohr radius. **Reset camera** returns to the start.
+**The view.** Drag in the 3-D view to turn it, scroll to zoom, and Ctrl-drag (or middle-drag) to move it. Under **Camera & scientific display**, **View** jumps to **Perspective**, **+X**, **+Y** or **+Z**, and **Magnification** zooms. **Show axes and coordinates (a_mu)** adds axes in units of the (reduced-mass) Bohr radius. **Reset camera** returns to the start.
 
 **Comparing two orbitals.** Tick **Enable second 3D viewer** under **Side-by-side comparison** and choose **Compare n**, **l**, **m** and **basis**. **Synchronize comparison cameras** keeps both views turned together.
 
@@ -247,7 +247,7 @@ The **Quantum ML** area turns data into quantum states and learns from them. Its
 - **Classifier:** a **Support vector machine** or **Kernel ridge**, with its strength **C or λ**. **Train** builds the kernel and the classifier in the background, so the window stays responsive; **Cancel** stops it.
 
 - **The decision regions** show the predicted class behind the points, deeper where the classifier is more confident, with the boundary as a white line. With more classes, each region has its class's colour and a legend names them. Training points are dots, test points triangles, and mistakes are marked ✕. With more than two features, the regions are drawn in the plane of the two leading principal components, a slice through the data.
-- **3-D view** (the tab beside **Decision regions**): the points along three axes, **Principal components** or **Separating axes** (the first runs from one class's centre to the other's), with the decision boundary as a surface and, for a support vector machine, the **Margins**. With more than two classes, each class's region has its own coloured surface, and **Separating axes** follow the spread of the class centres. Support vectors have a soft halo; test points are cubes and mistakes are red. Drag to rotate, scroll to zoom, Shift-drag to pan, or use **Front**, **Top**, **Side**, **Isometric** and **Reset**; click a point to see its sample. With more than three features the view is a slice, and the caption says how often the slice agrees with the classifier. **Save image…** and **Save rotating GIF…** (a full turn, for slides) keep the view.
+- **3-D view** (the tab beside **Decision regions**): the points along three axes, **Principal components** or **Separating axes** (the first runs from one class's centre to the other's), with the decision boundary as a surface and, for a support vector machine, the **Margins**. With more than two classes, each class's region has its own coloured surface, and **Separating axes** follow the spread of the class centres. Support vectors have a soft halo; test points are cubes and mistakes are red. Drag to rotate, scroll to zoom, Ctrl-drag (or middle-drag) to pan, or use **Front**, **Top**, **Side**, **Isometric** and **Reset**; click a point to see its sample. With more than three features the view is a slice, and the caption says how often the slice agrees with the classifier. **Save image…** and **Save rotating GIF…** (a full turn, for slides) keep the view.
 - **Below the decision regions,** two tabs show the kernel itself (drag the divider to give either part more room):
   - **Kernel matrix:** the training kernel sorted by class. Hover over a cell to see its value and the two samples' classes; click it to see both samples beside the tabs (for Digits and MNIST, the images).
   - **Kernel map:** the data as the kernel sees it (kernel PCA): points the kernel finds similar lie close together. Click a point to see that sample, its prediction and its decision value. If the points scatter apart with no structure, the kernel has concentrated.
@@ -359,7 +359,7 @@ The same expression means the same in both modes; switching recalculates the cur
   - **Gate angles** in degrees or radians, and **Bit order in labels**, q0 leftmost (textbook) or rightmost (Qiskit);
   - **Amplitudes** shown exactly (1/√2) or as decimals, with **Decimal places**;
   - **Ask before clearing a circuit**.
-- **Graphics and performance:** **Graphics device** (**Automatic**, **Integrated graphics**, or **NVIDIA (PRIME offloading)** on Linux laptops with two GPUs; applies after a restart) and **3D volume rendering** (**Auto**, **GPU** or **CPU**). **Refresh** shows which graphics renderer is in use. **Watch memory and processor use** (on by default) shows a meter at the right of the status bar: QuantumScope's own memory, how full the computer's memory is, and how busy the processor is. It turns amber when memory is getting full and red when it is nearly full, and QuantumScope then says once what to do. Before a very fine 3-D grid or a large kernel that may not fit, it asks first.
+- **Graphics and performance:** **Graphics device** (**Automatic**, **Integrated graphics**, or **NVIDIA (PRIME offloading)** on Linux laptops with two GPUs; applies after a restart). **Refresh** shows which graphics renderer is in use. **Watch memory and processor use** (on by default) shows a meter at the right of the status bar: QuantumScope's own memory, how full the computer's memory is, and how busy the processor is. It turns amber when memory is getting full and red when it is nearly full, and QuantumScope then says once what to do. Before a very fine 3-D grid or a large kernel that may not fit, it asks first.
 - **Files:**
   - **Save and export to:** the default folder (**Browse…** or **Use Documents**);
   - **Autosave**;
@@ -369,7 +369,7 @@ The same expression means the same in both modes; switching recalculates the cur
 
 ## 10. Troubleshooting
 
-**The 3-D view is blank, black or very slow.** Open **⚙ → Graphics and performance**. Try **3D volume rendering: CPU**, which works on any computer. On a laptop with two graphics chips, try the other **Graphics device**, then restart. **Refresh** shows which renderer is actually in use; include it if you report a problem.
+**The 3-D view is blank, black or very slow.** Lower **Grid points/axis**, and update the graphics driver. On a laptop with two graphics chips, open **⚙ → Graphics and performance**, try the other **Graphics device**, then restart. **Refresh** shows which renderer is actually in use; include it if you report a problem.
 
 **Everything is too small on a projector or a high-resolution screen.** Set **⚙ → Appearance → Interface size** to 125–175% and restart.
 
@@ -402,7 +402,7 @@ The same expression means the same in both modes; switching recalculates the cur
 | Bloch sphere | right-drag, or Shift + left-drag | turn the sphere |
 | Bloch sphere | double-click | reset the view |
 | Double-Slit | drag the slits | change their separation |
-| Hydrogen 3-D view | drag / scroll | turn / zoom |
+| 3-D views | drag / scroll / Ctrl-drag | turn / zoom / move |
 | Learn | click an underlined term | show its definition |
 | Any tab | × on the tab | close it (it reopens as you left it) |
 

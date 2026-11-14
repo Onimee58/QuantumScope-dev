@@ -61,10 +61,10 @@ Every reference below was checked against its publisher, the arXiv, or another a
 
 35. Harris, C. R. et al. (2020). Array programming with NumPy. *Nature* 585, 357–362. https://doi.org/10.1038/s41586-020-2649-2
 36. Virtanen, P. et al. (2020). SciPy 1.0: fundamental algorithms for scientific computing in Python. *Nature Methods* 17, 261–272.
-37. Sullivan, C. B. & Kaszynski, A. (2019). PyVista: 3D plotting and mesh analysis through a streamlined interface for the Visualization Toolkit (VTK). *Journal of Open Source Software* 4(37), 1450. https://doi.org/10.21105/joss.01450
-38. The Visualization Toolkit (VTK), Kitware. https://vtk.org
+37. PyOpenGL: the Python binding to OpenGL (used for the 3-D views). https://pyopengl.sourceforge.net
+38. OpenGL, the Khronos Group: the graphics standard the 3-D views are drawn with. https://www.khronos.org/opengl/
 39. Qt for Python (PySide6), The Qt Company. https://doc.qt.io/qtforpython-6/
-40. PyQtGraph: scientific graphics and GUI library for Python. https://www.pyqtgraph.org
+40. PyQtGraph: scientific graphics and GUI library for Python (charts and the 3-D views). https://www.pyqtgraph.org
 41. Matplotlib: visualization with Python (used to render the lessons' equations). https://matplotlib.org
 
 ## A note on the VQE example

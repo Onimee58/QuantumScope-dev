@@ -59,7 +59,8 @@ def size(nbytes):
 # ---- estimates for the tasks that can need a lot of memory ---------------------------------------------
 def hydrogen_grid(resolution, viewers=1):
     """A 3-D orbital: the density (float64) and wavefunction (complex128) on resolution³ points, the
-    coordinate arrays, and VTK's copies for the cloud or surface. Measured: about 80 bytes a point."""
+    coordinate arrays, and the cloud's colours or the surface. Measured: about 80 bytes a point with
+    VTK, about 72 with the OpenGL view (v0.9.11); the estimate keeps the margin."""
     return int(80 * resolution ** 3 * viewers)
 
 

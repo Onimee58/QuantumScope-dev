@@ -20,7 +20,6 @@ The installer creates `.venv` beside the source and installs the Python package 
 - Confirm a 64-bit Python with `py -3.12 --version` or `python --version`.
 - If the window is blank, update the graphics driver and try `set QT_OPENGL=desktop` before `run_windows.bat` (environment-dependent; not guaranteed).
 - The `run_nvidia.sh` NVIDIA PRIME command is for Linux only. Windows automatically selects the GPU via its graphics settings: **Settings → System → Display → Graphics**, add `.venv\Scripts\python.exe`, choose **High performance**, and relaunch. Verify the actual GPU via QuantumScope's Graphics diagnostics.
-- GPU volume mapper selection controls the VTK mapper, not the operating system's GPU selection.
 
 ## Packaging status
 
