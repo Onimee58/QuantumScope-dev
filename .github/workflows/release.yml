@@ -84,7 +84,11 @@ jobs:
           # QuantumScope's own modules as native code (v0.9.7): bytecode is easily turned back into source.
           # PyInstaller still analyses the source; the spec then swaps in the compiled modules.
           python tools/cython_compile.py build/compiled
-          python -m PyInstaller.utils.cliutils.makespec --windowed --onedir --name QuantumScope --icon "$ICON" $VTK_ARGS --collect-data pyvista --collect-data pyqtgraph --collect-data pyvistaqt --collect-data quantumscope --exclude-module pyqtgraph.examples --exclude-module pyqtgraph.opengl --exclude-module pyvista.trame src/quantumscope/__main__.py
+          # Smaller: debugging symbols stripped (not on Windows, where PyInstaller cannot), unused Qt
+          # modules excluded here and unused Qt files left out by the spec step (tools/pyinstaller_trim.py).
+          STRIP="$([ "$RUNNER_OS" = "Windows" ] || echo --strip)"
+          TRIM_ARGS="$(python tools/pyinstaller_trim.py)"
+          python -m PyInstaller.utils.cliutils.makespec --windowed --onedir --name QuantumScope --icon "$ICON" $STRIP $TRIM_ARGS $VTK_ARGS --collect-data pyvista --collect-data pyqtgraph --collect-data pyvistaqt --collect-data quantumscope --exclude-module pyqtgraph.examples --exclude-module pyqtgraph.opengl --exclude-module pyvista.trame src/quantumscope/__main__.py
           python tools/pyinstaller_compiled.py QuantumScope.spec build/compiled
           python -m PyInstaller --noconfirm --clean QuantumScope.spec
       - name: Launch check of the packaged application (Linux)

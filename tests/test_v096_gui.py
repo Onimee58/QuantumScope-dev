@@ -118,3 +118,20 @@ def test_check_boxes_show_in_both_themes(app, theme):
     fill = max(ticked, key=lambda c: contrast_ratio(c, background))
     assert contrast_ratio('#ffffff', fill) >= 3.0 or contrast_ratio(fill, background) >= 3.0, (theme, fill)
     assert any(c in ('#ffffff', '#fefefe', '#fdfdfd') for c in ticked) or theme == 'light'   # the white tick
+
+
+def test_v0910_short_memory_empties_the_caches(app):
+    import numpy as np
+    from quantumscope import caching
+    from quantumscope.gui.resource_monitor import ResourceMonitor
+    cache = caching.Cache('test', 10 ** 7)
+    cache.get('grid', lambda: np.zeros(1000))
+    readings = [R.Snapshot(600 * MB, 8 * GB, 4 * GB, 20.0, 4)]
+    window = QtWidgets.QMainWindow()
+    monitor = ResourceMonitor(window, sample=lambda: readings[-1], warn=lambda snap: None)
+    monitor.timer.stop()
+    monitor.tick()
+    assert cache.items                                                 # plenty of memory: kept
+    readings.append(R.Snapshot(600 * MB, 8 * GB, 1 * GB, 20.0, 4))
+    monitor.tick()
+    assert not cache.items                                             # getting full: remembered results go first
