@@ -8,6 +8,10 @@ math: 03-matrices-acting-on-states, 07-tensor-products
 ---
 # Reversible logic
 
+## The idea
+
+Quantum gates can always be run backwards, but AND and OR cannot: their output does not say what the input was. To use ordinary logic inside a quantum algorithm — oracles, arithmetic — we rewrite it in a reversible form, keeping extra bits so that no information is lost, and cleaning up those bits afterwards.
+
 ## Why reversibility?
 
 Quantum gates are unitary, so every gate can be undone. Ordinary logic is not like that: from the output of AND you cannot tell whether the input was 00, 01 or 10. To compute such functions on a quantum computer, we keep enough information to run the computation backwards.
@@ -38,6 +42,24 @@ Larger circuits need temporary **work qubits** (ancillas) for intermediate resul
 
 [Try it: the comparator example](qs:example/2-bit%20comparator)
 
+## Worked example
+
+Follow the half adder on $a = 1$, $b = 1$, with a fresh carry qubit $c = 0$, written $|a\,b\,c\rangle$:
+
+$$|1\,1\,0\rangle \overset{\mathrm{Toffoli}}{\longrightarrow} |1\,1\,1\rangle \overset{CX_{a\to b}}{\longrightarrow} |1\,0\,1\rangle$$
+
+The middle qubit now holds the sum $1 \oplus 1 = 0$ and the last the carry $1 \cdot 1 = 1$: one plus one is binary 10. Run the two gates backwards (CX, then Toffoli) and you get $|1\,1\,0\rangle$ again — nothing was lost, because $a$ was kept.
+
+## Common mistakes
+
+- **Overwriting an input.** A reversible circuit keeps enough to recover the inputs; that is why the half adder keeps $a$.
+- **Leaving junk on work qubits.** Junk stays entangled with the answer and destroys later interference; uncompute it.
+- **Thinking a Toffoli computes AND by itself.** It XORs the AND into the target, so the target must start at 0.
+
+## In the app
+
+Open the **Half adder** example and step through it in the State Inspector; change the inputs with the initial states. The **Full adder** and **2-bit comparator** examples show larger circuits, and the comparator uncomputes its work qubit at the end.
+
 ## Check your understanding
 
 ```quiz
@@ -54,6 +76,22 @@ Q: Why uncompute work qubits?
 * So they are not left entangled with the result
 - Because gates cannot be applied to them twice
 E: Leftover junk entangles the work qubits with the answer, which destroys the interference algorithms rely on.
+```
+
+```quiz
+Q: A Toffoli's target starts at 1 instead of 0, with both controls 1. What is the target afterwards?
+* 0
+- 1
+- It depends on the phase
+E: The Toffoli XORs the AND (1) into the target: 1 ⊕ 1 = 0. It computes AND only on a target that starts at 0.
+```
+
+```quiz
+Q: Why must work qubits be returned to |0⟩ at the end of a quantum subroutine?
+- To save memory
+* Leftover junk is entangled with the result and spoils later interference
+- Because measurements need |0⟩
+E: Uncomputing removes the entanglement between the work qubits and the answer, so the answer can interfere cleanly.
 ```
 
 ## Summary

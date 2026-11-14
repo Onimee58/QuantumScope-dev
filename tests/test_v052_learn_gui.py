@@ -66,6 +66,10 @@ def test_try_it_sets_up_the_circuit(setup):
 def test_contents_quiz_and_navigation(setup):
     window, _ = setup
     window.show_area('circuits')
+    assert window.lesson.key == 'circuits/00-study-guide'          # an area's Learn button opens its study guide (0.9.8)
+    first = window.tree.topLevelItem(0).child(0)
+    assert first.text(0) == 'Study guide: Quantum Circuits' and window.tree.topLevelItem(0).child(1).text(0) == 'Lectures'
+    window.open_lesson('circuits/01-qubits')
     assert window.lesson.key == 'circuits/01-qubits' and 'Show answer' in window.reader.toHtml()
     window._link(QUrl('qsquiz:0'))
     assert 0 in window.revealed['circuits/01-qubits']

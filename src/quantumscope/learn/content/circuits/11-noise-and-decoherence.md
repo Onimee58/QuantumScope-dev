@@ -8,6 +8,10 @@ math: 06-probability, 08-density-matrices-and-projectors
 ---
 # Noise and decoherence
 
+## The idea
+
+Real qubits are never perfectly isolated, so their quantum information leaks away: superpositions fade, excited states relax, and gates and readouts make mistakes. This lecture describes noise precisely — as channels that shrink the Bloch vector — and measures the damage with fidelity, so you can see why long circuits suffer most.
+
 ## Why real qubits are noisy
 
 A qubit is never perfectly isolated. Its environment slowly learns about its state, and every interaction leaves it a little more mixed. This loss of quantum information is **decoherence**; together with imperfect gates and measurements, it is why today's quantum computers are called *noisy*.
@@ -54,7 +58,27 @@ Readout error adds a final layer: each measured bit may be reported wrongly, eve
 
 ## Fighting back
 
-Noise cannot be avoided, but it can be managed: shorter circuits, better hardware, error **mitigation**, and ultimately quantum **error correction**, which spreads one logical qubit over many physical ones (planned for a later QuantumScope version).
+Noise cannot be avoided, but it can be managed: shorter circuits, better hardware, error **mitigation**, and ultimately quantum **error correction**, which spreads one logical qubit over many physical ones — the subject of the lectures from *The bit-flip code* on.
+
+## Worked example
+
+Send $|+\rangle$ (Bloch vector $(1, 0, 0)$) through three channels and compute the fidelity $F = \frac{1}{2}(1 + \vec r \cdot \hat x)$ with the intended $|+\rangle$:
+
+- **Bit flip, $p = 0.1$:** X does nothing to $|+\rangle$, so $F = 1$.
+- **Phase flip, $p = 0.1$:** $x$ shrinks by $1 - 2p = 0.8$, so $F = 0.9$.
+- **Depolarizing, $p = 0.2$:** everything shrinks by $0.8$, so $F = 0.9$ too.
+
+The same noise can be harmless or harmful depending on the state. Over time: with $T_1 = 100$ µs, a qubit idling for 10 µs has $\gamma = 1 - e^{-0.1} \approx 0.095$.
+
+## Common mistakes
+
+- **Treating every channel as the same.** Bit flip leaves $|+\rangle$ alone but ruins $|0\rangle$; phase flip does the opposite.
+- **Thinking noise only acts during gates.** Waiting qubits decay too, which the idle-noise option shows.
+- **Confusing T₁ and T₂.** T₁ is energy relaxation; T₂, the coherence time, is never longer than 2T₁.
+
+## In the app
+
+Drag noise channels from the noise palette onto a wire, or choose a preset noise model; the State Inspector then shows the density matrix, purity and fidelity. Double-click a channel in the palette to open its **Noise Explorer** with equations, Kraus operators and live numbers. Compare Grover with and without the *Moderate* preset to see a long circuit suffer.
 
 ## Check your understanding
 
@@ -72,6 +96,22 @@ Q: Depolarizing noise with p = 0.4 acts on one qubit of a Bell pair. What is the
 * 0.7
 - 0.9
 E: F = 1 − 3p/4 = 1 − 0.3 = 0.7.
+```
+
+```quiz
+Q: Which channel leaves the state |+⟩ unchanged?
+* Bit flip
+- Phase flip
+- Depolarizing
+E: |+⟩ is an eigenstate of X, so applying X with some probability changes nothing.
+```
+
+```quiz
+Q: A qubit with T₁ = 50 µs waits for 50 µs. What is the amplitude-damping strength γ?
+- 1
+* About 0.63
+- About 0.37
+E: γ = 1 − e^{−t/T₁} = 1 − e^{−1} ≈ 0.63.
 ```
 
 ## Summary

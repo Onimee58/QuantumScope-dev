@@ -175,7 +175,7 @@ def test_every_math_lesson_has_a_working_calculator_link():
     from quantumscope.learn import actions
     from quantumscope.learn.lessons import builtin_lessons
     from quantumscope.learn.render import to_html
-    lessons = [lesson for lesson in builtin_lessons() if lesson.area == 'math']
+    lessons = [lesson for lesson in builtin_lessons() if lesson.area == 'math' and lesson.kind == 'lecture']
     assert len(lessons) == 12
     for lesson in lessons:
         links = re.findall(r'<a href="(qs:calc[^"]*)"', to_html(lesson, 'dark'))

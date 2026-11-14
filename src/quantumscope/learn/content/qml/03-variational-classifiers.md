@@ -8,7 +8,9 @@ math: 06-probability, 12-gradients-and-optimization
 ---
 # Variational classifiers
 
-A kernel classifier uses the quantum computer only to compare data points. A **variational classifier** goes further: the circuit itself is the model, and training tunes its gates.
+## The idea
+
+A kernel classifier uses the quantum computer only to compare data points. A **variational classifier** goes further: the circuit itself is the model, and training tunes its gates, like the weights of a neural network. Each data point goes in through a feature map, trainable rotations transform the state, and one measured qubit gives the answer.
 
 ## The circuit
 
@@ -42,6 +44,24 @@ For more than two classes, the circuit is read differently: measure several qubi
 
 The two are closely related: a variational classifier with a fixed feature map is a linear model in the same space of states that the kernel works in (Schuld and Killoran, 2019).
 
+## Worked example
+
+How many circuit runs does training cost? Take 4 qubits and 3 trainable layers: $4 \times 3 = 12$ angles. With 200 training points, one exact gradient needs, per point, one run for $f$ plus two shifted runs per angle:
+
+$$200 \times (1 + 2 \times 12) = 5{,}000 \text{ circuits per step}$$
+
+and on hardware each circuit is repeated for many shots. Fifty steps make 250,000 circuits. A kernel classifier on the same data needs about $200^2/2 = 20{,}000$ kernel circuits, once. For small data the kernel is cheaper; for large data the variational model wins, since its cost grows like $N$ instead of $N^2$.
+
+## Common mistakes
+
+- **Adding layers without limit.** More layers mean more parameters, more circuits per step and flatter landscapes; a few layers are often enough.
+- **Trusting one training run.** A bad starting point can end in a local minimum; try other seeds.
+- **Forgetting the bias.** Without $b$, the boundary is forced to sit where $\langle Z_0\rangle = 0$.
+
+## In the app
+
+Open the **Variational Classifier**, choose a dataset, set **Trainable layers** and the **Optimizer**, and press **Train**. The loss and accuracy curves update at every step. Change **Starting point (seed)** and train again to see whether the result changes. **Open in circuit simulator** shows the trained circuit with its angles.
+
 [Try it: train a variational classifier on the moons](qs:open/qml_variational)
 
 ## Check your understanding
@@ -61,8 +81,24 @@ Q: Why can training a variational classifier end at a worse result than an SVM o
 E: The SVM solves a convex problem; a variational loss landscape can have many valleys, which is why restarts from other seeds help.
 ```
 
+```quiz
+Q: A model has 10 angles. How many circuit runs does one exact gradient need for a single data point?
+- 10
+* 21: one for f and two shifted runs per angle
+- 100
+E: The parameter-shift rule needs f(θ ± π/2) for each of the 10 angles, plus f itself for the loss.
+```
+
+```quiz
+Q: As the dataset grows from 100 to 1,000 points, how does the kernel classifier's quantum cost grow?
+- About 10 times
+* About 100 times
+- It stays the same
+E: The kernel matrix has one entry per pair of points, so its cost grows like N²: (1000/100)² = 100.
+```
+
 ## Summary
 
 - A variational classifier is a trainable circuit: $f(x) = \langle Z_0\rangle + b$, class $\mathrm{sign}\, f$.
-- It is trained on the mean squared error with exact parameter-shift gradients.
+- It is trained on the mean squared error with exact parameter-shift gradients, at 1 + 2P circuits per point.
 - Kernels need $N^2$ circuits but train to a guaranteed best; variational models scale better but can get stuck.

@@ -1,3 +1,19 @@
+## v0.9.8 — A fuller course
+
+### Lectures
+- **All 62 lectures follow one shape:** **The idea** (what and why, in a few sentences), the main content, a **Worked example** with real numbers, **Common mistakes**, **In the app** (what to try, step by step, with Try it links), **Check your understanding** and a **Summary**. Most run 450–700 words; a few longer ones keep their extra material.
+- **Four questions per lecture** (from two): 249 in all, each with an explanation. The new questions practice the worked examples and the common mistakes.
+- **Worked examples are checked against the app's own physics,** for example the H₂ Hartree–Fock energy (−1.116998 Ha) and correlation energy, phase-estimation probabilities for φ = 1/3, Grover's overshoot, Balmer β (486.3 nm), the deuterium isotope shift, quantum-kernel values and the parameter-shift derivative. New Try it links (a partly entangled pair, CZ entangling |+⟩|+⟩, a mid-circuit measurement destroying interference, feed-forward disentangling a Bell pair, SWAP from three CX gates and others) open exactly the circuits described.
+- **Two outdated sentences fixed:** measurement is no longer described as end-only, and error correction no longer as "planned".
+
+### Study guides
+- **Each area starts with a study guide:** what the area covers and for whom, the time it takes, what to read first, a suggested path through every lecture and lab (by week, block or module), how to study a lecture, and a checklist for the end. The Quantum Circuits guide organizes its 29 lectures and 21 labs into six modules for a semester course.
+- **📖 Learn opens the study guide** of the current area; in the contents it comes first, above Lectures and Labs. Teachers can write their own with `kind: guide` (LEARN.md).
+
+### Also
+- **Search** ranks a lesson higher when a section heading contains the word, so "hadamard" finds *Single-qubit gates* first.
+- Tests check every lecture's sections, length and questions, every study guide's links, and the worked examples' numbers.
+
 ## v0.9.7 — Protected code
 
 - **QuantumScope's own code is compiled to native machine code in the installers** (.so on Linux and macOS, .pyd on Windows, with Cython). Before, the installers carried Python bytecode, which free tools turn back into readable source. All 94 modules the app uses are compiled; only the package files (`__init__`) and the start script remain Python, and they hold no logic.

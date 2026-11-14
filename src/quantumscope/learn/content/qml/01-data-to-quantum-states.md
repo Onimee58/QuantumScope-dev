@@ -8,7 +8,9 @@ math: 02-vectors-and-dirac-notation, 07-tensor-products, 09-matrix-exponentials
 ---
 # From data to quantum states
 
-Quantum machine learning starts with a question: how does a data point, a row of numbers, get into a quantum computer? The answer is a **feature map**: a circuit $U(x)$ whose angles are set by the data, turning each point $x$ into a quantum state $|\varphi(x)\rangle = U(x)|0\dots0\rangle$.
+## The idea
+
+Quantum machine learning starts with a question: how does a data point, a row of numbers, get into a quantum computer? The answer is a **feature map**: a circuit $U(x)$ whose angles are set by the data, turning each point $x$ into a quantum state $|\varphi(x)\rangle = U(x)|0\dots0\rangle$. Once data lives in states, the overlap between two states becomes a measure of how similar the two data points are.
 
 ## Angle encoding
 
@@ -40,6 +42,24 @@ $$K(x, x') = \prod_k \cos^2\frac{x_k - x'_k}{2}$$
 
 On a quantum computer, $K$ is measured, not calculated: run $U(x)$ followed by $U(x')^\dagger$ and count how often all qubits read 0. With $N$ shots, that frequency estimates $K$ with a statistical error of about $\sqrt{K(1-K)/N}$.
 
+## Worked example
+
+Two flowers with two scaled features each: $x = (0.5, 1.2)$ and $x' = (0.9, 1.0)$. With angle encoding,
+
+$$K(x, x') = \cos^2\frac{0.5 - 0.9}{2}\cdot\cos^2\frac{1.2 - 1.0}{2} = \cos^2(0.2)\cos^2(0.1) \approx 0.961 \times 0.990 \approx 0.951$$
+
+They are very similar. A third point $x'' = (2.5, 0.2)$ gives $\cos^2(1.0)\cos^2(0.5) \approx 0.292 \times 0.770 \approx 0.225$: much less similar. Measured with 1,000 shots, the first value would come out as $0.951 \pm 0.007$.
+
+## Common mistakes
+
+- **Skipping the scaling.** Raw features such as 150 (cm) or 0.002 put every angle in the wrong place; features must be scaled to a range like $[0, \pi]$ first.
+- **Thinking more entanglement always helps.** The ZZ map is harder to simulate, but whether it separates *your* classes is an empirical question.
+- **Reading K as a distance.** $K$ is a similarity: 1 means identical, 0 means as different as possible.
+
+## In the app
+
+In the **Quantum Kernel Classifier**, choose a dataset, tick **Angle encoding** or **ZZ feature map** under **Kernel and classifier**, and press **Train**. The kernel heatmap compares every pair of points: training points of the same class should form bright blocks. Set **Shots per entry** to see how shot noise speckles the heatmap.
+
 [Try it: the Quantum Kernel Classifier (its kernel heatmap compares every pair of points)](qs:open/qml_kernel)
 
 ## Check your understanding
@@ -60,8 +80,24 @@ Q: What is K(x, x) for any feature map?
 E: K(x, x) = |⟨φ(x)|φ(x)⟩|² = 1, since |φ(x)⟩ is normalized.
 ```
 
+```quiz
+Q: With angle encoding, two one-feature points differ by π. What is their kernel?
+* 0
+- 1
+- 0.5
+E: cos²(π/2) = 0: the two states are orthogonal, for example |0⟩ and |1⟩.
+```
+
+```quiz
+Q: Why does the ZZ feature map entangle the qubits while angle encoding does not?
+- It uses more qubits
+* Its pair terms ZⱼZₖ act on two qubits at once
+- It uses Hadamard gates
+E: Angle encoding rotates each qubit on its own, giving a product state; the ZjZk phases couple the qubits.
+```
+
 ## Summary
 
-- A feature map $U(x)$ turns a data point into a state $|\varphi(x)\rangle$.
+- A feature map $U(x)$ turns a data point into a state $|\varphi(x)\rangle$; scale features first.
 - Angle encoding gives a product state; the ZZ map entangles features in pairs.
 - The quantum kernel $K(x, x') = |\langle \varphi(x)|\varphi(x')\rangle|^2$ measures similarity, estimated from shots on hardware.

@@ -8,6 +8,10 @@ math: 03-matrices-acting-on-states, 07-tensor-products
 ---
 # Multi-qubit gates and tensor products
 
+## The idea
+
+Single-qubit gates alone can never make qubits depend on each other. Multi-qubit gates can: a controlled gate acts on one qubit only when another is 1. This lecture shows how a gate on part of a register becomes a big matrix, and meets the gates — CX, CZ, SWAP, Toffoli — that every larger circuit is built from.
+
 ## A single-qubit gate in a bigger register
 
 On two qubits, applying $H$ to q0 and nothing to q1 is the $4\times 4$ matrix $H\otimes I$. With q0 written first, the tensor product places a copy of the second factor in each entry of the first:
@@ -44,6 +48,26 @@ SWAP exchanges two qubits: $|01\rangle \leftrightarrow |10\rangle$. It can be bu
 
 On three qubits, the **Toffoli** gate CCX flips the target when both controls are 1, and the **Fredkin** gate CSWAP swaps two qubits when the control is 1. Both are reversible versions of classical logic, as the lecture on reversible logic shows.
 
+## Worked example
+
+SWAP from three CX gates, with directions q0→q1, q1→q0, q0→q1. Follow $|10\rangle$ (q0 = 1, q1 = 0):
+
+$$|10\rangle \overset{CX_{0\to1}}{\longrightarrow} |11\rangle \overset{CX_{1\to0}}{\longrightarrow} |01\rangle \overset{CX_{0\to1}}{\longrightarrow} |01\rangle$$
+
+The 1 has moved from q0 to q1. Check $|01\rangle$ the same way: it becomes $|01\rangle$, then $|11\rangle$, then $|10\rangle$. $|00\rangle$ and $|11\rangle$ are unchanged. Every basis state is swapped correctly, so the three CX gates are SWAP — which is how hardware without a native SWAP moves qubits around.
+
+## Common mistakes
+
+- **Confusing control and target.** In CX the target changes and the control does not; reversing them gives a different gate.
+- **Writing CX as a product of single-qubit gates.** No $A \otimes B$ equals CX; that is why it can entangle.
+- **Forgetting that CZ needs no direction.** Unlike CX, its two qubits play the same role.
+
+## In the app
+
+Drag a CX from the palette: the first drop places the target, then you pick the control. Build the three-CX SWAP from the worked example and check in the State Inspector that $|10\rangle$ comes out as $|01\rangle$; the **Gate Explorer** shows the 4 × 4 matrices of CX, CZ and SWAP.
+
+[Try it: SWAP from three CX gates, applied to |10⟩](qs:circuit?n=2&gates=X:0;CX:0,1;CX:1,0;CX:0,1&inspector=1)
+
 ## Check your understanding
 
 ```quiz
@@ -61,6 +85,22 @@ Q: Why is CZ called symmetric?
 - It is its own inverse
 - Its matrix has only real entries
 E: Swapping the roles of control and target leaves diag(1, 1, 1, −1) unchanged. Being its own inverse is true too, but that is a different property.
+```
+
+```quiz
+Q: What does the Toffoli gate CCX (controls q0, q1; target q2) do to |110⟩?
+- Leaves it unchanged
+* Changes it to |111⟩
+- Changes it to |010⟩
+E: Both controls are 1, so the target flips from 0 to 1.
+```
+
+```quiz
+Q: Hadamards on the target before and after a CX give which gate?
+- SWAP
+* CZ
+- CX with the roles reversed
+E: (I ⊗ H) CX (I ⊗ H) = CZ: the Hadamards turn the target's bit flip into a phase flip.
 ```
 
 ## Summary

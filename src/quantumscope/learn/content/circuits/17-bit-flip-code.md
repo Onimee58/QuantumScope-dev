@@ -8,6 +8,10 @@ math: 06-probability, 10-pauli-algebra
 ---
 # Error correction: the bit-flip code
 
+## The idea
+
+Qubits are fragile, so useful quantum computers must correct errors as they happen. The simplest quantum code protects one qubit against a single bit flip, using three qubits and two parity checks. It shows the three ideas every code relies on: entangle instead of copying, measure parities instead of data, and correct with feed-forward.
+
 ## Redundancy, the classical way
 
 To protect a bit against flips, send it three times — 0 as 000, 1 as 111 — and take a majority vote. One flipped copy is outvoted; it takes two flips to fool the vote.
@@ -51,6 +55,22 @@ The qubits are labeled **data** and **syndrome**; in your own designs, click a q
 
 Two flips give the same syndrome as one flip on the remaining qubit, so the "correction" completes a logical error instead. The code protects against **one** bit flip.
 
+## Worked example
+
+Encode $\alpha|000\rangle + \beta|111\rangle$, and let an X hit q1: the state becomes $\alpha|010\rangle + \beta|101\rangle$. Both terms have $q_0 \oplus q_1 = 1$ and $q_1 \oplus q_2 = 1$, so the syndrome is $c_0 c_1 = 11$ with certainty, and X on q1 restores the code — without ever learning $\alpha$ or $\beta$.
+
+Now two flips, on q0 and q1: $\alpha|110\rangle + \beta|001\rangle$. The parities are 0 and 1, the syndrome 01, so the "correction" flips q2, giving $\alpha|111\rangle + \beta|000\rangle$: a logical X. The code assumed one error and was fooled.
+
+## Common mistakes
+
+- **Calling the encoded state three copies.** $\alpha|000\rangle + \beta|111\rangle$ is not $|\psi\rangle^{\otimes 3}$; copying is impossible.
+- **Measuring the data qubits to vote.** That collapses the superposition; only the parities may be measured.
+- **Expecting protection against phase flips.** This code catches X errors only; Z errors need the phase-flip code.
+
+## In the app
+
+**Algorithms → Bit-flip code** builds the full circuit with a chosen logical state and error; the verification panel checks that the logical qubit survives. Put the error on each qubit in turn and read the syndrome in the Branches tab, then add a second error to see the code fail.
+
 ## Check your understanding
 
 ```quiz
@@ -67,6 +87,23 @@ Q: Why does measuring the syndrome not destroy the superposition α|000⟩ + β|
 - Because the ancillas are measured very quickly
 - Because the code uses three qubits
 E: A parity measurement only distinguishes error patterns, which affect both terms alike.
+```
+
+```quiz
+Q: The syndrome is c0c1 = 01. Which qubit is corrected?
+- q0
+- q1
+* q2
+- None
+E: Only q1 ⊕ q2 is odd, so the flip is on q2, the qubit in the second parity check but not the first.
+```
+
+```quiz
+Q: Why does measuring the parities not destroy the encoded superposition?
+* Both terms α|000⟩ and β|111⟩ (and their flipped versions) have the same parities
+- The ancillas are measured too gently
+- The parities are measured in the x basis
+E: The measurement result is the same for both terms, so it does not distinguish them and leaves α and β untouched.
 ```
 
 ## Summary

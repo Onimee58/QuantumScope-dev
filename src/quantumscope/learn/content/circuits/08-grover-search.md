@@ -8,6 +8,10 @@ math: 02-vectors-and-dirac-notation, 03-matrices-acting-on-states
 ---
 # Grover search
 
+## The idea
+
+Finding one marked item among $N$ takes about $N/2$ tries classically. Grover's algorithm needs only about $\sqrt{N}$ questions to the oracle. It does not look at items one by one: it repeatedly nudges amplitude toward the marked item, a rotation that must be stopped at the right moment.
+
 ## The problem
 
 Among $N = 2^n$ items, one is **marked**, and an oracle recognizes it. Classically you need about $N/2$ guesses on average. Grover's algorithm needs about $\frac{\pi}{4}\sqrt{N}$ oracle queries.
@@ -39,6 +43,25 @@ Going past the best $k$ rotates *past* $|w\rangle$, and the success probability 
 
 Remove one Oracle and Diffusion pair: the verification panel checks the new probability against the same formula with the smaller $k$.
 
+## Worked example
+
+Take $N = 4$ with $|10\rangle$ marked. All four amplitudes start at $\frac{1}{2}$.
+
+1. The oracle flips the marked one: $(\frac{1}{2}, \frac{1}{2}, -\frac{1}{2}, \frac{1}{2})$. The average is now $\frac{1}{4}$.
+2. Diffusion reflects each amplitude about the average, $a \to 2 \cdot \frac{1}{4} - a$: the unmarked ones become $0$ and the marked one $\frac{1}{2} + \frac{1}{2} = 1$.
+
+One iteration finds the item with certainty, matching the table ($\theta = 30°$, $3\theta = 90°$). For $N = 8$ the best is $k = 2$ with $P = 0.945$; a third iteration overshoots to $\sin^2(7 \times 20.7°) \approx 0.33$.
+
+## Common mistakes
+
+- **Running more iterations "to be safe".** Past the best $k$ the success probability falls; Grover is a rotation, not a search that keeps improving.
+- **Forgetting that the oracle only flips a sign.** The probabilities do not change until the diffusion step turns the phase into amplitude.
+- **Expecting an exponential speedup.** Grover's speedup is quadratic: $\sqrt{N}$ instead of $N$.
+
+## In the app
+
+**Algorithms → Grover** builds the circuit for any marked string and the best number of iterations. Step through it in the State Inspector to watch the oracle flip a sign and the diffusion move amplitude. Set the iterations by hand and the verification panel compares the result with $\sin^2((2k+1)\theta)$, so you can see the overshoot.
+
 ## Check your understanding
 
 ```quiz
@@ -55,6 +78,22 @@ Q: What happens if you run more iterations than the optimum?
 * Success decreases again
 - The circuit fails to run
 E: Each iteration rotates by 2θ; past the marked state, the overlap shrinks.
+```
+
+```quiz
+Q: With N = 4 and one marked item, what does a single oracle step do to the measurement probabilities?
+* Nothing: it only flips the sign of the marked amplitude
+- It makes the marked item certain
+- It halves the other probabilities
+E: Probabilities depend on |amplitude|², which a sign flip does not change. The diffusion step turns the phase into amplitude.
+```
+
+```quiz
+Q: About how many oracle queries does Grover need for N = 1,000,000 items?
+- About 500,000
+* About 785
+- About 20
+E: (π/4)√N = (π/4) × 1000 ≈ 785, against about 500,000 classical guesses on average.
 ```
 
 ## Summary

@@ -8,7 +8,9 @@ math: 02-vectors-and-dirac-notation, 12-gradients-and-optimization
 ---
 # Kernel classifiers and the SVM
 
-Once every pair of data points has a kernel value, the quantum part is done. A classical method then learns from the **kernel matrix** alone: this is the **kernel trick**. It lets a classifier work in the huge space of quantum states without ever writing those states down.
+## The idea
+
+Once every pair of data points has a kernel value, the quantum part is done. A classical method then learns from the **kernel matrix** alone: this is the **kernel trick**. It lets a classifier work in the huge space of quantum states without ever writing those states down. A new point is classified by how similar it is to the training points of each class.
 
 ## Labels, training and testing
 
@@ -36,9 +38,23 @@ but most weights $\alpha_i$ come out exactly 0. The points with $\alpha_i > 0$ a
 
 QuantumScope finds the weights with Platt's SMO algorithm (1998), which updates two weights at a time until the optimality conditions hold.
 
-## Reading the results
+## Worked example
 
-The Quantum Kernel Classifier shows the **decision regions**: the background colour is the class $f$ predicts, deeper where the classifier is more confident, with the boundary $f = 0$ as a white line. Training points are dots, test points triangles, and mistakes are marked ✕. With more than two features, the regions are drawn in the plane of the two leading principal components, a slice through the data.
+Kernel ridge with two training points, $y = (+1, -1)$, kernel $K(x_1, x_2) = 0.2$ and $\lambda = 0.1$:
+
+$$K + \lambda I = \begin{pmatrix} 1.1 & 0.2 \\ 0.2 & 1.1 \end{pmatrix}, \qquad \alpha = \frac{1}{1.17}\begin{pmatrix} 1.1 & -0.2 \\ -0.2 & 1.1 \end{pmatrix}\begin{pmatrix} 1 \\ -1 \end{pmatrix} \approx \begin{pmatrix} 1.11 \\ -1.11 \end{pmatrix}$$
+
+A new point with $K(x, x_1) = 0.7$ and $K(x, x_2) = 0.3$ gets $f(x) = 1.11 \times 0.7 - 1.11 \times 0.3 \approx 0.44 > 0$: class $+1$, because it resembles $x_1$ more. A point equally similar to both would get $f = 0$, right on the boundary.
+
+## Common mistakes
+
+- **Judging by training accuracy.** 100% on the training set can mean memorization; the test set tells the truth.
+- **Setting C very high "to be accurate".** A huge $C$ bends the boundary around every noisy point and usually lowers test accuracy.
+- **Thinking every training point matters to an SVM.** Removing a point with $\alpha_i = 0$ leaves the boundary unchanged.
+
+## In the app
+
+The **Quantum Kernel Classifier** shows the **decision regions**: the background colour is the class $f$ predicts, deeper where the classifier is more confident, with the boundary $f = 0$ as a white line. Training points are dots, test points triangles, and mistakes are marked ✕. Switch between **Kernel ridge** and **SVM** and change **C or λ**: watch the boundary smooth out or bend. With more than two features, the regions are drawn in the plane of the two leading principal components, a slice through the data.
 
 [Try it: separate the circles with a kernel](qs:open/qml_kernel)
 
@@ -60,8 +76,25 @@ Q: Why is the test accuracy the honest score?
 E: A classifier can memorize its training points; only unseen points show whether it has learned the pattern.
 ```
 
+```quiz
+Q: In kernel ridge, what does a larger λ do?
+- Makes the classifier fit every training point exactly
+* Makes the decision function smoother and more cautious
+- Adds more qubits
+E: λ is added to the kernel matrix's diagonal before inverting, which shrinks the weights and smooths f.
+```
+
+```quiz
+Q: Where does the quantum computer appear in a kernel classifier?
+* Only in computing the kernel values K(x, x′)
+- In every step of the SVM's optimization
+- In predicting the class sign f(x)
+E: After the kernel matrix is measured, training and prediction are classical: the kernel trick.
+```
+
 ## Summary
 
 - The kernel trick: a classical method learns from the kernel matrix alone.
 - Kernel ridge: $\alpha = (K + \lambda I)^{-1} y$; an SVM maximizes the margin, and only its support vectors matter.
+- C and λ trade fitting the training points against a smoother boundary.
 - Judge a classifier by its test accuracy, not its training accuracy.

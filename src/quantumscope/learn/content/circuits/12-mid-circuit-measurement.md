@@ -8,6 +8,10 @@ math: 06-probability, 08-density-matrices-and-projectors
 ---
 # Mid-circuit measurement and classical bits
 
+## The idea
+
+Until now, measurement ended the circuit. Many protocols need to measure in the middle, keep the result as a classical bit, and carry on. Doing so splits the computation into branches — one per possible result — and, if nobody reads the result, it quietly destroys the interference that the circuit might have needed.
+
 ## Two kinds of measurement
 
 So far, measurement came at the very end: the **M** gates read out the final state. Many protocols need more: they measure *during* the circuit and use the result later. QuantumScope's **M→c** (in the Classical palette) measures a qubit at any point and stores the result in a **classical bit** c0, c1, …
@@ -34,6 +38,27 @@ Someone who does not look at the classical bits describes the system by the aver
 
 In the Branches tab, the two records each have probability ½, and in each branch q1 has collapsed to the same value as q0: the measurement on q0 fixed q1 too.
 
+## Worked example
+
+H, then H, on $|0\rangle$ gives $|0\rangle$ with certainty: the second H undoes the first. Now put an **M→c** between them.
+
+- With probability ½ the measurement gives 0: the qubit is $|0\rangle$, and the second H makes $|+\rangle$, which reads 0 or 1 at random.
+- With probability ½ it gives 1: the qubit is $|1\rangle$, and H makes $|-\rangle$, again 50:50.
+
+Overall $P(0) = \frac{1}{2}$ instead of 1. The measurement removed the coherence between $|0\rangle$ and $|1\rangle$ that the second H needed to interfere back to $|0\rangle$.
+
+## Common mistakes
+
+- **Using M where M→c is meant.** M is the final readout; only M→c stores a result for later gates.
+- **Expecting a mid-circuit measurement to leave superpositions intact.** The measured qubit collapses in every branch.
+- **Reading the averaged state as one branch.** The density matrix is the average; each branch is a definite record with its own state.
+
+## In the app
+
+Take **M→c** from the Classical palette and drop it anywhere on a wire. The State Inspector's **Branches** tab lists each classical record with its probability, purity and per-qubit Bloch vectors. Build the worked example (H, M→c, H) and compare it with plain H, H.
+
+[Try it: H, measure mid-circuit, H](qs:circuit?n=1&gates=H:0;H:0&cols=0,2&measures=0:1:0&inspector=1)
+
 ## Check your understanding
 
 ```quiz
@@ -50,6 +75,22 @@ Q: What is the averaged state of a |+⟩ qubit after it is measured and the resu
 - |0⟩
 * The maximally mixed state I/2
 E: Each outcome has probability ½, and averaging |0⟩⟨0| and |1⟩⟨1| gives I/2: the coherence is gone.
+```
+
+```quiz
+Q: H, a mid-circuit measurement, then H act on |0⟩. What is P(0) at the end?
+- 1
+* 1/2
+- 0
+E: The measurement collapses the qubit to |0⟩ or |1⟩; the second H then gives |+⟩ or |−⟩, each read 50:50.
+```
+
+```quiz
+Q: Three qubits are measured mid-circuit into c0, c1, c2. At most how many branches can there be?
+- 3
+- 6
+* 8
+E: Each record of three classical bits is a branch: 2³ = 8 possible records.
 ```
 
 ## Summary

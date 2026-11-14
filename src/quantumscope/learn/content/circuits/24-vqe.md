@@ -34,6 +34,24 @@ The ansatz decides which states can be reached. For a 3-spin Heisenberg chain ($
 
 [Try it: the Heisenberg chain with one layer](qs:algorithm/vqe?problem=heisenberg-3&layers=1)
 
+## Worked example
+
+The H₂ Hamiltonian is a sum of five Pauli terms. Its basis state $|01\rangle$ (q0 = 0, so $Z_0 = +1$; q1 = 1, so $Z_1 = -1$) is the chemists' Hartree–Fock state, with
+
+$$\langle H\rangle = -0.332404 - 0.397938 - 0.397938 + 0.011280 \approx -1.116998 \text{ Hartree}$$
+
+(the $X_0X_1$ term averages to 0 on a basis state). The ansatz mixes in a little $|10\rangle$, which the $X_0X_1$ term couples to $|01\rangle$, and the energy falls to $-1.137306$. The difference, about 0.020 Hartree or 13 kcal/mol, is the **correlation energy**: small, but chemistry needs it to about 1 kcal/mol.
+
+## Common mistakes
+
+- **Reading a VQE result as exact.** Every value is an upper bound; it equals $E_0$ only if the ansatz can reach the ground state and the optimizer finds it.
+- **Blaming the optimizer for an expressibility limit.** If the best possible state is too simple, no optimizer can go lower; add a layer.
+- **Forgetting that ⟨H⟩ is estimated from shots on hardware.** Each value carries statistical error, which the next lectures address.
+
+## In the app
+
+**Algorithms → VQE** builds the ansatz and the Hamiltonian for H₂, Ising and Heisenberg chains. Press **Optimize** in the **Parameters & observable** panel: ⟨H⟩ falls toward the exact $E_0$ shown beside it. Try the Heisenberg chain with one layer, then two, to see expressibility at work.
+
 ## Check your understanding
 
 ```quiz
@@ -50,6 +68,22 @@ Q: The optimizer converges 0.17 above the exact energy. What is a sensible next 
 * Add layers to the ansatz, so it can represent more states
 - Lower the exact energy
 E: If the circuit cannot represent the ground state, no optimizer can reach it.
+```
+
+```quiz
+Q: A VQE run stops at ⟨H⟩ = −3.83 for a problem with E₀ = −4. What could explain it?
+* The ansatz cannot represent the ground state, or the optimizer is stuck in a local minimum
+- The variational principle is violated
+- The answer is −3.83, and E₀ is wrong
+E: ⟨H⟩ ≥ E₀ always holds; stopping above E₀ points to the circuit's limits or to a local valley.
+```
+
+```quiz
+Q: What does the classical computer do in VQE?
+- It prepares the quantum state
+* It chooses new parameters to lower the measured ⟨H⟩
+- It computes E₀ exactly
+E: The quantum computer prepares states and measures ⟨H⟩; the classical optimizer steers the parameters.
 ```
 
 ## Summary
