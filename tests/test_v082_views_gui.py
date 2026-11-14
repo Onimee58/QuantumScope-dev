@@ -84,27 +84,9 @@ def test_kernel_map_flags_concentration(app):
     assert k.last['off'] < 0.05 and 'kernel concentration' in k.kernel_map.getPlotItem().titleLabel.text
 
 
-class OffscreenInteractor(QtWidgets.QWidget):
-    """An off-screen stand-in for pyvistaqt.QtInteractor."""
-    def __init__(self, parent=None, *a, **k):
-        import pyvista as pv
-        super().__init__(parent)
-        self.__dict__['_p'] = pv.Plotter(off_screen=True, window_size=(600, 420))
-
-    def __getattr__(self, name):
-        return getattr(self.__dict__['_p'], name)
-
-    def render(self, *a, **k):
-        return self.__dict__['_p'].render()
-
-    def enable_point_picking(self, *a, **k):
-        self.__dict__['picking'] = k.get('callback')
-
-
-def test_the_3d_view(app, tmp_path, monkeypatch):
-    pytest.importorskip('pyvista')
-    import quantumscope.gui.decision3d as D3
-    monkeypatch.setattr(D3, 'make_plotter', lambda parent: OffscreenInteractor(parent))
+def test_the_3d_view(app, tmp_path):
+    from gl_support import opengl_app
+    opengl_app()                                                               # draws in OpenGL (v0.9.11)
     k = trained(app, 'mnist', '3', '8')
     view = k.view3d
     assert view.geometry is None                                              # nothing until the tab opens
@@ -114,8 +96,13 @@ def test_the_3d_view(app, tmp_path, monkeypatch):
     app.processEvents()
     g = view.geometry
     assert g['f'].shape == (30, 30, 30) and 'agrees with the classifier on' in view.caption.text()
-    view.plotter.__dict__['picking'](g['P_test'][4])                          # click a test point
+    view.plotter.resize(600, 420)
+    app.processEvents()
+    x, y = view.plotter.project(g['P_test'][4])[0][0]                          # click a test point
+    view.plotter.clicked.emit(float(x), float(y))
     assert k.sample_view.entries[0]['heading'] == 'Test sample 5'
+    names = set(view.plotter.named)
+    assert {'boundary', 'support'} <= names and any(n.startswith('train') for n in names)
     for name in ('Front', 'Top', 'Side', 'Isometric', 'Reset'):
         view.preset(name)
     view.show_margins.setChecked(True)                                         # an SVM: margins allowed

@@ -4,9 +4,8 @@ Usage:  python tools/make_user_guide.py            # screenshots + PDF
         python tools/make_user_guide.py --pdf-only # rebuild the PDF from the existing screenshots
 
 Writes docs/images/*.png and src/quantumscope/assets/QuantumScope-User-Guide.pdf from
-docs/user-guide.md. On a normal desktop the Hydrogen screenshot includes the live 3-D view; with
-QT_QPA_PLATFORM=offscreen (no display) it shows the Explorer's controls and chart instead, since
-software 3-D rendering is unreliable there.
+docs/user-guide.md. The 3-D views need OpenGL, which Qt's offscreen platform lacks: without a
+display, run it on a virtual one:  xvfb-run -a python tools/make_user_guide.py
 """
 import os
 import sys
@@ -17,7 +16,6 @@ sys.path.insert(0, os.path.join(ROOT, 'src'))
 DOCS = os.path.join(ROOT, 'docs')
 IMAGES = os.path.join(DOCS, 'images')
 PDF = os.path.join(ROOT, 'src', 'quantumscope', 'assets', 'QuantumScope-User-Guide.pdf')
-OFFSCREEN = os.environ.get('QT_QPA_PLATFORM') == 'offscreen'
 
 
 def settle(app, seconds=0.0):
@@ -42,45 +40,24 @@ def save(widget, name, crop=None, scale=1.0):
 
 
 def screenshots():
-    import pyvista as pv
-    from PySide6.QtWidgets import QApplication, QWidget
+    if os.environ.get('QT_QPA_PLATFORM') == 'offscreen':
+        raise SystemExit('The 3-D screenshots need OpenGL, which the offscreen platform lacks. '
+                         'Run:  xvfb-run -a python tools/make_user_guide.py')
+    from PySide6.QtCore import QCoreApplication, Qt
+    from PySide6.QtWidgets import QApplication, QMessageBox
+    QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)      # as the app does
     os.environ.setdefault('QUANTUMSCOPE_SETTINGS_FILE', os.path.join(DOCS, '.guide-settings.ini'))
     os.environ.setdefault('QUANTUMSCOPE_DATA_DIR', os.path.join(DOCS, '.guide-data'))
     app = QApplication.instance() or QApplication([])
     app.setStyle('Fusion')
     import quantumscope.gui.main_window as M
-    if OFFSCREEN:                                    # no display: a stand-in for the 3-D widget
-        pv.OFF_SCREEN = True
 
-        class Interactor(QWidget):
-            def __init__(self, parent=None, *a, **k):
-                super().__init__(parent)
-                self.__dict__['_p'] = pv.Plotter(off_screen=True, window_size=(300, 300))
-
-            def __getattr__(self, name):
-                return getattr(self.__dict__['_p'], name)
-
-            def render(self, *a, **k):
-                return self.__dict__['_p'].render()
-        M.QtInteractor = Interactor
-
-        class DecisionInteractor(Interactor):                # the 3-D decision view: larger, picking accepted
-            def __init__(self, parent=None, *a, **k):
-                QWidget.__init__(self, parent)
-                self.__dict__['_p'] = pv.Plotter(off_screen=True, window_size=(960, 640))
-
-            def enable_point_picking(self, *a, **k):
-                pass
-        import quantumscope.gui.decision3d as D3
-        D3.make_plotter = lambda parent: DecisionInteractor(parent)
-        from PySide6.QtWidgets import QMessageBox                # no one can click a message box here:
-
-        def stop(title):                                          # fail loudly instead of waiting forever
-            def show(*args, **kwargs):
-                raise RuntimeError(f'Unexpected {title} while making the guide: {args[2] if len(args) > 2 else args}')
-            return staticmethod(show)
-        for kind in ('warning', 'information', 'critical'):
-            setattr(QMessageBox, kind, stop(kind))
+    def stop(title):                                          # no one clicks message boxes here:
+        def show(*args, **kwargs):                            # fail loudly instead of waiting forever
+            raise RuntimeError(f'Unexpected {title} while making the guide: {args[2] if len(args) > 2 else args}')
+        return staticmethod(show)
+    for kind in ('warning', 'information', 'critical'):
+        setattr(QMessageBox, kind, stop(kind))
     from quantumscope.gui.theme import apply_theme
     apply_theme('dark')
     w = M.MainWindow()
@@ -94,14 +71,7 @@ def screenshots():
     settle(app, 0.5)
     w.refresh()
     settle(app, 1.0)
-    if OFFSCREEN:
-        panel = w.n.parentWidget().parentWidget()
-        while panel.parentWidget() is not None and panel.width() < 300:
-            panel = panel.parentWidget()
-        x = panel.mapTo(w, panel.rect().topLeft()).x()
-        save(w, 'hydrogen-controls.png', crop=(0, 0, x + panel.width() + 6, w.height()), scale=0.8)
-    else:
-        save(w, 'hydrogen-controls.png', scale=0.75)
+    save(w, 'hydrogen-controls.png', scale=0.75)
 
     # The window tour: the Quantum Principles area with Double-Slit (it renders everywhere)
     w._launch_double_slit()
@@ -210,7 +180,12 @@ def screenshots():
     settle(app, 0.3)
     from PySide6.QtGui import QImage
     from PySide6.QtCore import Qt as _Qt
+    print('   3-D view in the window:', kernel.view3d.plotter.width(), 'x', kernel.view3d.plotter.height())
+    kernel.view3d.plotter.setFixedSize(480, 320)                # the guide's picture: 960 × 640
+    settle(app, 0.3)
     shot = kernel.view3d.save_image(os.path.join(IMAGES, 'qml-3d.png'))
+    kernel.view3d.plotter.setMinimumSize(120, 120)
+    kernel.view3d.plotter.setMaximumSize(16777215, 16777215)
     QImage(shot).scaledToWidth(960, _Qt.TransformationMode.SmoothTransformation).save(shot)
     print('   qml-3d.png', QImage(shot).width(), 'x', QImage(shot).height())
     kernel.top_tabs.setCurrentIndex(0)
@@ -304,7 +279,7 @@ def screenshots():
     image = learn.grab().toImage()
     painter = QPainter(image)
     popup = learn._term_popup
-    painter.drawImage(learn.mapFromGlobal(popup.pos()) if not OFFSCREEN else learn.reader.mapTo(learn, learn.reader.rect().center()),
+    painter.drawImage(learn.mapFromGlobal(popup.pos()),
                       popup.grab().toImage())
     painter.end()
     from PySide6.QtCore import Qt
@@ -338,4 +313,4 @@ if __name__ == '__main__':
     if '--pdf-only' not in sys.argv:
         screenshots()
     build_pdf()
-    os._exit(0)                                       # skip Qt/VTK teardown (see tests/conftest.py)
+    os._exit(0)                                       # skip Qt/OpenGL teardown (see tests/conftest.py)

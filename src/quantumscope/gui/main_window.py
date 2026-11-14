@@ -16,11 +16,11 @@ from PySide6.QtWidgets import (
     QSplitter, QVBoxLayout, QWidget, QFileDialog, QDialog, QDialogButtonBox, QFrame, QInputDialog, QTabWidget, QSizePolicy, QToolButton, QMenu, QApplication,
 )
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
-from pyvistaqt import QtInteractor
 from quantumscope import __version__
 from quantumscope.physics import HydrogenAtom, density_grid
 from quantumscope.physics.hydrogen import A_MU_METERS, captured_probability, RealHydrogenState
 from quantumscope.visualization.orbitals import draw_orbital, set_camera_view, probability_radius
+from quantumscope.visualization.gl3d import View3D
 from quantumscope.gui.plots import tidy
 from quantumscope import caching
 
@@ -95,7 +95,7 @@ class AboutDialog(QDialog):
         for text,url in (('GitHub repository','https://github.com/Onimee58/QuantumScope'),('Developer profile','https://github.com/Onimee58'),('SMU page','https://people.smu.edu/monim')):
             btn=QPushButton(text+' ↗');btn.clicked.connect(lambda checked=False,u=url:QDesktopServices.openUrl(QUrl(u)))
             links.addWidget(btn)
-        footer=QLabel('MIT licensed  •  Python / PySide6 / NumPy / VTK  •  Idealized educational simulations')
+        footer=QLabel('MIT licensed  •  Python / PySide6 / NumPy / OpenGL  •  Idealized educational simulations')
         footer.setObjectName('muted');footer.setWordWrap(True);footer.setAlignment(Qt.AlignmentFlag.AlignCenter);layout.addWidget(footer)
         layout.addStretch()
         close=QPushButton('Close');close.clicked.connect(self.accept);layout.addWidget(close)
@@ -215,9 +215,6 @@ class MainWindow(QMainWindow):
          "calculator": self._launch_calculator}[view]()
 
     def apply_preferences(self):
-        from quantumscope.gui import preferences as prefs
-        if hasattr(self, "renderer"):
-            self.renderer.setCurrentText(prefs.get("graphics/volume_method"))
         if hasattr(self, "circuit_widget"):
             self.circuit_widget.apply_preferences()
         if hasattr(self, "news_bar"):                     # the news choice may have changed
@@ -662,13 +659,6 @@ class MainWindow(QMainWindow):
         vf.addRow("Cloud visibility", self.opacity)
         controls.addWidget(view_box)
 
-        # Volume rendering method and graphics device now live in Settings → Graphics.
-        from quantumscope.gui import preferences as prefs
-        self.renderer = QComboBox(self)
-        self.renderer.addItems(["Auto (GPU preferred)", "GPU", "CPU"])
-        self.renderer.setCurrentText(prefs.get("graphics/volume_method"))
-        self.renderer.hide()
-
         camera_box = QGroupBox("Camera && scientific display")
         cf = QFormLayout(camera_box)
         cf.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
@@ -732,8 +722,8 @@ class MainWindow(QMainWindow):
         splitter.addWidget(scroll)
 
         self.viewer_splitter = QSplitter(Qt.Orientation.Horizontal)
-        self.plotter = QtInteractor(central)
-        self.compare_plotter = QtInteractor(central)
+        self.plotter = View3D(central)
+        self.compare_plotter = View3D(central)
         self.primary_panel = QWidget()
         primary_layout = QVBoxLayout(self.primary_panel)
         primary_layout.setContentsMargins(0, 0, 0, 0)
@@ -751,8 +741,8 @@ class MainWindow(QMainWindow):
         compare_layout.addWidget(self.compare_plotter, stretch=1)
         self.viewer_splitter.addWidget(self.compare_panel)
         self.compare_panel.hide()
-        self.plotter.camera.AddObserver("ModifiedEvent", lambda *_: self._mirror_camera(self.plotter, self.compare_plotter))
-        self.compare_plotter.camera.AddObserver("ModifiedEvent", lambda *_: self._mirror_camera(self.compare_plotter, self.plotter))
+        self.plotter.cameraChanged.connect(lambda: self._mirror_camera(self.plotter, self.compare_plotter))
+        self.compare_plotter.cameraChanged.connect(lambda: self._mirror_camera(self.compare_plotter, self.plotter))
         # Make the left sidebar span the full content height.
         # The compact radial plot belongs below the 3D viewers on the RIGHT only.
         viewer_column = QWidget()
@@ -795,7 +785,6 @@ class MainWindow(QMainWindow):
                              (self.resolution, self.resolution.valueChanged),
                              (self.enclosed, self.enclosed.valueChanged),
                              (self.opacity, self.opacity.valueChanged),
-                             (self.renderer, self.renderer.currentIndexChanged),
                              (self.phase_color, self.phase_color.stateChanged),
                              (self.show_grid, self.show_grid.stateChanged)):
             signal.connect(self._auto_refresh)
@@ -811,15 +800,7 @@ class MainWindow(QMainWindow):
             return
         self._syncing_camera = True
         try:
-            src, dst = source.camera, destination.camera
-            dst.SetPosition(*src.GetPosition())
-            dst.SetFocalPoint(*src.GetFocalPoint())
-            dst.SetViewUp(*src.GetViewUp())
-            dst.SetParallelProjection(src.GetParallelProjection())
-            dst.SetParallelScale(src.GetParallelScale())
-            dst.SetViewAngle(src.GetViewAngle())
-            destination.reset_camera_clipping_range()
-            destination.render()
+            destination.set_camera(source.camera())
         finally:
             self._syncing_camera = False
 
@@ -894,27 +875,15 @@ class MainWindow(QMainWindow):
             return
         set_camera_view(self.plotter, probability_radius(self.axis, self.density),
                         self.camera_view.currentText(), self.zoom_factor.value())
-        self.plotter.render()
         if self.compare_enable.isChecked() and self.compare_density is not None:
             set_camera_view(self.compare_plotter,
                             probability_radius(self.compare_axis, self.compare_density),
                             self.camera_view.currentText(), self.zoom_factor.value())
-            self.compare_plotter.render()
 
     def _update_gpu_diagnostics(self):
-        """Query the *current VTK GL context*; environment hints aren't proof."""
+        """Query the 3-D view's *current* OpenGL context; environment hints aren't proof."""
         try:
-            window = self.plotter.render_window
-            window.MakeCurrent()
-            info = window.ReportCapabilities()
-            if not info:
-                info = "VTK did not report OpenGL capabilities for this context."
-            lines = [line.strip() for line in str(info).splitlines()
-                     if any(term in line.lower() for term in
-                            ("renderer", "vendor", "version", "opengl"))]
-            if not lines:
-                lines = [str(info)[:600]]
-            self.gpu_diagnostics.setText("\n".join(lines[:12]))
+            self.gpu_diagnostics.setText(self.plotter.gl_information())
         except Exception as exc:
             self.gpu_diagnostics.setText(f"Renderer query unavailable: {exc}")
 
@@ -955,7 +924,7 @@ class MainWindow(QMainWindow):
             backend, radius = draw_orbital(
                 self.plotter, self.axis, self.density, self.psi,
                 self.mode.currentText(), self.enclosed.value(),
-                self.renderer.currentText(), self.opacity.value(),
+                self.opacity.value(),
                 self.phase_color.isChecked(), self.show_grid.isChecked(),
                 self.camera_view.currentText(), self.zoom_factor.value())
             self.compare_panel.setVisible(self.compare_enable.isChecked())
@@ -970,7 +939,7 @@ class MainWindow(QMainWindow):
                 draw_orbital(self.compare_plotter, self.compare_axis,
                              self.compare_density, self.compare_psi,
                              self.mode.currentText(), self.enclosed.value(),
-                             self.renderer.currentText(), self.opacity.value(),
+                             self.opacity.value(),
                              self.phase_color.isChecked(), self.show_grid.isChecked(),
                              self.camera_view.currentText(), self.zoom_factor.value())
             else:
@@ -1006,7 +975,7 @@ class MainWindow(QMainWindow):
                 f"<b>Grid:</b> ±{self.axis[-1]:g} a_mu per axis<br>"
                 f"<b>Grid probability:</b> {captured:.6f} (numerical estimate)<br>"
                 f"<b>Camera framing:</b> {radius:.1f} a_mu radius (99.5% of grid mass)<br>"
-                f"<b>Volume backend:</b> {backend}<br><br>"
+                f"<b>Drawn with:</b> {backend}<br><br>"
                 "Cloud displays a transformed intensity of |ψ|² to reveal dim regions, "
                 "not electron trajectories. Grid data export contains unmodified |ψ|². "
                 "Nucleus marker is symbolic (not to scale). "
@@ -1022,8 +991,7 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getSaveFileName(self, "Export 3D image", "orbital.png", "PNG (*.png)")
         if path:
             try:
-                self.plotter.screenshot(str(Path(path).with_suffix(".png")),
-                                        scale=self.export_scale.value())
+                self.plotter.save(Path(path).with_suffix(".png"), scale=self.export_scale.value())
             except Exception as exc:
                 QMessageBox.critical(self, "Export error", str(exc))
 

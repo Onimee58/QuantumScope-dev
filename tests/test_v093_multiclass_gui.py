@@ -110,11 +110,9 @@ def test_the_datasets_tab_prepares_all_classes_for_the_kernel_classifier(app):
     assert d.class_a.findData(Q.ALL) == 0
 
 
-def test_the_3d_view_with_many_classes(app, monkeypatch):
-    pytest.importorskip('pyvista')
-    import quantumscope.gui.decision3d as D3
-    from test_v082_views_gui import OffscreenInteractor
-    monkeypatch.setattr(D3, 'make_plotter', lambda parent: OffscreenInteractor(parent))
+def test_the_3d_view_with_many_classes(app):
+    from gl_support import opengl_app
+    opengl_app()                                                               # draws in OpenGL (v0.9.11)
     k = trained(app, 'seeds', qubits=4)
     view = k.view3d
     k.top_tabs.setCurrentIndex(1)
@@ -123,7 +121,7 @@ def test_the_3d_view_with_many_classes(app, monkeypatch):
     app.processEvents()
     g = view.geometry
     assert g['f'].shape == (30, 30, 30, 3) and not view.show_margins.isEnabled()
-    assert any(name.startswith('region') for name in view.plotter.actors)            # a surface per class region
+    assert any(name.startswith('region') for name in view.plotter.named)             # a surface per class region
     view.axes_box.setCurrentIndex(view.axes_box.findData('separating'))
     view.run.wait()
     app.processEvents()
