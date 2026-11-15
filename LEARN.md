@@ -182,6 +182,9 @@ check: did bell state=psi- S>=2.5                 a Bell test in the Entanglemen
 check: did pairs state=psi- alice=0 bob=0 E<=-0.99
                                                   pairs sent at fixed axes
 check: did beat pair=1s+2p p=0.5                  a superposition played in Hydrogen Dynamics (2D or 3D)
+check: did features dataset=breast_cancer k=3 rank=1
+                                                  a feature selection annealed (v0.9.13)
+check: did featuresused k=3 chosen~texture        the Datasets tab prepared data with annealed features
 check: calc gives exp(i*pi)                       a calculator result equal to this expression's value
 check: calc gives 486.3±0.2                       … within a tolerance
 check: calc typed eig(                            an input that contains this text (spaces and * ignored)

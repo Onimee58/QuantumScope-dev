@@ -207,8 +207,10 @@ class SampleView(QWidget):
 class DatasetsExperiment(QWidget):
     """Choose or import data, see whether it fits a quantum model, and prepare it."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, choose_features=None):
         super().__init__(parent)
+        self.choose_features_in = choose_features          # choose_features(task): to Quantum annealing (v0.9.13)
+        self.selection = None                              # features chosen by annealing: dict(names, signature)
         root = QHBoxLayout(self)
         left = QWidget()
         left.setMaximumWidth(420)
@@ -268,6 +270,19 @@ class DatasetsExperiment(QWidget):
         self.components.setRange(0, D.MAX_QUBITS)
         self.components.setSpecialValueText('keep all')
         rv.addRow('PCA components', self.components)
+        choose = QHBoxLayout()
+        self.anneal_button = QPushButton('Choose by annealing…')
+        self.anneal_button.setToolTip('Keep named features instead of PCA components: Quantum annealing chooses '
+                                      'Qubits-many that predict the classes without repeating each other')
+        self.clear_selection = QPushButton('Clear')
+        self.clear_selection.setToolTip('Forget the chosen features (PCA again)')
+        choose.addWidget(self.anneal_button, 1)
+        choose.addWidget(self.clear_selection)
+        rv.addRow('Or keep features', choose)
+        self.selection_label = QLabel()
+        self.selection_label.setWordWrap(True)
+        self.selection_label.setObjectName('muted')
+        rv.addRow(self.selection_label)
         self.scale = QCheckBox('Scale each feature to [0, π]')
         self.scale.setChecked(True)
         rv.addRow(self.scale)
@@ -303,6 +318,9 @@ class DatasetsExperiment(QWidget):
         self.suggest.clicked.connect(self._check)
         self.class_a.currentIndexChanged.connect(self._class_mode_changed)
         self.prepare_button.clicked.connect(self.prepare)
+        self.anneal_button.clicked.connect(lambda: self.choose_by_annealing())
+        self.clear_selection.clicked.connect(self._clear_selection_and_prepare)
+        self._show_selection()
         self._load_source()
 
     def _load_source(self, *_):
@@ -350,17 +368,13 @@ class DatasetsExperiment(QWidget):
 
     def _check(self, *_):
         """Run the checker and fill in its suggested recipe."""
+        self.selection = None                                  # suggestions replace chosen features too
+        self._show_selection()
         everything = self.all_classes()
         verdict, findings, recipe = D.check(self.dataset, qubits=self.qubits.value(),
                                             max_classes=None if everything else 2)
         self.recipe = recipe
-        colour = {'ready': '#5ad48a', 'preprocess': '#ffba50', 'stop': '#ff7a7a'}[verdict]
-        text = {'ready': 'Ready: this data fits as it is.', 'preprocess': 'Usable after preprocessing (suggested below).',
-                'stop': 'Cannot be used.'}[verdict]
-        self.verdict.setText(f'<span style="color:{colour}">{text}</span>')
-        icon = {'ok': '✓', 'fix': '⚠', 'stop': '✗'}
-        self.findings.setText('<br>'.join(f'{icon[f.level]} {f.message}' + (f' <i>{f.suggestion}</i>' if f.suggestion else '')
-                                          for f in findings))
+        self._show_findings(verdict, findings)
         if not everything:
             for box, value in ((self.class_a, recipe.classes[0]), (self.class_b, recipe.classes[1])):
                 box.blockSignals(True)
@@ -378,14 +392,101 @@ class DatasetsExperiment(QWidget):
         if verdict != 'stop':
             self.prepare()
 
-    def current_recipe(self):
+    def _show_findings(self, verdict, findings):
+        colour = {'ready': '#5ad48a', 'preprocess': '#ffba50', 'stop': '#ff7a7a'}[verdict]
+        text = {'ready': 'Ready: this data fits as it is.', 'preprocess': 'Usable after preprocessing (suggested below).',
+                'stop': 'Cannot be used.'}[verdict]
+        self.verdict.setText(f'<span style="color:{colour}">{text}</span>')
+        icon = {'ok': '✓', 'fix': '⚠', 'stop': '✗'}
+        self.findings.setText('<br>'.join(f'{icon[f.level]} {f.message}' + (f' <i>{f.suggestion}</i>' if f.suggestion else '')
+                                          for f in findings))
+
+    def current_recipe(self, with_selection=True):
         a, b = self.class_a.currentData(), self.class_b.currentData()
         classes = tuple(self.recipe.classes) if self.all_classes() else (a, b)
-        return D.Recipe(classes=classes, missing=self.missing.currentData(), text=self.text.currentData(),
-                        per_class=self.per_class.value(), components=self.components.value(),
-                        scale='pi' if self.scale.isChecked() else 'none', test_fraction=self.test_fraction.value())
+        recipe = D.Recipe(classes=classes, missing=self.missing.currentData(), text=self.text.currentData(),
+                          per_class=self.per_class.value(), components=self.components.value(),
+                          scale='pi' if self.scale.isChecked() else 'none', test_fraction=self.test_fraction.value())
+        if with_selection and self.selection:
+            recipe.select, recipe.components = tuple(self.selection['names']), 0
+        return recipe
+
+    # ---- features chosen by annealing (v0.9.13) ---------------------------------------------------------
+    @staticmethod
+    def _signature(recipe):
+        """What the split depends on: chosen features stay valid while these are unchanged."""
+        return (tuple(recipe.classes), recipe.missing, recipe.text, recipe.per_class, round(recipe.test_fraction, 6),
+                recipe.seed)
+
+    def choose_by_annealing(self):
+        """Send this data, as the recipe cleans and splits it, to Quantum annealing; returns the task."""
+        from quantumscope.ml import feature_selection as F
+        try:
+            task = F.make_task(self.dataset, self.current_recipe(with_selection=False), 'datasets',
+                               self.dataset.name or 'your data', k=min(self.qubits.value(), F.MAX_CANDIDATES - 1))
+        except ValueError as exc:
+            self.selection_label.setText(f'Cannot choose features: {exc}')
+            return None
+        if self.choose_features_in is not None:
+            self.choose_features_in(task)
+        return task
+
+    def use_features(self, task, names):
+        """Prepare the task's data with the features an anneal chose (from Quantum annealing)."""
+        if self.dataset is not task.dataset:
+            index = self.source.findData(task.source)
+            if index >= 0 and task.source in D.BUILTIN:
+                self.source.blockSignals(True)
+                self.source.setCurrentIndex(index)
+                self.source.blockSignals(False)
+                self.source_key = task.source
+            else:
+                self.source_key = 'imported' if task.source in ('datasets', 'store') else task.source
+            self.use(task.dataset)
+        r = task.recipe
+        self.qubits.blockSignals(True)
+        self.qubits.setValue(len(names))
+        self.qubits.blockSignals(False)
+        verdict, findings, _ = D.check(self.dataset, qubits=len(names), max_classes=None if self.all_classes() else 2)
+        self._show_findings(verdict, findings)                 # the findings for this many qubits
+        if len(r.classes) == 2:
+            for box, value in ((self.class_a, r.classes[0]), (self.class_b, r.classes[1])):
+                box.blockSignals(True)
+                box.setCurrentIndex(box.findData(value))
+                box.blockSignals(False)
+        else:                                                   # all classes at once
+            self.class_a.blockSignals(True)
+            self.class_a.setCurrentIndex(max(0, self.class_a.findData(ALL)))
+            self.class_a.blockSignals(False)
+            self.recipe.classes = tuple(r.classes)
+            self.vs_label.setVisible(False)
+            self.class_b.setVisible(False)
+        self.missing.setCurrentIndex(self.missing.findData(r.missing))
+        self.text.setCurrentIndex(self.text.findData(r.text))
+        self.per_class.setValue(r.per_class)
+        self.test_fraction.setValue(r.test_fraction)
+        self.selection = dict(names=list(names), signature=self._signature(r))
+        self._show_selection()
+        return self.prepare()
+
+    def _show_selection(self):
+        chosen = self.selection is not None
+        self.components.setEnabled(not chosen)
+        self.clear_selection.setEnabled(chosen)
+        self.selection_label.setText(f'Chosen by annealing: {", ".join(self.selection["names"])} (instead of PCA).'
+                                     if chosen else '')
+
+    def _clear_selection_and_prepare(self):
+        self.selection = None
+        self._show_selection()
+        self.prepare()
 
     def prepare(self):
+        if self.selection and self._signature(self.current_recipe(with_selection=False)) != self.selection['signature']:
+            self.selection = None
+            self._show_selection()
+            self.selection_label.setText('The classes or samples changed since the features were chosen, so they '
+                                         'were set aside: choose them again.')
         recipe = self.current_recipe()
         if len(set(recipe.classes)) < len(recipe.classes):
             self.steps.setText('Choose two different classes.')
@@ -403,6 +504,10 @@ class DatasetsExperiment(QWidget):
             STORE.publish(self.dataset, recipe, prepared)
             from quantumscope.ml import progress
             progress.prepared(self.source_key, prepared.X_train.shape[1], prepared.classes)
+            if recipe.select:
+                from quantumscope.learn import progress as learn_progress
+                learn_progress.record('featuresused', dataset=self.source_key, k=len(recipe.select),
+                                      chosen='+'.join(recipe.select))
         self.plot.clear()
         if prepared.X_train.shape[1] >= 2:
             named = class_legend(self.plot, prepared.k)
@@ -515,8 +620,10 @@ class _DataPicker(QGroupBox):
                 self.qubits.setValue(STORE.prepared.X_train.shape[1])
                 self.qubits.blockSignals(False)
                 self.qubits.setToolTip('Set in the Datasets tab (one feature per qubit)')
+                chosen = getattr(STORE.recipe, 'select', ())
                 self.summary.setText(f'Prepared in the Datasets tab: {STORE.prepared.X_train.shape[1]} features '
-                                     f'on as many qubits.')
+                                     f'on as many qubits' + (f', chosen by annealing: {", ".join(chosen)}.' if chosen
+                                                            else '.'))
             else:
                 self.summary.setText('Nothing prepared yet: open the Datasets experiment and press Prepare.')
         else:

@@ -1,3 +1,23 @@
+## v0.9.13 — Choosing features by annealing
+
+### Annealing put to a real use: feature selection
+- **Quantum annealing has a new problem, Feature selection (from data).** It chooses which k features of a dataset to keep, one per qubit: each candidate feature is a spin, and the energy rewards features that separate the classes on their own (relevance, the correlation ratio η) and charges for pairs that repeat each other (redundancy, |correlation|), with a penalty unless exactly k are kept. **Relevance weight α** sets the balance; α = 1 is greedy selection.
+- **Any data:** a built-in dataset, or **From the Datasets tab**, including your own CSV. The data is cleaned and split exactly as the Datasets tab does, and only the training samples are used to choose, so the test accuracy stays honest.
+- **Candidates:** every feature, ranked by relevance; up to 10 can be ticked (one spin each, the simulation's limit). The 10 most relevant are ticked to begin with.
+- **Reads:** the anneal is measured many times (100 by default) and the best choice seen is kept, as real annealers are used. Good feature choices are often nearly tied, which makes the gap tiny, so a single anneal rarely finds the very best one.
+- **Chosen features** tab: the relevance of each candidate (kept ones in green), the redundancy map, and a table comparing the annealed choice with greedy selection, PCA and all candidates by test accuracy and redundancy, scored with a classical classifier. It says plainly that the lowest energy is not always the highest accuracy.
+- **Both directions:** **Use these features in the Datasets tab** prepares the data with the chosen features, for both classifiers; in the Datasets tab, **Or keep features → Choose by annealing…** sends the data being prepared to Quantum annealing. Chosen features replace PCA; **Clear** returns to it. If the classes, samples or test share change, the chosen features are set aside.
+- **Saved models** remember which features were kept, so **Predict on a file…** prepares new data the same way.
+- The penalty is as small as it can be while still keeping exactly k (1.5 times the smallest that works), since a large penalty shrinks the differences between choices, and with them the gap.
+
+### Learning
+- **New lecture, Choosing features by annealing** (Quantum ML): relevance, redundancy, the Ising formulation, the penalty, reads, a worked example, and an honest section on why 10 candidates need no quantum computer.
+- **New lab, Choose features by annealing:** keep 3 of the breast-cancer measurements; see the near-copies (radius, perimeter, area) on the redundancy map; anneal too fast; set α = 1 to get greedy selection; then train the quantum kernel classifier on the chosen features. Every step is checked as you go.
+
+### Also
+- Annealing problems can count near-best states as answers (`tolerance`); the existing problems are unchanged.
+- Tests for the formulation (it matches the QUBO and a brute-force search), the training-only choice, reads, the comparison, the Datasets pipeline with chosen features, the lab, and the window.
+
 ## v0.9.12 — Linux start-up fix
 
 - **Fixed: on Linux, 0.9.11 closed right after starting** on Wayland desktops (Ubuntu's default). The 3-D views' OpenGL library chose its connection to the graphics system from the desktop session (EGL on Wayland) rather than from Qt, and the installers carried only the X11 one (GLX). It now always uses the same one as Qt, and the installers carry both. The packaged self-test checks both are present.
