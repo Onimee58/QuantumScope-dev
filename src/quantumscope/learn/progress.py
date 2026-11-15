@@ -26,6 +26,10 @@ Events and their fields:
     pairs          state, clean, alice, bob (degrees), E, n
     beat           pair (such as 1s+2p, lower state first), a, b, p (probability of a), period (fs), view
     calc           text, mode
+    features       dataset, k, alpha, candidates, T, reads, valid (reads keeping k), hits (reads giving the
+                   answer), rank (the best read's place by energy, 1 = the answer), chosen (names joined by +),
+                   annealed, greedy (test accuracies) (v0.9.13)
+    featuresused   dataset, k, chosen: the Datasets tab prepared data with annealed features (v0.9.13)
 """
 import re
 

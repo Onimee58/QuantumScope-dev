@@ -498,7 +498,8 @@ class MainWindow(QMainWindow):
 
     def _launch_qml_datasets(self):
         from quantumscope.gui.qml_experiments import DatasetsExperiment
-        self._open_experiment("qml_datasets", "Datasets", DatasetsExperiment)
+        self._open_experiment("qml_datasets", "Datasets",
+                              lambda parent: DatasetsExperiment(parent, choose_features=self._anneal_features))
 
     def _launch_qml_kernel(self):
         from quantumscope.gui.qml_experiments import KernelExperiment
@@ -556,7 +557,18 @@ class MainWindow(QMainWindow):
     def _launch_annealing(self):
         from quantumscope.gui.annealing_view import AnnealingExperiment
         self._open_experiment("annealing", "Quantum annealing",
-                              lambda parent: AnnealingExperiment(parent, open_circuit=self._load_annealing_circuit))
+                              lambda parent: AnnealingExperiment(parent, open_circuit=self._load_annealing_circuit,
+                                                                 use_features=self._use_annealed_features))
+
+    def _anneal_features(self, task):
+        """Datasets → Quantum annealing: anneal a feature selection for the data being prepared (v0.9.13)."""
+        self._launch_annealing()
+        self._open_experiments["annealing"].load_task(task)
+
+    def _use_annealed_features(self, task, names):
+        """Quantum annealing → Datasets: prepare the data with the features the anneal chose (v0.9.13)."""
+        self._launch_qml_datasets()
+        self._open_experiments["qml_datasets"].use_features(task, names)
 
     def _load_annealing_circuit(self, n, gates, observable, note):
         """The anneal as gates, in the simulator, with its problem energy as the observable."""

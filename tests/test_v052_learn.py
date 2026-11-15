@@ -221,8 +221,9 @@ LAB_SOLUTIONS = {
 
 def test_every_lab_has_a_tested_solution():
     from test_v099_labs import SOLVED                              # the experiment and calculator labs (0.9.9)
+    from test_v0913_feature_selection import SOLVED as FEATURES    # choosing features by annealing (0.9.13)
     labs_present = {l.key for l in LESSONS if l.kind == 'lab'}
-    assert labs_present == set(LAB_SOLUTIONS) | SOLVED
+    assert labs_present == set(LAB_SOLUTIONS) | SOLVED | FEATURES
 
 
 @pytest.mark.parametrize('key', sorted(LAB_SOLUTIONS))
@@ -390,7 +391,7 @@ def test_grover_table_matches_the_formula():
 def test_every_area_has_lessons():
     areas = {l.area for l in LESSONS}
     assert areas == {'circuits', 'principles', 'hydrogen', 'math', 'qml'}     # Mathematics 0.7.7, Quantum ML 0.8.0
-    assert sum(l.kind == 'lab' for l in LESSONS) == 40 and len(LESSONS) == 107       # + annealing (0.9.2), many classes (0.9.3), study guides (0.9.8), 15 labs (0.9.9)
+    assert sum(l.kind == 'lab' for l in LESSONS) == 41 and len(LESSONS) == 109       # + annealing (0.9.2), many classes (0.9.3), study guides (0.9.8), 15 labs (0.9.9), feature selection (0.9.13)
 
 
 def test_png_size_matches_the_image_and_needs_no_qt():
