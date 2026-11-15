@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.12** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.13** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -212,6 +212,18 @@ Open **+ → Quantum annealing**. It anneals from the easy ground state of −Σ
 
 For MaxCut and number partitioning, flipping every spin gives the same answer, so the spectrum shows only the levels the anneal can reach. Lecture "Quantum annealing" and its lab explain the physics.
 
+**Feature selection (from data)** puts annealing to a real use: choosing which features of a dataset a classifier keeps, one per qubit.
+
+![Feature selection: 3 of the 10 "mean" breast-cancer features chosen by annealing, with the relevance of each candidate, their redundancy, and the comparison with greedy selection and PCA](images/annealing-features.png)
+
+- **Data:** a built-in dataset, or **From the Datasets tab** (your own CSV too), cleaned and split as the Datasets tab does. Only the training samples are used to choose.
+- **Keep (features)** and **Relevance weight α**: each candidate is a spin; the energy rewards features that separate the classes on their own (relevance) and charges for pairs that repeat each other (redundancy), with a penalty unless exactly that many are kept. α = 1 ignores redundancy.
+- **Candidates:** every feature, ranked by relevance; at most 10 can be ticked (one spin each). The 10 most relevant are ticked to begin with.
+- **Reads:** how many times the anneal is run and measured, keeping the best choice seen, as real annealers are used.
+- **Chosen features** shows the relevance of each candidate (green: kept), the redundancy between them, and a table of test accuracies for the annealed choice, the most relevant features alone (greedy), PCA and all candidates, scored with a classical classifier on test samples the choice never saw. **Use these features in the Datasets tab** prepares the data with them, for both classifiers.
+
+With at most 10 candidates, every choice could also be checked directly by a classical computer: the experiment shows how the problem is formulated and solved, not a speed-up. Lecture "Choosing features by annealing" and its lab explain it.
+
 ### Files and tools
 
 - **File:** **Open .qscope…**, **Open recent**, **Save .qscope…**, **Import OpenQASM 2…**, **Export OpenQASM 2…** and **Export PDF…** (the circuit diagram, optionally with a probability report).
@@ -232,6 +244,7 @@ The **Quantum ML** area turns data into quantum states and learns from them. Its
 - **Qubits (= features)** is how many features the prepared data will have: each classifier encodes one feature per qubit.
 - **The checker** gives a verdict (ready, usable after preprocessing, or cannot be used) and lists what stands in the way, each with a suggested fix: too many features, too many samples, more than two classes, classes too small to learn from, text columns, missing values, or features on different scales.
 - **Preprocessing** shows every step and lets you change it: **Classes** (two to separate, or **All classes**), **Missing values**, **Text columns**, **Samples per class**, **PCA components**, scaling to [0, π] and the **Test share**. **Apply suggestions** restores the checker's recipe, and **Prepare** prepares the data and shares it with both classifiers.
+- **Or keep features → Choose by annealing…** keeps named features instead of PCA components: it opens this data in **Quantum annealing** as a feature-selection problem, and **Use these features in the Datasets tab** brings the choice back. **Clear** returns to PCA. If the classes, samples or test share change afterwards, the chosen features are set aside, since they were chosen for a different split.
 - The data is split into training and test sets first, and every learned step (means, PCA, scaling) is fitted on the training part only, so the test accuracy is honest.
 - The plot shows the prepared training data, with a legend when there are more than two classes; for Digits, MNIST and Fashion-MNIST, example images of the chosen classes appear below it.
 - **Licences:** every built-in dataset is public and redistributed under its own licence (CC BY 4.0, CC BY-SA 3.0, CC0 or MIT), listed with its citation in the app's `ml/data/DATASETS.md`.

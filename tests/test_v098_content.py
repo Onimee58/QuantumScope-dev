@@ -57,8 +57,8 @@ def test_each_area_has_one_study_guide_that_links_everything(area):
 
 
 def test_lessons_count_and_questions_added():
-    assert sum(l.kind == 'guide' for l in LESSONS) == 5 and len(LECTURES) == 62
-    assert sum(l.body.count('```quiz') for l in LECTURES) >= 4 * 62
+    assert sum(l.kind == 'guide' for l in LESSONS) == 5 and len(LECTURES) == 63      # + feature selection (0.9.13)
+    assert sum(l.body.count('```quiz') for l in LECTURES) >= 4 * 63
 
 
 def test_search_prefers_a_section_about_the_word():
