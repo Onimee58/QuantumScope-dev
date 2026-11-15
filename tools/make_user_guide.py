@@ -263,6 +263,15 @@ def screenshots():
     annealing.s_slider.setValue(28)
     settle(app, 0.4)
     save(w, 'annealing.png', scale=0.75)
+    annealing.problem_box.setCurrentIndex(annealing.problem_box.findData('features'))   # feature selection (0.9.13)
+    annealing.data_box.setCurrentIndex(annealing.data_box.findData('breast_cancer'))
+    annealing.set_candidates([n for n in annealing.task.names if n.startswith('mean ')])
+    annealing.keep.setValue(3)
+    annealing.T.setValue(20)
+    annealing.compute().wait()
+    annealing.tabs.setCurrentIndex(3)
+    settle(app, 0.4)
+    save(w, 'annealing-features.png', scale=0.75)
 
     # Learn, Settings, About
     from PySide6.QtCore import QUrl

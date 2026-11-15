@@ -13,7 +13,7 @@ Quantum machine learning asks whether quantum circuits can help computers learn 
 
 **Who it is for:** students and professionals with some data or machine-learning background who want to know what quantum methods can and cannot do. No prior quantum computing is assumed beyond the first lectures listed below.
 
-**Time:** about 8–10 hours: 7 lectures of about 45 minutes and 4 labs of about an hour.
+**Time:** about 10–12 hours: 8 lectures of about 45 minutes and 5 labs of about an hour.
 
 ## Before you start
 
@@ -39,6 +39,8 @@ Basic machine-learning ideas help (training and test data, accuracy), but every 
 | 4 | [Evaluating a classifier](qs:lesson/qml/06-evaluating-classifiers) | read confusion matrices, ROC curves and cross-validation |
 | 4 | [More than two classes](qs:lesson/qml/07-more-than-two-classes) | build and judge k-class classifiers |
 | 4 | [Lab: from three species to ten digits](qs:lesson/qml/93-lab-ten-digits) | classify ten digits and ten kinds of clothing |
+| 5 | [Choosing features by annealing](qs:lesson/qml/08-feature-selection-by-annealing) | write feature selection as an Ising problem and judge the choice |
+| 5 | [Lab: choose features by annealing](qs:lesson/qml/94-lab-choose-features-by-annealing) | keep 3 of 30 breast-cancer measurements and classify with them |
 
 ## How to study
 
@@ -57,7 +59,8 @@ You have finished this area when you can:
 - count the circuit runs a variational classifier needs per training step;
 - recognize overfitting and kernel concentration, and say what to change;
 - prepare a real dataset without leaking test information;
-- judge a ten-class score against chance, using the confusion matrix and balanced accuracy.
+- judge a ten-class score against chance, using the confusion matrix and balanced accuracy;
+- choose features by annealing, and say honestly what the annealer adds.
 
 ## Where to go next
 

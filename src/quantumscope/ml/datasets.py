@@ -223,6 +223,8 @@ class Recipe:
     scale: str = 'pi'                  # 'pi': each feature to [0, π] (the encoding range); 'none'
     test_fraction: float = 0.25
     seed: int = 0
+    select: tuple = ()                 # keep only these features, by name (v0.9.13: chosen by annealing);
+                                       # applied instead of PCA
 
 
 MIN_PER_CLASS = 10                     # fewer samples than this cannot be both learned and tested
@@ -321,6 +323,7 @@ class Pipeline:
     span: np.ndarray = None
     names: list = field(default_factory=list)   # the prepared features' names
     label_name: str = ''               # the training file's label column, if it had a name
+    select: np.ndarray = None          # columns kept by a feature selection (v0.9.13), or None
 
     @property
     def inputs(self):
@@ -340,6 +343,8 @@ class Pipeline:
             X = np.where(np.isnan(X), self.means, X)
         if self.varying is not None:
             X = X[:, self.varying]
+        if self.select is not None:
+            X = X[:, self.select]
         if self.pca_components is not None:
             X = (X - self.pca_mean) @ self.pca_components.T
         if self.lo is not None:
@@ -353,7 +358,7 @@ class Pipeline:
     def to_arrays(self, prefix='pipe_'):
         """Arrays and a JSON-ready header, for saving (no pickle)."""
         arrays = {prefix + 'keep': self.keep, prefix + 'means': self.means}
-        for name in ('varying', 'pca_mean', 'pca_components', 'lo', 'span'):
+        for name in ('varying', 'select', 'pca_mean', 'pca_components', 'lo', 'span'):
             value = getattr(self, name)
             if value is not None:
                 arrays[prefix + name] = value
@@ -365,10 +370,12 @@ class Pipeline:
     @classmethod
     def from_arrays(cls, arrays, header, prefix='pipe_'):
         get = lambda name: np.asarray(arrays[prefix + name]) if prefix + name in arrays else None   # noqa: E731
-        return cls(list(header['features']), {int(k): list(v) for k, v in header['text_columns'].items()},
+        pipe = cls(list(header['features']), {int(k): list(v) for k, v in header['text_columns'].items()},
                    tuple(header['classes']), get('keep').astype(int), get('means').astype(float), bool(header['fill']),
                    None if get('varying') is None else get('varying').astype(bool), get('pca_mean'),
                    get('pca_components'), get('lo'), get('span'), list(header['names']), header.get('label_name', ''))
+        pipe.select = None if get('select') is None else get('select').astype(int)
+        return pipe
 
 
 @dataclass
@@ -448,7 +455,15 @@ def prepare(dataset, recipe):
             steps.append(f'Dropped {int((~varying).sum())} constant features.')
             Xtr, Xte, names = Xtr[:, varying], Xte[:, varying], [n for n, v in zip(names, varying) if v]
             pipe.varying = varying
-    if recipe.components and recipe.components < Xtr.shape[1]:
+    if recipe.select:
+        missing_names = [name for name in recipe.select if name not in names]
+        if missing_names:
+            raise ValueError(f'These chosen features are not in the data: {", ".join(missing_names)}')
+        chosen = np.array([names.index(name) for name in recipe.select], int)
+        Xtr, Xte, names = Xtr[:, chosen], Xte[:, chosen], [names[i] for i in chosen]
+        steps.append(f'Kept {len(chosen)} chosen features: {", ".join(names)}.')
+        pipe.select = chosen
+    elif recipe.components and recipe.components < Xtr.shape[1]:
         mean = Xtr.mean(axis=0)
         _, s, vt = np.linalg.svd(Xtr - mean, full_matrices=False)
         k = recipe.components

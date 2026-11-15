@@ -27,6 +27,8 @@ class Problem:
     observable: str                   # H_p as a Pauli sum (for the circuit simulator)
     terms: list                       # [(coefficient, (qubit, …))]: Z on each listed qubit
     diagonal: np.ndarray = field(repr=False, default=None)   # E(x) for every bitstring x (qubit 0 first)
+    tolerance: float = 1e-9           # answers: every bitstring within this of the lowest energy
+                                      # (v0.9.13: feature selection counts near-best choices as answers)
 
     @property
     def symmetric(self):
@@ -37,9 +39,10 @@ class Problem:
     def ground_energy(self):
         return float(self.diagonal.min())
 
-    def solutions(self, tolerance=1e-9):
-        """The bitstrings of lowest energy."""
+    def solutions(self, tolerance=None):
+        """The bitstrings of lowest energy (within the problem's tolerance)."""
         best = self.ground_energy
+        tolerance = self.tolerance if tolerance is None else tolerance
         return [format(x, f'0{self.n}b') for x in np.flatnonzero(self.diagonal <= best + tolerance)]
 
 
@@ -152,7 +155,7 @@ class Space:
     def success(self, state):
         """The probability of measuring an answer (any lowest-energy bitstring)."""
         best = self.energies.min()
-        return float(np.sum(np.abs(state[self.energies <= best + 1e-9]) ** 2))
+        return float(np.sum(np.abs(state[self.energies <= best + self.problem.tolerance]) ** 2))
 
 
 def space(problem):
@@ -206,7 +209,7 @@ def spectrum(problem, points=101, levels=6):
     """The lowest levels of H(s) for s from 0 to 1, the minimum gap, and the adiabatic time scale."""
     sp_ = space(problem)
     best = sp_.energies.min()
-    g = int(np.sum(sp_.energies <= best + 1e-9))               # states that end as answers
+    g = int(np.sum(sp_.energies <= best + problem.tolerance))  # states that end as answers
     if g >= sp_.dimension:
         raise ValueError('Every bitstring is an answer: there is nothing to anneal')
     k = min(sp_.dimension, max(levels, g + 1))
@@ -327,7 +330,8 @@ def circuit_state(problem, T, steps):
 PROBLEMS = (('MaxCut: square (4 nodes)', 'maxcut:ring4'), ('MaxCut: square with a diagonal', 'maxcut:diamond'),
             ('MaxCut: pentagon (odd)', 'maxcut:ring5'), ('MaxCut: hexagon', 'maxcut:ring6'),
             ('MaxCut: triangular prism', 'maxcut:prism'), ('Spin glass (frustrated)', 'glass'),
-            ('Number partitioning', 'partition'), ('Your Ising problem', 'custom'))
+            ('Number partitioning', 'partition'), ('Your Ising problem', 'custom'),
+            ('Feature selection (from data)', 'features'))        # v0.9.13: built from a dataset (ml.feature_selection)
 
 
 def build(key, n=5, seed=0, numbers=(4, 5, 6, 7, 8), text=''):
@@ -340,4 +344,6 @@ def build(key, n=5, seed=0, numbers=(4, 5, 6, 7, 8), text=''):
         return partition(numbers)
     if key == 'custom':
         return from_text(text, int(n))
+    if key == 'features':
+        raise ValueError('Feature selection is built from a dataset: see quantumscope.ml.feature_selection')
     raise ValueError(f'Unknown problem {key!r}')
