@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.13** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.14** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -226,7 +226,7 @@ With at most 10 candidates, every choice could also be checked directly by a cla
 
 ### Files and tools
 
-- **File:** **Open .qscope…**, **Open recent**, **Save .qscope…**, **Import OpenQASM 2…**, **Export OpenQASM 2…** and **Export PDF…** (the circuit diagram, optionally with a probability report).
+- **File:** **Open .qscope…**, **Open recent**, **Save .qscope…**, **Import OpenQASM 2…**, **Export OpenQASM 2…** and **Export PDF…** (the circuit diagram, optionally with a probability report). A circuit too long for one line at a readable size is drawn in parts, one under another and over as many A3 pages as it needs; above 10 pages, QuantumScope asks first.
 - **Tools:** **Simplify circuit…** and **Check equivalence with a saved circuit…**.
 - **The QASM Converter** (open it with **+**) converts between OpenQASM 2 and QuantumScope's .qscope format.
 - **The Error-correction explorer** (open it with **+**) compares how the error-correcting codes perform as noise grows.
