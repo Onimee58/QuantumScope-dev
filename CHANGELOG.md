@@ -1,3 +1,8 @@
+## v0.9.14 — Readable PDFs of long circuits
+
+- **Fixed: Export PDF… shrank long circuits to one unreadable line.** A digitized anneal opened as a circuit (3,110 gates in 2,343 columns) came out as a thin streak across the page. Circuits too long for one line are now drawn in parts, one under another, never smaller than 60% of full size, over as many A3 pages as needed. Each part is labelled with its columns, every part repeats the qubit labels, and blocks are never cut in two. Short circuits look exactly as before.
+- **Long exports ask first:** above 10 pages, QuantumScope says how many columns and pages there will be before choosing a file.
+
 ## v0.9.13 — Choosing features by annealing
 
 ### Annealing put to a real use: feature selection

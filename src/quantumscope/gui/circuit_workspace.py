@@ -1545,6 +1545,13 @@ class CircuitWorkspace(QWidget):
         dlg.exec()
 
     def export_pdf(self):
+        from quantumscope.gui.circuit_pdf import pages_needed
+        columns=max([c for _,c in self.gates]+list(self.measurements.values()),default=0)+1
+        pages=pages_needed(self.n,columns,list(self.model.blocks.values()))
+        if pages>10 and QMessageBox.question(self,'A long PDF',
+                f'This circuit is {columns:,} columns long. Drawn at a readable size, it takes about {pages} A3 '
+                f'pages. Export it anyway?')!=QMessageBox.StandardButton.Yes:
+            return
         path,_=QFileDialog.getSaveFileName(self,'Export circuit to PDF',self._suggest('circuit.pdf'),'PDF files (*.pdf)')
         if not path:return
         if not path.lower().endswith('.pdf'):path+='.pdf'
