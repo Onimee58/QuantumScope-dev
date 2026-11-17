@@ -58,7 +58,8 @@ class SuperpositionDialog(QWidget):
         form.addWidget(measure)
         self.result=QLabel('Ready.');self.result.setWordWrap(True);form.addWidget(self.result)
         form.addStretch()
-        root.addWidget(left)
+        from quantumscope.gui.side_panel import CollapsiblePanel
+        root.addWidget(CollapsiblePanel(left,'Prepare and measure','superposition'))
         right=QVBoxLayout()
         self.view=BlochView();right.addWidget(self.view,3)
         self.prob=QLabel();self.prob.setAlignment(Qt.AlignmentFlag.AlignCenter);right.addWidget(self.prob)

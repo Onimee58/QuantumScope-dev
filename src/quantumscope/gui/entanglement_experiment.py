@@ -269,7 +269,8 @@ class EntanglementDialog(QWidget):
         self.explain.setWordWrap(True)
         form.addWidget(self.explain)
         form.addStretch()
-        root.addWidget(left)
+        from quantumscope.gui.side_panel import CollapsiblePanel
+        root.addWidget(CollapsiblePanel(left, 'Controls', 'entanglement'))
         right = QVBoxLayout()
         spheres = QHBoxLayout()
         self.alice, self.bob = BlochView(), BlochView()

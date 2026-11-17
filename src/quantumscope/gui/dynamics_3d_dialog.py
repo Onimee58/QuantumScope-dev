@@ -33,7 +33,7 @@ class HydrogenDynamics3DDialog(QDialog):
         outer.addWidget(splitter)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setMinimumWidth(540)
+        scroll.setMinimumWidth(320)                    # narrower windows scroll sideways (v0.9.15)
         scroll.setMaximumWidth(650)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         options = QWidget()
@@ -99,6 +99,8 @@ class HydrogenDynamics3DDialog(QDialog):
         splitter.addWidget(self.plotter)
         splitter.setStretchFactor(0,0); splitter.setStretchFactor(1,1)
         splitter.setSizes([560,750])
+        from quantumscope.gui.side_panel import wrap_in_splitter
+        wrap_in_splitter(splitter, 0, 'Controls', 'dynamics-3d')
         self.play.clicked.connect(self._toggle)
         self.slider.valueChanged.connect(self._draw)
         # clicked() passes a 'checked' flag; calling reset_camera with it skipped the redraw.
