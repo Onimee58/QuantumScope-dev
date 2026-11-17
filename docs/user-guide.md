@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.15** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.16** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -230,6 +230,13 @@ With at most 10 candidates, every choice could also be checked directly by a cla
 
 - **File:** **Open .qscope…**, **Open recent**, **Save .qscope…**, **Import OpenQASM 2…**, **Export OpenQASM 2…** and **Export PDF…** (the circuit diagram, optionally with a probability report). A circuit too long for one line at a readable size is drawn in parts, one under another and over as many A3 pages as it needs; above 10 pages, QuantumScope asks first.
 - **Tools:** **Simplify circuit…** and **Check equivalence with a saved circuit…**.
+- **File → Run on IBM Quantum hardware…** writes ready-to-paste Python that runs the circuit on a real IBM quantum computer with your own IBM Quantum account (the free Open Plan includes a few minutes of quantum time per 28 days). QuantumScope never contacts IBM, and the API key and instance CRN you type only fill in the code: they are not saved. Four steps, each with **Copy**:
+  1. install Qiskit;
+  2. save your account once (or use environment variables, or, not recommended, write the key into the script);
+  3. run the circuit on your computer first, ideally and with the simulated noise of a real IBM device, with no account;
+  4. run it on the least busy device with enough qubits (or one you name), and print the counts with q0 first, as QuantumScope shows them.
+
+  **Save the hardware script…** saves step 4 as a .py file. Mid-circuit measurements, resets and conditions run as dynamic circuits; QuantumScope's noise settings are left out, since the hardware has its own noise.
 - **The QASM Converter** (open it with **+**) converts between OpenQASM 2 and QuantumScope's .qscope format.
 - **The Error-correction explorer** (open it with **+**) compares how the error-correcting codes perform as noise grows.
 - **Autosave:** QuantumScope saves your circuit as you work and offers to recover it after a crash (see **⚙ → Files**).
