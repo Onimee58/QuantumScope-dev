@@ -1,5 +1,9 @@
-## v0.9.16 (not released yet)
+## v0.9.16 — Run your circuit on real quantum hardware
 
+- **File → Run on IBM Quantum hardware…** in the Gate Circuit Simulator writes ready-to-paste Python for the current circuit, in four steps with Copy buttons: install Qiskit; save your IBM Quantum account once (or use environment variables, or write the key into the script); try the circuit on your computer first, ideally and with the simulated noise of a real IBM device (no account needed); and run it on the least busy device with enough qubits, or one you name. Results print with q0 first, as in QuantumScope, so they can be compared directly. **Save the hardware script…** saves the run as a .py file.
+- **Your account stays yours:** QuantumScope never contacts IBM, and the API key and instance CRN typed in the dialog only fill in the code; they are never saved. It warns when a key looks incomplete or would be written into a script.
+- Mid-circuit measurements, resets and conditions come through as dynamic circuits; noise settings are left out (the hardware has its own), with a note.
+- Written for, and tested against, Qiskit 2.6 and qiskit-ibm-runtime 0.52 (the Sampler from 0.50 on, SamplerV2 before), channel ibm_quantum_platform.
 - **The palettes fit their buttons evenly:** the boxes around the gate, classical and noise buttons no longer leave spare room at the bottom and right.
 - **Fewer GitHub Actions minutes:** pushes and pull requests test on Linux only (the full Windows and macOS matrix on request, and every release is still built and self-tested on all three); changes to documentation alone run nothing; a newer push cancels an older run; downloaded packages are cached.
 
