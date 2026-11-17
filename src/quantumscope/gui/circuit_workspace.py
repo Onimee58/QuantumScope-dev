@@ -473,6 +473,8 @@ class CircuitWorkspace(QWidget):
         file_menu.addAction('Import OpenQASM 2…',self.load_qasm)
         file_menu.addAction('Export OpenQASM 2…',self.export_qasm)
         file_menu.addAction('Export PDF…',self.export_pdf)
+        file_menu.addSeparator()
+        file_menu.addAction('Run on IBM Quantum hardware…',self.run_on_hardware)   # ready-to-paste code (v0.9.16)
         self.file_button.setMenu(file_menu);top.addWidget(self.file_button)
         edits=QHBoxLayout();outer.addLayout(edits)
         for text,cb in [('Undo',self.undo),('Redo',self.redo)]:
@@ -1926,10 +1928,8 @@ class CircuitWorkspace(QWidget):
                              classical=layout.get('classical',()),conditions=layout.get('conditions',()))
             self._show_notes('QASM import notes',notes)
         except (OSError,ValueError) as exc:QMessageBox.warning(self,'QASM import rejected',str(exc))
-    def export_qasm(self):
-        path,_=QFileDialog.getSaveFileName(self,'Export OpenQASM 2',self._suggest('untitled.qasm'),'OpenQASM 2 (*.qasm *.qasm2)')
-        if not path:return
-        if not path.lower().endswith(('.qasm','.qasm2')):path+='.qasm'
+    def qasm_text(self):
+        """The circuit as OpenQASM 2, as Export OpenQASM 2 writes it (noise is left out, with a note)."""
         if self.model.dynamic:   # mid-circuit measurement, conditions and reset: one-bit registers m<k>
             from quantumscope.physics.circuit_files import dynamic_sequence,to_qasm_dynamic
             gates,columns,_,_=self.model.layout()
@@ -1956,6 +1956,22 @@ class CircuitWorkspace(QWidget):
         if self.model.noise_model.active or self.model.noise:   # OpenQASM 2 cannot describe noise: say so
             head,_,rest=lines.partition('\n')
             lines=head+'\n// Note: QuantumScope noise settings are not part of OpenQASM 2 and were not exported.\n'+rest
+        return lines
+    def run_on_hardware(self):
+        """Ready-to-paste Python that runs this circuit on IBM Quantum hardware (v0.9.16)."""
+        from quantumscope.gui.hardware_dialog import HardwareDialog
+        try:
+            dialog=HardwareDialog(self)
+        except Exception as exc:
+            QMessageBox.warning(self,'Run on IBM Quantum hardware',f'This circuit cannot be written as OpenQASM 2: {exc}')
+            return None
+        dialog.show();return dialog
+    def export_qasm(self):
+        path,_=QFileDialog.getSaveFileName(self,'Export OpenQASM 2',self._suggest('untitled.qasm'),'OpenQASM 2 (*.qasm *.qasm2)')
+        if not path:return
+        if not path.lower().endswith(('.qasm','.qasm2')):path+='.qasm'
+        lines=self.qasm_text()
+        if self.model.noise_model.active or self.model.noise:
             self.status.setText('Exported the ideal circuit: noise cannot be written in OpenQASM 2')
         try:
             with open(path,'w',encoding='utf-8') as f:f.write(lines)
