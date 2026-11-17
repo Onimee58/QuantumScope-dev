@@ -27,7 +27,7 @@ class DoubleSlitDialog(QDialog):
         split = QSplitter(Qt.Orientation.Horizontal)
         root.addWidget(split, 1)
         left = QWidget()
-        left.setMinimumWidth(390)
+        left.setMinimumWidth(300)
         form = QFormLayout(left)
         self.wavelength = self._double(200, 1200, 500, ' nm', 10)
         self.width = self._double(1, 200, 20, ' µm', 1)
@@ -94,6 +94,8 @@ class DoubleSlitDialog(QDialog):
         rlayout.addWidget(self.status)
         split.addWidget(right)
         split.setChildrenCollapsible(False); split.setSizes([380, 820])
+        from quantumscope.gui.side_panel import wrap_in_splitter
+        wrap_in_splitter(split, 0, 'Controls', 'double-slit')
         from PySide6.QtCore import QTimer
         self._pending = 0
         self._timer = QTimer(self); self._timer.timeout.connect(self._stream)

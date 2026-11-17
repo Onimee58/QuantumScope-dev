@@ -228,12 +228,14 @@ class Classifier:
 
         patience: with validation data, stop when the validation loss has not improved by min_delta
         for this many steps, and restore the parameters of the best step (early stopping).
-        batch_size: Adam only, each step on a random batch of this many samples (0: all).
+        method: 'BFGS' (quasi-Newton: it chooses its own step size), 'Adam', or 'gradient' (plain
+        gradient descent: every step moves rate × the gradient downhill; v0.9.15).
+        batch_size: Adam and gradient descent only, each step on a random batch of this many samples (0: all).
         After training, self.validation holds (step, validation loss, accuracy) and self.stopped_early
         says whether early stopping ended it (self.best_step: the step whose parameters were kept)."""
         X, y = np.asarray(X, float), np.asarray(y, float)
-        if batch_size and method != 'Adam':
-            raise ValueError('Mini-batches need the Adam optimizer (BFGS relies on the full loss)')
+        if batch_size and method not in ('Adam', 'gradient'):
+            raise ValueError('Mini-batches need Adam or gradient descent (BFGS relies on the full loss)')
         if patience and validation is None:
             raise ValueError('Early stopping needs validation data')
         history, self.validation, self.stopped_early, self.best_step = [], [], False, None
@@ -296,7 +298,7 @@ class Classifier:
             except StopIteration:
                 pass
             return finish()
-        if method != 'Adam':
+        if method not in ('Adam', 'gradient'):
             raise ValueError(f'Unknown method {method!r}')
         rng = np.random.default_rng(seed)
         params = np.r_[self.theta, self.bias]
@@ -305,9 +307,14 @@ class Classifier:
             rows = rng.choice(len(y), size=min(int(batch_size), len(y)), replace=False) if batch_size else slice(None)
             g, gb = self.gradient(X[rows], y[rows], *self._unpack(params))
             g = np.r_[g, gb]
-            m = 0.9 * m + 0.1 * g
-            v = 0.999 * v + 0.001 * g * g
-            params = params - rate * (m / (1 - 0.9 ** t)) / (np.sqrt(v / (1 - 0.999 ** t)) + 1e-8)
+            if method == 'gradient':                                     # the textbook step: θ ← θ − η ∇L
+                params = params - rate * g
+            else:
+                m = 0.9 * m + 0.1 * g
+                v = 0.999 * v + 0.001 * g * g
+                params = params - rate * (m / (1 - 0.9 ** t)) / (np.sqrt(v / (1 - 0.999 ** t)) + 1e-8)
+            if not np.all(np.isfinite(params)):
+                raise ValueError('The loss diverged: the learning rate is too large')
             if not report(*self._unpack(params)):
                 break
         return finish()

@@ -1,3 +1,13 @@
+## v0.9.15 — A more flexible window
+
+From the beta tester's review:
+
+- **Side panels fold to a strip instead of vanishing.** The controls of every experiment, the gate palette, the Learn window's lesson list and the calculator's values fold with **‹** to a narrow strip that keeps their name; **›** or a click on the name opens them again. Which panels are folded is remembered.
+- **Any tab in its own window.** **⧉** next to **Learn**, or right-click a tab → **Open in its own window**: the tab moves into a window of its own, of any size and shape, on any screen (3-D views included). **Dock back**, or closing the window, returns it as a tab. Opening the same experiment again brings its window to the front. Closing QuantumScope closes them too.
+- **Narrower windows:** the Hydrogen, Double-slit and Hydrogen Dynamics controls no longer force a minimum width of 400–540 pixels; when there is less room, they scroll sideways.
+- **Gradient descent for the variational classifier**, with a learning rate and batch size: each step moves the learning rate times the gradient downhill, the clearest way to see what a learning rate does. The learning rate now says why it is greyed out with BFGS (which chooses its own step size).
+- **Fixed: the gate, classical and noise palettes clipped their names** with larger fonts (Windows display scaling): their cells now follow the font.
+
 ## v0.9.14 — Readable PDFs of long circuits
 
 - **Fixed: Export PDF… shrank long circuits to one unreadable line.** A digitized anneal opened as a circuit (3,110 gates in 2,343 columns) came out as a thin streak across the page. Circuits too long for one line are now drawn in parts, one under another, never smaller than 60% of full size, over as many A3 pages as needed. Each part is labelled with its columns, every part repeats the qubit labels, and blocks are never cut in two. Short circuits look exactly as before.

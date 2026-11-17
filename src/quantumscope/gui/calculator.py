@@ -213,6 +213,8 @@ class CalculatorView(QWidget):
         split.setStretchFactor(0, 3)
         split.setStretchFactor(1, 2)
         split.setSizes([700, 420])
+        from quantumscope.gui.side_panel import wrap_in_splitter
+        wrap_in_splitter(split, 1, 'Values and history', 'calculator')
         self.input.returnPressed.connect(self.evaluate)
         self.go.clicked.connect(self.evaluate)
         self.examples.activated.connect(self._example)
