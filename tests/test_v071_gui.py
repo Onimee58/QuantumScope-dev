@@ -35,7 +35,7 @@ def test_compact_layout_sidebar_and_canvas_height(app):
     w.resize(1536, 900)
     w.show()
     app.processEvents()
-    side = w._split.widget(0)
+    side = w._split.widget(0).content                    # inside its folding panel (v0.9.15)
     assert side.width() == w.SIDEBAR_WIDTH == 400
     assert w.palette.isAncestorOf(w.palette) or side.isAncestorOf(w.palette)
     assert side.isAncestorOf(w.shots) and side.isAncestorOf(w.verify_table)      # beside the results
@@ -116,7 +116,7 @@ def test_tall_sidebar_keeps_classical_and_noise_at_the_top(app):
         setup()
         for _ in range(3):
             app.processEvents()
-        side = w._split.widget(0)
+        side = w._split.widget(0).content                    # inside its folding panel (v0.9.15)
         y = lambda widget: widget.mapTo(side, widget.rect().topLeft()).y()
         assert y(w.classical_palette) == y(w.noise_palette)                     # side by side, both at the top
         gap = y(w.shots.parentWidget()) - (y(w.noise_palette) + w.noise_palette.height())

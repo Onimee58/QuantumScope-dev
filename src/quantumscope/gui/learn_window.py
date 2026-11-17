@@ -125,6 +125,8 @@ class LearnWindow(QWidget):
         mv.addWidget(self.status)
         split.addWidget(main)
         split.setSizes([280, 820])
+        from quantumscope.gui.side_panel import wrap_in_splitter
+        wrap_in_splitter(split, 0, 'Lessons', 'learn')
         self.refresh_contents()
         # Labs tick off live: listen to the circuit editor, whether it was given directly
         # (tests) or belongs to the main window (the real app).

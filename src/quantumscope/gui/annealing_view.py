@@ -95,7 +95,8 @@ class AnnealingExperiment(QWidget):
         self.result_label.setWordWrap(True)
         form.addWidget(self.result_label)
         form.addStretch(1)
-        root.addWidget(_scrolling(left, form))
+        from quantumscope.gui.side_panel import CollapsiblePanel
+        root.addWidget(CollapsiblePanel(_scrolling(left, form), 'Problem and anneal', 'annealing'))
         self.tabs = QTabWidget()
         self.spectrum_plot = _plot('Energy levels of H(s) = (1 − s)·H_driver + s·H_problem', 's', 'energy')
         self.tabs.addTab(self.spectrum_plot, 'Spectrum')

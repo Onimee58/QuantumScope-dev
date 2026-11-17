@@ -30,7 +30,7 @@ Because every $\theta_k$ sits in an $R_Y$ gate, the **parameter-shift rule** giv
 
 $$\frac{\partial f}{\partial \theta_k} = \frac{f(\theta_k + \frac{\pi}{2}) - f(\theta_k - \frac{\pi}{2})}{2}$$
 
-QuantumScope trains with **BFGS** (fast, using these exact gradients) or **Adam** (steady, small steps), and draws the loss and the training accuracy at every step.
+QuantumScope trains with **BFGS** (fast, using these exact gradients, and choosing its own step size), **Adam** (steady, small steps), or plain **gradient descent**, which moves the parameters by the learning rate times the gradient each step: too large a rate and the loss jumps around, too small and it crawls. It draws the loss and the training accuracy at every step.
 
 For more than two classes, the circuit is read differently: measure several qubits and let each outcome name a class. The lecture *More than two classes* explains how.
 
