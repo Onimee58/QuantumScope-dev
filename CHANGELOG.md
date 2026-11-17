@@ -1,3 +1,8 @@
+## v0.9.16 (not released yet)
+
+- **The palettes fit their buttons evenly:** the boxes around the gate, classical and noise buttons no longer leave spare room at the bottom and right.
+- **Fewer GitHub Actions minutes:** pushes and pull requests test on Linux only (the full Windows and macOS matrix on request, and every release is still built and self-tested on all three); changes to documentation alone run nothing; a newer push cancels an older run; downloaded packages are cached.
+
 ## v0.9.15 — A more flexible window
 
 From the beta tester's review:

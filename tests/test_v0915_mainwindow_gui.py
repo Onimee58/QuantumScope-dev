@@ -98,7 +98,21 @@ def test_palettes_fit_their_names(window):
     metrics = palette.fontMetrics()
     assert palette.gridSize().height() >= metrics.height() + 16
     assert palette.gridSize().width() >= metrics.horizontalAdvance('Reset') + 12
-    assert palette.height() >= palette.gridSize().height() + 10
+    assert palette.height() == palette.gridSize().height() + 2 * palette.frameWidth()       # one row, no spare
+
+
+def test_palette_margins_are_even(window):
+    window._launch_circuits()
+    QtWidgets.QApplication.processEvents()
+    for palette in (window.circuit_widget.palette, window.circuit_widget.classical_palette,
+                    window.circuit_widget.noise_palette):
+        top_left = palette.mapTo(palette, palette.viewport().pos())
+        items = [palette.visualItemRect(palette.item(i)).translated(top_left) for i in range(palette.count())]
+        top = min(r.top() for r in items)
+        bottom = palette.height() - 1 - max(r.bottom() for r in items)
+        left = min(r.left() for r in items)
+        right = palette.width() - 1 - max(r.right() for r in items)
+        assert abs(top - bottom) <= 1 and abs(left - right) <= 2, (palette.objectName(), top, bottom, left, right)
 
 
 def test_the_learning_rate_follows_the_optimizer(window):
