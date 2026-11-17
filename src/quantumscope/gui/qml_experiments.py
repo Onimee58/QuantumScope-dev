@@ -304,7 +304,8 @@ class DatasetsExperiment(QWidget):
         self.steps.setObjectName('muted')
         form.addWidget(self.steps)
         form.addStretch()
-        root.addWidget(_scrolling(left, form))
+        from quantumscope.gui.side_panel import CollapsiblePanel
+        root.addWidget(CollapsiblePanel(_scrolling(left, form), 'Data', 'qml-datasets'))
         right = QVBoxLayout()
         self.plot = _plot('Prepared training data (first two features)')
         right.addWidget(self.plot, 3)
@@ -854,7 +855,8 @@ class KernelExperiment(QWidget):
         self.result.setWordWrap(True)
         form.addWidget(self.result)
         form.addStretch()
-        root.addWidget(_scrolling(left, form))
+        from quantumscope.gui.side_panel import CollapsiblePanel
+        root.addWidget(CollapsiblePanel(_scrolling(left, form), 'Classifier settings', 'qml-kernel'))
         from PySide6.QtWidgets import QSplitter, QTabWidget
         right = QSplitter(Qt.Orientation.Vertical)                # drag the divider to resize
         right.setChildrenCollapsible(False)
@@ -1195,6 +1197,9 @@ class VariationalExperiment(QWidget):
         self.method = QComboBox()
         self.method.addItem('BFGS (parameter-shift gradients)', 'BFGS')
         self.method.addItem('Adam (steady steps)', 'Adam')
+        self.method.addItem('Gradient descent (fixed learning rate)', 'gradient')
+        self.method.setToolTip('BFGS chooses its own step size, so the learning rate does not apply to it. Adam '
+                               'adapts its steps; gradient descent moves the learning rate × the gradient each step')
         mv.addRow('Optimizer', self.method)
         self.steps = QSpinBox()
         self.steps.setRange(5, 1000)
@@ -1214,13 +1219,18 @@ class VariationalExperiment(QWidget):
         self.rate.setDecimals(3)
         self.rate.setSingleStep(0.01)
         self.rate.setValue(0.1)
-        self.rate.setToolTip('Adam\'s step size')
-        mv.addRow('Learning rate (Adam)', self.rate)
+        self.rate.setToolTip('How far each step moves: too large and the loss jumps around or blows up, too small '
+                             'and it crawls. Adam and gradient descent only: BFGS chooses its own step size')
+        mv.addRow('Learning rate', self.rate)
+        self.rate_note = QLabel('BFGS chooses its own step size: choose Adam or gradient descent to set a learning rate.')
+        self.rate_note.setWordWrap(True)
+        self.rate_note.setObjectName('muted')
+        mv.addRow(self.rate_note)
         self.batch = QSpinBox()
         self.batch.setRange(0, 5000)
         self.batch.setSpecialValueText('all')
-        self.batch.setToolTip('Adam only: each step on a random batch of this many samples')
-        mv.addRow('Batch size (Adam)', self.batch)
+        self.batch.setToolTip('Adam and gradient descent only: each step on a random batch of this many samples')
+        mv.addRow('Batch size', self.batch)
         self.validation_share = QDoubleSpinBox()
         self.validation_share.setRange(0.0, 0.4)
         self.validation_share.setSingleStep(0.05)
@@ -1255,7 +1265,8 @@ class VariationalExperiment(QWidget):
         self.result.setWordWrap(True)
         form.addWidget(self.result)
         form.addStretch()
-        root.addWidget(_scrolling(left, form))
+        from quantumscope.gui.side_panel import CollapsiblePanel
+        root.addWidget(CollapsiblePanel(_scrolling(left, form), 'Circuit and training', 'qml-vqc'))
         right = QVBoxLayout()
         self.regions = _plot('Decision regions')
         right.addWidget(self.regions, 3)
@@ -1286,9 +1297,9 @@ class VariationalExperiment(QWidget):
 
     def _options(self):
         """The training settings from the controls (shared by Train and Cross-validate)."""
-        adam = self.method.currentData() == 'Adam'
+        stepped = self.method.currentData() in ('Adam', 'gradient')
         return dict(method=self.method.currentData(), steps=self.steps.value(), rate=self.rate.value(),
-                    batch_size=self.batch.value() if adam else 0, seed=self.seed.value())
+                    batch_size=self.batch.value() if stepped else 0, seed=self.seed.value())
 
     def _many_classes(self):
         """Whether the chosen data has more than two classes (then the loss is cross-entropy)."""
@@ -1308,9 +1319,10 @@ class VariationalExperiment(QWidget):
         self.loss_box.setEnabled(not many)
 
     def _adam_controls(self, *_):
-        adam = self.method.currentData() == 'Adam'
-        self.rate.setEnabled(adam)
-        self.batch.setEnabled(adam)
+        stepped = self.method.currentData() in ('Adam', 'gradient')   # BFGS chooses its own step size
+        self.rate.setEnabled(stepped)
+        self.batch.setEnabled(stepped)
+        self.rate_note.setVisible(not stepped)
         self.patience.setEnabled(self.validation_share.value() > 0)
 
     def _new_model(self, p):

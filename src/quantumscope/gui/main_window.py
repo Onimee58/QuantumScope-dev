@@ -350,7 +350,15 @@ class MainWindow(QMainWindow):
             learn.setToolTip("Lectures and labs for this area")
             learn.clicked.connect(lambda _=False, cat=category: self.open_learn(cat))
             corner_row.addWidget(learn)
+            detach = QToolButton(corner)                         # v0.9.15: any tab in its own window
+            detach.setObjectName("tabAddButton")
+            detach.setText("⧉")
+            detach.setToolTip("Open this tab in its own window (closing the window puts it back)")
+            detach.clicked.connect(lambda _=False, cat=category: self._detach_tab(cat, self.workspaces[cat].currentIndex()))
+            corner_row.addWidget(detach)
             corner_row.addWidget(plus)
+            tabs.tabBar().setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            tabs.tabBar().customContextMenuRequested.connect(lambda pos, cat=category: self._tab_menu(cat, pos))
             tabs.setCornerWidget(corner, Qt.Corner.TopRightCorner)
             self.categories.addTab(tabs, title)
             self.workspaces[category] = tabs
@@ -368,6 +376,7 @@ class MainWindow(QMainWindow):
         outer.addWidget(self.categories, 1)
         self.setCentralWidget(shell)
         self._open_experiments = {}
+        self._detached = {}                              # widget → its own window (v0.9.15)
         self._experiment_labels, self._experiment_icons, self._placeholders = {}, {}, {}
         self._launch_double_slit()
         self._show_placeholder("qml")                    # Quantum ML opens on its Start page
@@ -392,6 +401,9 @@ class MainWindow(QMainWindow):
         """One persistent experiment tab in its own area. A closed tab was only hidden, so it
         comes back exactly as it was left."""
         category = self.EXPERIMENT_AREAS[key]
+        if key in self._open_experiments and self._open_experiments[key] in getattr(self, "_detached", {}):
+            self._raise_detached(self._open_experiments[key])     # it is in its own window: show that
+            return
         tabs=self._select_category(category)
         if key in self._open_experiments:
             widget=self._open_experiments[key]
@@ -411,7 +423,11 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Opened {label.strip()}",3500)
 
     def _add_area_tab(self,category,widget,label,icon=None,index=None):
-        """Add (or re-add) a tab to an area, replacing its "nothing open" placeholder."""
+        """Add (or re-add) a tab to an area, replacing its "nothing open" placeholder. A widget in
+        its own window stays there (its window comes to the front): returns -1."""
+        if widget in getattr(self, "_detached", {}):
+            self._raise_detached(widget)
+            return -1
         tabs=self.workspaces[category]
         placeholder=self._placeholders.get(category)
         if placeholder is not None and tabs.indexOf(placeholder)>=0:
@@ -432,6 +448,50 @@ class MainWindow(QMainWindow):
         widget.hide()
         if tabs.count()==0:
             self._show_placeholder(category)
+
+    # ---- tabs in their own windows (v0.9.15) ------------------------------------------------------
+    def _tab_menu(self, category, pos):
+        tabs = self.workspaces[category]
+        index = tabs.tabBar().tabAt(pos)
+        if index < 0 or tabs.widget(index) is self._placeholders.get(category):
+            return
+        menu = QMenu(self)
+        menu.addAction("Open in its own window", lambda: self._detach_tab(category, index))
+        menu.addAction("Close", lambda: self._close_workspace_tab(category, index))
+        menu.exec(tabs.tabBar().mapToGlobal(pos))
+
+    def _detach_tab(self, category, index):
+        """Move a tab into its own resizable window; closing that window (or Dock back) returns it."""
+        tabs = self.workspaces[category]
+        widget = tabs.widget(index)
+        if widget is None or widget is self._placeholders.get(category):
+            return None
+        label, icon, size = tabs.tabText(index), tabs.tabIcon(index), widget.size()
+        tabs.removeTab(index)
+        window = DetachedWindow(self, widget, label, icon, lambda: self._dock_back(widget))
+        self._detached[widget] = (window, category, label, icon)
+        if tabs.count() == 0:
+            self._show_placeholder(category)
+        window.resize(max(size.width(), 640), max(size.height() + 40, 480))
+        window.show()
+        window.raise_()
+        self.statusBar().showMessage(f"{label.strip()} is in its own window: close it to put it back", 5000)
+        return window
+
+    def _dock_back(self, widget):
+        entry = self._detached.pop(widget, None)
+        if entry is None:
+            return
+        window, category, label, icon = entry
+        window.release()
+        index = self._add_area_tab(category, widget, label, icon if not icon.isNull() else None)
+        self._select_category(category).setCurrentIndex(index)
+
+    def _raise_detached(self, widget):
+        window = self._detached[widget][0]
+        window.showNormal()
+        window.raise_()
+        window.activateWindow()
 
     def _show_placeholder(self,category):
         tabs=self.workspaces[category]
@@ -603,7 +663,7 @@ class MainWindow(QMainWindow):
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setMinimumWidth(410)
+        scroll.setMinimumWidth(300)                    # narrower windows scroll sideways (v0.9.15)
         scroll.setMaximumWidth(820)
         options = QWidget()
         controls = QVBoxLayout(options)
@@ -764,6 +824,8 @@ class MainWindow(QMainWindow):
         viewer_layout.addWidget(self.viewer_splitter, stretch=1)
         splitter.addWidget(viewer_column)
         splitter.setSizes([455, 965])
+        from quantumscope.gui.side_panel import wrap_in_splitter
+        self.hydrogen_panel = wrap_in_splitter(splitter, 0, 'Hydrogen controls', 'hydrogen')
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
 
@@ -1063,6 +1125,8 @@ class MainWindow(QMainWindow):
         workspace.enable_autosave(True)
 
     def closeEvent(self, event):
+        for entry in list(getattr(self, "_detached", {}).values()):   # tabs in their own windows go too
+            entry[0].close()
         workspace = getattr(self, "circuit_widget", None)
         if workspace is not None:
             workspace.enable_autosave(False)
@@ -1074,3 +1138,40 @@ class MainWindow(QMainWindow):
         self.plotter.close()
         self.compare_plotter.close()
         super().closeEvent(event)
+
+
+class DetachedWindow(QWidget):
+    """A tab in its own window (v0.9.15): any size and shape, on any screen. Closing it, or Dock
+    back, returns the tab to its area."""
+
+    def __init__(self, main, widget, label, icon, dock):
+        super().__init__(main, Qt.WindowType.Window)
+        self.widget, self._dock = widget, dock
+        self.setWindowTitle(f"{label.strip()} · QuantumScope")
+        if not icon.isNull():
+            self.setWindowIcon(icon)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(6, 6, 6, 6)
+        bar = QHBoxLayout()
+        bar.addWidget(QLabel(label.strip()))
+        bar.addStretch()
+        back = QPushButton("Dock back")
+        back.setToolTip("Put this back as a tab in the main window")
+        back.clicked.connect(self.close)
+        bar.addWidget(back)
+        layout.addLayout(bar)
+        widget.setParent(self)
+        layout.addWidget(widget, 1)
+        widget.show()
+
+    def release(self):
+        """Hand the widget back (it is re-added as a tab by the main window)."""
+        self.layout().removeWidget(self.widget)
+        self.widget.setParent(None)
+
+    def closeEvent(self, event):
+        dock, self._dock = self._dock, None
+        super().closeEvent(event)
+        if dock is not None:
+            dock()
+        self.deleteLater()

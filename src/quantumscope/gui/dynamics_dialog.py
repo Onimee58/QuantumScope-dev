@@ -113,7 +113,7 @@ class HydrogenDynamicsDialog(QDialog):
         self.norm_note.setWordWrap(True); form.addRow(self.norm_note)
         # Scrollable, so every control stays reachable in a short window.
         from PySide6.QtWidgets import QScrollArea
-        scroll = QScrollArea(); scroll.setWidgetResizable(True); scroll.setMinimumWidth(540)
+        scroll = QScrollArea(); scroll.setWidgetResizable(True); scroll.setMinimumWidth(320)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setWidget(controls)
         split.addWidget(scroll)
@@ -130,6 +130,8 @@ class HydrogenDynamicsDialog(QDialog):
         vlayout.addWidget(self.legend)
         split.addWidget(viewer); split.setChildrenCollapsible(False)
         split.setSizes([560, 620])
+        from quantumscope.gui.side_panel import wrap_in_splitter
+        wrap_in_splitter(split, 0, 'Controls', 'dynamics-2d')
         for widget, signal in [(self.a,self.a.currentIndexChanged),
                 (self.b,self.b.currentIndexChanged), (self.prob,self.prob.valueChanged),
                 (self.phase,self.phase.valueChanged), (self.plane,self.plane.currentIndexChanged),

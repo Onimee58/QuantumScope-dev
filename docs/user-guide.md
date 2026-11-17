@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.14** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.15** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -46,6 +46,8 @@ Nothing is downloaded or installed without your confirmation, and a download tha
 
 - **Areas:** the five tabs under the title, **Hydrogen**, **Quantum Principles**, **Quantum Circuits**, **Quantum ML** and **Math**, are the five areas of the app.
 - **Experiment tabs:** each area holds experiment tabs. Open more with **+** on the right of the tab bar, or with **+ New Experiment** at the top. Every tab can be closed with its **×**. A closed tab is only hidden, so opening it again brings it back exactly as you left it. An area with no open tabs shows a **Start** page with its experiments as buttons.
+- **Tabs in their own windows:** **⧉** next to **Learn** (or right-click a tab → **Open in its own window**) moves the tab into a window of its own, which can be any size and shape, on any screen. **Dock back**, or closing that window, puts it back as a tab.
+- **Side panels:** the **‹** at the edge of a side panel (the controls, the gate palette, the lesson list) folds it to a narrow strip with its name; **›**, or a click on the name, opens it again. QuantumScope remembers which panels are folded.
 - **📖 Learn** opens the study guide for the current area (chapter 8).
 - **⚑** opens **Report a problem** (chapter 10). **⚙** opens **Settings** (chapter 9). **ⓘ** shows **About QuantumScope**, including **Check for updates…** and **User guide**, which opens this document.
 - **Charts:** right-click any chart for **View All**, the axis options, **Save image…** (PNG or JPEG at twice the screen resolution), **Copy image** and **Save data (CSV)…**.
@@ -290,8 +292,8 @@ Both classifiers have a **Model** panel. After training, **Save model…** store
 
 - The circuit is the feature map followed by **Trainable layers** of RY gates and CNOTs; its output is ⟨Z₀⟩ plus a bias.
 - **More than two classes:** choose **All classes**. The first ⌈log₂ k⌉ qubits are measured and each outcome names a class (2 qubits for three species, 4 for ten digits); the loss is then cross-entropy. You need at least that many qubits.
-- **Optimizer:** **BFGS**, with exact gradients, or **Adam**. Set the **Steps** and the **Starting point (seed)**.
-- **Loss:** mean squared error, hinge (as an SVM) or cross-entropy. With Adam, set the **Learning rate** and a **Batch size** (each step on a random batch).
+- **Optimizer:** **BFGS**, with exact gradients, **Adam**, or **Gradient descent**, the textbook method: each step moves the learning rate times the gradient downhill. Set the **Steps** and the **Starting point (seed)**.
+- **Loss:** mean squared error, hinge (as an SVM) or cross-entropy. With Adam or gradient descent, set the **Learning rate** (too large and the loss jumps around or blows up, too small and it crawls) and a **Batch size** (each step on a random batch). BFGS chooses its own step size, so it has no learning rate.
 - **Validation share** holds out part of the training data; its loss and accuracy appear as dashed curves. **Early stopping** then ends training when the validation loss stops improving, and keeps the best step.
 - **Evaluation** (a tab beside **Training**) shows the same metrics, confusion matrix and ROC curve as the kernel classifier, and can cross-validate the current settings.
 - **Train** shows the loss and the training accuracy step by step, and the decision regions as they change; **Stop** ends training early.

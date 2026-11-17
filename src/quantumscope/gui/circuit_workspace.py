@@ -534,8 +534,12 @@ class CircuitWorkspace(QWidget):
         noise_box.addWidget(self.noise_palette);small.addStretch()
         self._sidebar=sv                       # Shots and the verification panel are added below
         self._style_palette()
+        side.setFixedWidth(max(self.SIDEBAR_WIDTH,self.palette.width(),           # wider when fonts are larger
+                               self.classical_palette.width()+self.noise_palette.width()+8))
         split.addWidget(side)
         center=QWidget();v=QVBoxLayout(center);split.addWidget(center)
+        from quantumscope.gui.side_panel import wrap_in_splitter
+        self.side_panel=wrap_in_splitter(split,0,'Gates and tools','circuit')
         self.grid=Grid(self);self.grid.setRowCount(self.n);self.grid.setColumnCount(self.columns)
         self.grid.setHorizontalHeaderLabels([f'{i+1}' for i in range(self.columns)]);self.grid.setVerticalHeaderLabels(self._qubit_labels())
         self.grid.verticalHeader().setDefaultSectionSize(54);self.grid.horizontalHeader().setDefaultSectionSize(82)
@@ -1048,16 +1052,21 @@ class CircuitWorkspace(QWidget):
         palette.setViewMode(QListView.ViewMode.IconMode)
         palette.setFlow(QListView.Flow.LeftToRight);palette.setWrapping(True)
         palette.setMovement(QListView.Movement.Static);palette.setResizeMode(QListView.ResizeMode.Adjust)
-        palette.setGridSize(QSize(cell,34));palette.setUniformItemSizes(True);palette.setSpacing(0)
+        # Cells follow the font (v0.9.15): with display scaling at 125–150%, fixed 34-pixel cells
+        # clipped the names at the top.
+        metrics=palette.fontMetrics()
+        widest=max((metrics.horizontalAdvance(palette.item(i).text()) for i in range(palette.count())),default=0)
+        cell=max(cell,widest+12);row=max(34,metrics.height()+16)
+        palette.setGridSize(QSize(cell,row));palette.setUniformItemSizes(True);palette.setSpacing(0)
         # Static movement makes Qt switch the view to drop-only: re-enable dragging gates out.
         palette.setDragEnabled(True);palette.setDragDropMode(QAbstractItemView.DragDropMode.DragOnly)
         palette.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         palette.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         for i in range(palette.count()):
             item=palette.item(i);item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            item.setSizeHint(QSize(cell-6,30))
+            item.setSizeHint(QSize(cell-6,row-4))
         rows=(palette.count()+columns-1)//columns
-        palette.setFixedSize(columns*cell+10,rows*34+10)
+        palette.setFixedSize(columns*cell+10,rows*row+10)
     def _style_palette(self):
         for i in range(self.noise_palette.count()):
             item=self.noise_palette.item(i)
