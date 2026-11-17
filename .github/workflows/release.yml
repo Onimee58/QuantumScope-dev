@@ -41,6 +41,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip                          # downloaded packages are reused: fewer minutes
+          cache-dependency-path: pyproject.toml
       - name: Read the version (and check it against the tag)
         shell: bash
         run: |

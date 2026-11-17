@@ -1066,7 +1066,12 @@ class CircuitWorkspace(QWidget):
             item=palette.item(i);item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             item.setSizeHint(QSize(cell-6,row-4))
         rows=(palette.count()+columns-1)//columns
-        palette.setFixedSize(columns*cell+10,rows*row+10)
+        # Exactly the cells, with the same margin on every side (v0.9.15): each item sits at the top
+        # of its cell, so the viewport is moved down by half the gap between rows, and the frame
+        # ends half a gap below the last row.
+        frame=palette.frameWidth();gap=4
+        palette.setViewportMargins(0,gap//2,0,0)
+        palette.setFixedSize(columns*cell+2*frame+1,rows*row+2*frame)   # +1: Qt wraps a row that fills the width exactly
     def _style_palette(self):
         for i in range(self.noise_palette.count()):
             item=self.noise_palette.item(i)
