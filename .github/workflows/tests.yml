@@ -1,28 +1,37 @@
 name: Tests
-# On a private repository every minute counts, and macOS and Windows minutes count several times
-# over: each push runs the tests once on Linux; the full matrix (Linux, Windows and macOS, two
-# Python versions) runs on pull requests into main and on request (Actions → Tests → Run workflow).
-# Tagged releases are tested on all three systems by the release workflow anyway.
+# On a private repository every minute counts, and Windows minutes cost about 1.7 and macOS
+# minutes about 10 Linux minutes. Pushes and pull requests run the tests on Linux only (pull
+# requests with two Python versions); the full matrix (Linux, Windows and macOS) runs on request
+# (Actions → Tests → Run workflow). Tagged releases are built and self-tested on all three systems
+# by the release workflow anyway. Changes to documentation alone run nothing, and a newer push
+# cancels a run still going for the same branch.
 on:
   push:
     branches: ['**']
     tags-ignore: ['**']
+    paths-ignore: ['docs/**', '**/*.md']
   pull_request:
     branches: [main]
+    paths-ignore: ['docs/**', '**/*.md']
   workflow_dispatch:
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ github.event_name == 'push' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "windows-latest", "macos-latest"]') }}
+        os: ${{ github.event_name == 'workflow_dispatch' && fromJSON('["ubuntu-latest", "windows-latest", "macos-latest"]') || fromJSON('["ubuntu-latest"]') }}
         python-version: ${{ github.event_name == 'push' && fromJSON('["3.12"]') || fromJSON('["3.11", "3.12"]') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip                          # downloaded packages are reused: fewer minutes
+          cache-dependency-path: pyproject.toml
       - name: Qt's system libraries (Linux)
         # Qt needs these to load even off screen; the runner image does not have them all
         if: runner.os == 'Linux'
