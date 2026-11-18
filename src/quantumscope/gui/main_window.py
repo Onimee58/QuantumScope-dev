@@ -131,12 +131,23 @@ class AboutDialog(QDialog):
         from quantumscope.gui.update_dialog import check_for_updates
         check_for_updates(self)
 
+def fitted_size(width, height, screen=None):
+    """The size to open a window at: as asked, but within the screen's free area (without the taskbar
+    or Dock), leaving room for the title bar (v0.9.17)."""
+    from PySide6.QtGui import QGuiApplication
+    screen = screen or QGuiApplication.primaryScreen()
+    if screen is None:
+        return width, height
+    free = screen.availableGeometry()
+    return min(width, free.width() - 16), min(height, free.height() - 48)
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"QuantumScope {__version__} — Quantum Visualization Studio")
         self.setWindowIcon(QIcon(str(files("quantumscope").joinpath("assets/quantumscope.png"))))
-        self.resize(1420, 920)
+        self.resize(*fitted_size(1420, 920))          # v0.9.17: never taller or wider than the screen
         self.atom = HydrogenAtom()
         self.axis = self.density = self.psi = self.state = None
         self.compare_axis = self.compare_density = self.compare_psi = self.compare_state = None
@@ -373,7 +384,17 @@ class MainWindow(QMainWindow):
         # the widget is kept, so reopening it keeps what you were converting.
         self.converter_widget = QasmConverter(self._load_converted_circuit, self.workspaces["circuits"])
         self.converter_widget.hide()
-        outer.addWidget(self.categories, 1)
+        # v0.9.17: the areas scroll when the window is shorter (or narrower) than an experiment needs,
+        # instead of the window growing past the bottom of a small screen.
+        self.workspace_scroll = QScrollArea()
+        self.workspace_scroll.setObjectName("workspaceScroll")
+        self.workspace_scroll.setWidgetResizable(True)
+        self.workspace_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.workspace_scroll.setWidget(self.categories)
+        outer.addWidget(self.workspace_scroll, 1)
+        self.categories.currentChanged.connect(self._fit_pages)
+        for tabs in self.workspaces.values():
+            tabs.currentChanged.connect(self._fit_pages)
         self.setCentralWidget(shell)
         self._open_experiments = {}
         self._detached = {}                              # widget → its own window (v0.9.15)
@@ -385,6 +406,29 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Ready  ·  Choose an experiment or explore hydrogen orbitals")
         from quantumscope.gui.resource_monitor import ResourceMonitor    # memory and processor (v0.9.6)
         self.resource_monitor = ResourceMonitor(self)
+
+    def _fit_pages(self, *_):
+        """Only the tab in view sets how small the window may be (v0.9.17). A tab widget otherwise
+        needs the room of its largest tab, open or not, so one tall experiment made every area scroll."""
+        if not hasattr(self, "categories"):
+            return
+        for tabs in (self.categories, *self.workspaces.values()):
+            current = tabs.currentWidget()
+            for i in range(tabs.count()):
+                page = tabs.widget(i)
+                if page.property("ownPolicy") is None:
+                    page.setProperty("ownPolicy", (page.sizePolicy().horizontalPolicy(), page.sizePolicy().verticalPolicy()))
+                if page is current:
+                    page.setSizePolicy(*page.property("ownPolicy"))
+                else:
+                    page.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+            tabs.updateGeometry()
+
+    @staticmethod
+    def _own_policy(widget):
+        own = widget.property("ownPolicy")
+        if own is not None:
+            widget.setSizePolicy(*own)
 
     def _select_category(self, category):
         tabs=self.workspaces[category]
@@ -434,8 +478,11 @@ class MainWindow(QMainWindow):
             tabs.removeTab(tabs.indexOf(placeholder))
         widget.show()
         if index is None:
-            return tabs.addTab(widget,icon,label) if icon is not None else tabs.addTab(widget,label)
-        return tabs.insertTab(index,widget,icon,label) if icon is not None else tabs.insertTab(index,widget,label)
+            index=tabs.addTab(widget,icon,label) if icon is not None else tabs.addTab(widget,label)
+        else:
+            index=tabs.insertTab(index,widget,icon,label) if icon is not None else tabs.insertTab(index,widget,label)
+        getattr(self, "_fit_pages", lambda: None)()
+        return index
 
     def _close_workspace_tab(self,category,index):
         """Every tab can close. Closing only hides its widget, so + brings it back exactly as it
@@ -468,6 +515,7 @@ class MainWindow(QMainWindow):
             return None
         label, icon, size = tabs.tabText(index), tabs.tabIcon(index), widget.size()
         tabs.removeTab(index)
+        self._own_policy(widget)                          # its own size again, in its own window
         window = DetachedWindow(self, widget, label, icon, lambda: self._dock_back(widget))
         self._detached[widget] = (window, category, label, icon)
         if tabs.count() == 0:
@@ -502,6 +550,7 @@ class MainWindow(QMainWindow):
             index=tabs.addTab(placeholder,"Start")
             tabs.tabBar().setTabButton(index,tabs.tabBar().ButtonPosition.RightSide,None)
         tabs.setCurrentWidget(placeholder)
+        getattr(self, "_fit_pages", lambda: None)()
 
     def _make_placeholder(self,category):
         """'No experiment open', with one button per experiment of this area (from its + menu)."""

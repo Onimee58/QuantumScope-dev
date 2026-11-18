@@ -541,7 +541,7 @@ class CircuitWorkspace(QWidget):
         split.addWidget(side)
         center=QWidget();v=QVBoxLayout(center);split.addWidget(center)
         from quantumscope.gui.side_panel import wrap_in_splitter
-        self.side_panel=wrap_in_splitter(split,0,'Gates and tools','circuit')
+        self.side_panel=wrap_in_splitter(split,0,'Gates and tools','circuit',fold_groups=False)
         self.grid=Grid(self);self.grid.setRowCount(self.n);self.grid.setColumnCount(self.columns)
         self.grid.setHorizontalHeaderLabels([f'{i+1}' for i in range(self.columns)]);self.grid.setVerticalHeaderLabels(self._qubit_labels())
         self.grid.verticalHeader().setDefaultSectionSize(54);self.grid.horizontalHeader().setDefaultSectionSize(82)
