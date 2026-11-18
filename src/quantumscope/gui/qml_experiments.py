@@ -95,6 +95,8 @@ def _plot(title, x_label='', y_label=''):
     plot.setMinimumHeight(150)                                 # v0.9.17: 220 → 150, for short screens
     for side in ('left', 'bottom'):                            # plain numbers: no automatic "×0.001"
         plot.getAxis(side).enableAutoSIPrefix(False)
+    from quantumscope.gui.pop_out import overlay                # v0.9.18: ⧉ opens it in its own window
+    overlay(plot, title.split(' (')[0].split(':')[0])
     return plot
 
 

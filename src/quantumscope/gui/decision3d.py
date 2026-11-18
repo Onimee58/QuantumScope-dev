@@ -69,6 +69,8 @@ class Decision3DView(QWidget):
         self.gif_button.clicked.connect(lambda: self.save_gif())
         views.addWidget(self.save_button)
         views.addWidget(self.gif_button)
+        from quantumscope.gui import pop_out                       # v0.9.18: the 3-D view in its own window
+        views.addWidget(pop_out.button(self, '3-D view'))
         layout.addLayout(views)
         self.caption = QLabel('Train the classifier, then open this tab to see the 3-D view.')
         self.caption.setWordWrap(True)

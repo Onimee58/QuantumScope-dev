@@ -17,7 +17,8 @@ owner sets the cancel flag, and callbacks are skipped once the owner is gone.
 
 A run with a task name (v0.9.17) says when it has finished, if it took a while: a message in the
 main window's status bar, and the taskbar (Windows, Linux) or Dock (macOS) asks for attention when
-QuantumScope is not the active window. See notify().
+QuantumScope is not the active window, and (v0.9.18) a dot marks its tab when another tab is in
+view. See notify().
 """
 import threading
 import time
@@ -158,6 +159,8 @@ def notify(text, seconds=None, owner=None):
     main = next((w for w in app.topLevelWidgets() if isinstance(w, QMainWindow) and w.isVisible()), None)
     if main is not None:
         main.statusBar().showMessage(message + (f' · {name}' if name else ''), 15000)
+        if owner is not None and hasattr(main, 'flag'):           # a dot on its tab if you are elsewhere (v0.9.18)
+            main.flag(owner, message)
     if app.activeWindow() is None:                                # QuantumScope is behind another program
         app.alert(where or main, 0)                               # until the user comes back
     LAST.append(message)
