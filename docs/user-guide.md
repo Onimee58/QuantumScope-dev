@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.19** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 1.0.0** · Quantum Visualization Studio
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -31,6 +31,8 @@ QuantumScope runs on **Windows** (64-bit), **macOS** (Apple Silicon) and **Ubunt
 
 - **Windows:** if SmartScreen appears, choose **More info → Run anyway**.
 - **macOS:** if the app is blocked, open **System Settings → Privacy & Security** and choose **Open Anyway**.
+
+**Your license.** From version 1.0.0, QuantumScope opens with a license file, which your instructor gives you: a file named *QuantumScope-license-….qslicense*. The first time QuantumScope starts, it asks for it: choose **Choose the license file…** (or drop the file on the window). It is checked on your computer, without the internet, and asked for only once. **ⓘ** shows the license in use, until when it is valid, and **Change license…**. A student license is valid until the date on it (for the Spring 2027 course, until 30 June 2027); after that, QuantumScope asks for a new one. Keep your license file to yourself: it carries its own number.
 
 **Updating.** Open **ⓘ** (top right) and choose **Check for updates…**, or use **⚙ → Updates and news**. QuantumScope asks before it connects to GitHub. If a newer version exists, it shows the release notes; **Update now** downloads the installer, checks it against its published SHA-256 checksum, and installs it:
 
@@ -401,6 +403,8 @@ The same expression means the same in both modes; switching recalculates the cur
 
 **Basis states are written in the opposite order to my textbook.** Change **⚙ → Circuits → Bit order in labels**. Only the labels change; the physics is identical.
 
+**QuantumScope asks for a license, or refuses mine.** The message says why. *Not a QuantumScope license file* or *not valid*: choose the original .qslicense file your instructor sent, unchanged (do not open and save it in another program). *Ended on …*: the license's time is over; ask for a new one. On a new computer, or after reinstalling the system, add the same file again.
+
 **QuantumScope closed unexpectedly.** When it starts again, it offers to recover your autosaved circuit.
 
 **Check for updates says it cannot connect.** Check your internet connection and try again later. GitHub also limits how often it can be asked, so wait a while if you have checked many times. You can always download the latest release from the Releases page.
@@ -432,4 +436,4 @@ The same expression means the same in both modes; switching recalculates the cur
 | Learn | click an underlined term | show its definition |
 | Any tab | × on the tab | close it (it reopens as you left it) |
 
-QuantumScope is open-source software (MIT licence) by Md. Saif Hassan Onim, Southern Methodist University. Its simulations are idealized for teaching.
+QuantumScope is by Md. Saif Hassan Onim, Southern Methodist University. It is not open source; its terms of use will be announced. Its simulations are idealized for teaching.

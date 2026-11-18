@@ -5,11 +5,10 @@
 
   **Explore quantum mechanics. Build quantum circuits. Visualize quantum states.**
 
-  An open-source, cross-platform quantum visualization and circuit simulation studio built with Python and PySide6.
+  A cross-platform quantum visualization and circuit simulation studio built with Python and PySide6.
 
-  [![Version](https://img.shields.io/badge/version-v0.9.19-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
+  [![Version](https://img.shields.io/badge/version-v1.0.0-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
   [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-  [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
   [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-555)](https://github.com/Onimee58/QuantumScope/releases)
 
   **[Download releases](https://github.com/Onimee58/QuantumScope/releases)** · **[Features](#what-you-can-explore)** · **[Getting started](#getting-started)** · **[Contributing](CONTRIBUTING.md)** · **[Report an issue](https://github.com/Onimee58/QuantumScope/issues)**
@@ -58,6 +57,10 @@ Use it for self-study, classroom demonstrations, coursework or experimenting wit
 | **Disk space** | 1.5 GB free | 2 GB free | 2 GB free (SSD) |
 | **Screen** | 1280 × 720 | 1920 × 1080 | 1920 × 1080 or larger |
 | **What runs well** | 3-D orbitals up to 96 points per axis; circuits up to 10 qubits; Quantum ML up to a few hundred samples | Everything, including the comparison 3-D view and larger datasets | The finest 3-D grids (160 points per axis) with both viewers, and the largest models, smoothly |
+
+## What's new in v1.0.0?
+
+**The first release for the classroom.** QuantumScope now opens with a license file, given by your instructor: it is asked for once, checked offline, and shown in About. QuantumScope is no longer open source; its terms of use will be announced.
 
 ## What's new in v0.9.19?
 
@@ -549,7 +552,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) or [open an issue](https://github.com/Oni
 
 ## License
 
-QuantumScope is distributed under the **MIT License**. See [LICENSE](LICENSE).
+QuantumScope is not open source. From v1.0.0 it opens with a license file, given by your instructor or the developer. Terms of use will be announced.
 
 ---
 

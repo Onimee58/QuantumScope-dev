@@ -1,6 +1,6 @@
 #define MyAppName "QuantumScope"
 #ifndef MyAppVersion
-#define MyAppVersion "0.9.19"
+#define MyAppVersion "1.0.0"
 #endif
 #define MyAppPublisher "QuantumScope contributors"
 #define MyAppURL "https://github.com/Onimee58/QuantumScope"

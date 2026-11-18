@@ -26,3 +26,9 @@ Thumbs.db
 docs/.guide-settings.ini
 docs/.guide-data/
 /QuantumScope.spec
+
+# License keys and license files never belong in the repository (v1.0.0)
+*.key
+*.qslicense
+QuantumScope-license-keys/
+QuantumScope-licenses/

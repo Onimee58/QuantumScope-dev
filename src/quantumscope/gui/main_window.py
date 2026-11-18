@@ -96,10 +96,27 @@ class AboutDialog(QDialog):
         for text,url in (('GitHub repository','https://github.com/Onimee58/QuantumScope'),('Developer profile','https://github.com/Onimee58'),('SMU page','https://people.smu.edu/monim')):
             btn=QPushButton(text+' ↗');btn.clicked.connect(lambda checked=False,u=url:QDesktopServices.openUrl(QUrl(u)))
             links.addWidget(btn)
-        footer=QLabel('MIT licensed  •  Python / PySide6 / NumPy / OpenGL  •  Idealized educational simulations')
+        # The license in use (v1.0.0), with a way to change it
+        license_row=QHBoxLayout();layout.addLayout(license_row)
+        self.license_label=QLabel();self.license_label.setWordWrap(True);self.license_label.setObjectName('muted')
+        license_row.addWidget(self.license_label,1)
+        self.license_button=QPushButton('Change license…');self.license_button.clicked.connect(self._change_license)
+        license_row.addWidget(self.license_button)
+        self._show_license()
+        footer=QLabel('Not open source; terms of use to be announced  •  Python / PySide6 / NumPy / OpenGL  •  Idealized educational simulations')
         footer.setObjectName('muted');footer.setWordWrap(True);footer.setAlignment(Qt.AlignmentFlag.AlignCenter);layout.addWidget(footer)
         layout.addStretch()
         close=QPushButton('Close');close.clicked.connect(self.accept);layout.addWidget(close)
+
+    def _show_license(self):
+        from quantumscope.gui.license_dialog import current
+        lic,reason=current()
+        self.license_label.setText(lic.summary() if lic is not None else (reason or 'No license in use'))
+
+    def _change_license(self):
+        from quantumscope.gui.license_dialog import LicenseDialog
+        if LicenseDialog(parent=self,change=True).exec():
+            self._show_license()
 
     def _load_avatar(self):
         directory=Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.CacheLocation)) / 'QuantumScope'
