@@ -158,12 +158,14 @@ class CalculatorView(QWidget):
         for k, symbol in enumerate(SYMBOLS):
             button = QPushButton(symbol)
             button.setToolTip(f'Insert {symbol}')
+            button.setStyleSheet('padding: 5px 6px;')               # v0.9.17: the palette fits narrower windows
             button.clicked.connect(lambda _=False, s=symbol: self.insert(s))
             palette.addWidget(button, 0, k)
             self.palette_buttons.append(button)
         for k, name in enumerate(FUNCTIONS):
             button = QPushButton(name)
             button.setToolTip(f'Insert {name}(…)')
+            button.setStyleSheet('padding: 5px 6px;')               # v0.9.17: the palette fits narrower windows
             button.clicked.connect(lambda _=False, s=name: self.insert(f'{s}(', close=True))
             palette.addWidget(button, 1, k + 1)
             self.palette_buttons.append(button)
@@ -214,7 +216,7 @@ class CalculatorView(QWidget):
         split.setStretchFactor(1, 2)
         split.setSizes([700, 420])
         from quantumscope.gui.side_panel import wrap_in_splitter
-        wrap_in_splitter(split, 1, 'Values and history', 'calculator')
+        wrap_in_splitter(split, 1, 'Values and history', 'calculator', fold_groups=False)
         self.input.returnPressed.connect(self.evaluate)
         self.go.clicked.connect(self.evaluate)
         self.examples.activated.connect(self._example)

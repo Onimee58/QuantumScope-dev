@@ -70,7 +70,8 @@ class DoubleSlitDialog(QDialog):
         self.note = QLabel('Each particle lands at one random spot; only many together show the fringes. '
             'Model: Fraunhofer far field, coherent equal slits, paraxial angles; not particle trajectories.')
         self.note.setWordWrap(True); self.note.setObjectName('muted'); form.addRow(self.note)
-        split.addWidget(left)
+        from quantumscope.gui.side_panel import scrolling          # v0.9.17: scrolls on short screens
+        split.addWidget(scrolling(left))
         right = QWidget(); rlayout = QVBoxLayout(right)
         self.apparatus = DoubleSlitApparatus()
         self.apparatus.separationDragged.connect(self.separation.setValue)

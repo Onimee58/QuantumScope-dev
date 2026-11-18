@@ -187,7 +187,7 @@ class OptimizeDialog(QDialog):
 
         self._exact, self._energies = None, []
         workspace.opt_button.setEnabled(False)
-        self.run_handle = Run(work, owner=self, on_progress=self._progress,
+        self.run_handle = Run(work, owner=self, task='The circuit optimization', on_progress=self._progress,
                               on_done=lambda r: self._finish(r, key, on_finished),
                               on_error=self._failed).start()
         return self.run_handle
