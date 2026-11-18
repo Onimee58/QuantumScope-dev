@@ -7,7 +7,7 @@ import math
 
 import numpy as np
 from PySide6.QtCore import Qt, QTimer, QPointF, QRectF, Signal
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QWidget
 
 
@@ -96,6 +96,36 @@ class DoubleSlitApparatus(QWidget):
         self._phase = (self._phase + 0.024) % 1.0
         self.update()
 
+    def _dot(self, painter, centre, radius):
+        """A round dot at a scene position, round however the drawing is stretched (v0.9.18)."""
+        scale = min(self.width() / 700.0, self.height() / 300.0)
+        point = painter.transform().map(centre)
+        painter.save()
+        painter.resetTransform()
+        painter.drawEllipse(point, radius * scale, radius * scale)
+        painter.restore()
+
+    def _label(self, painter, rect, align, text, points, colour):
+        """Text at the scene position `rect`, but drawn without the drawing's stretch (v0.9.18): the
+        drawing fills the widget and so stretches with it, but letters must keep their shape. The size
+        follows the smaller of the two stretches, so it grows on a big screen; long text is shrunk
+        (down to 7 points), then shortened with …, to fit its place."""
+        area = painter.transform().mapRect(rect)
+        scale = min(self.width() / 700.0, self.height() / 300.0)
+        font = QFont('Sans Serif')
+        size = max(7.0, min(points * 1.6, points * scale))
+        font.setPointSizeF(size)
+        while size > 7.0 and QFontMetricsF(font).horizontalAdvance(text) > area.width():
+            size = max(7.0, size - 0.5)
+            font.setPointSizeF(size)
+        text = QFontMetricsF(font).elidedText(text, Qt.TextElideMode.ElideRight, area.width())
+        painter.save()
+        painter.resetTransform()
+        painter.setFont(font)
+        painter.setPen(colour)
+        painter.drawText(area, int(align), text)
+        painter.restore()
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -116,7 +146,7 @@ class DoubleSlitApparatus(QWidget):
             painter.drawLine(QPointF(x, 54), QPointF(x, 249))
         painter.setPen(QPen(QColor('#d7e8f0'), 2))
         painter.setBrush(QColor('#54b8e7'))
-        painter.drawEllipse(QPointF(sx, cy), 10, 10)
+        self._dot(painter, QPointF(sx, cy), 10)
         # Physical gap sizes are exaggerated to remain visible. They still track
         # the slit-width / separation ratio within safe visual bounds.
         gap = max(6., min(16., 12. * self._width_um / 20.))
@@ -135,8 +165,9 @@ class DoubleSlitApparatus(QWidget):
             painter.setPen(QPen(QColor('#efaa55'), 2))
             painter.setBrush(QColor('#efaa55'))
             for slit_y in slit_ys:
-                painter.drawEllipse(QPointF(barrier + 13, slit_y), 5, 5)
-            painter.drawText(QRectF(338, 35, 165, 24), 'PATH DETECTORS ON')
+                self._dot(painter, QPointF(barrier + 13, slit_y), 5)
+            self._label(painter, QRectF(338, 35, 165, 24), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                        'PATH DETECTORS ON', 10, QColor('#efaa55'))
         # Two sets of expanding circular phase fronts from the apertures.
         # Clip the rings to the right side of the barrier and within the frame.
         painter.save()
@@ -163,14 +194,13 @@ class DoubleSlitApparatus(QWidget):
                 y = cy - (float(value) / self._screen_halfwidth_mm) * 113
                 # Horizontal spread only distinguishes overlapping hits visually.
                 x = detector - 3 - (idx % 5) * 3
-                painter.drawEllipse(QPointF(x, y), 1.9, 1.9)
-        painter.setPen(QColor('#e2edf3'))
-        painter.setFont(QFont('Sans Serif', 10))
-        painter.drawText(QRectF(27, 8, 105, 22), Qt.AlignmentFlag.AlignCenter, 'Source')
-        painter.drawText(QRectF(252, 8, 130, 22), Qt.AlignmentFlag.AlignCenter, 'Double slit')
-        painter.drawText(QRectF(585, 8, 105, 22), Qt.AlignmentFlag.AlignCenter, 'Detector')
-        painter.setPen(QColor('#91a8b5'))
-        painter.setFont(QFont('Sans Serif', 9))
-        painter.drawText(QRectF(25, 274, 650, 20), Qt.AlignmentFlag.AlignCenter,
-                         'Schematic, not to scale | Path markers = ideal measurement; dots = detections' if self._which_path else 'Schematic, not to scale | Rings = illustrative phase fronts; dots = detections')
+                self._dot(painter, QPointF(x, y), 1.9)
+        centre = Qt.AlignmentFlag.AlignCenter
+        for rect, text in ((QRectF(27, 8, 105, 22), 'Source'), (QRectF(252, 8, 130, 22), 'Double slit'),
+                           (QRectF(585, 8, 105, 22), 'Detector')):
+            self._label(painter, rect, centre, text, 10, QColor('#e2edf3'))
+        self._label(painter, QRectF(25, 274, 650, 20), centre,
+                    'Schematic, not to scale | Path markers = ideal measurement; dots = detections' if self._which_path
+                    else 'Schematic, not to scale | Rings = illustrative phase fronts; dots = detections',
+                    9, QColor('#91a8b5'))
         painter.end()
