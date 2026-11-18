@@ -87,6 +87,11 @@ QToolButton#panelToggle { background: #1c4a66; color: #e6fbff; border: 1px solid
     font-size: 17px; font-weight: 700; padding: 0 0 2px 0; }
 QToolButton#panelToggle:hover { background: #2a6688; border-color: #7fd3ee; }
 QScrollArea#workspaceScroll, QScrollArea#workspaceScroll > QWidget, QTabWidget#categoryWorkspace { background: transparent; }
+QToolButton#popOut { background: rgba(23, 41, 64, 210); color: #94dcea; border: 1px solid #3a5878;
+    border-radius: 5px; font-size: 14px; padding: 0px 4px; }
+QToolButton#popOut:hover { background: #24476a; color: #e6fbff; border-color: #7fd3ee; }
+QLabel#tabDot { color: #ffb347; font-size: 11px; padding: 0px 2px; background: transparent; }
+QLineEdit#searchBox { border-radius: 15px; padding: 6px 12px; }
 QComboBox QAbstractItemView { background: #17283b; color: #eef7ff; border: 1px solid #3b5975;
     selection-background-color: #1c6987; selection-color: #ffffff; outline: 0; }
 """
@@ -119,6 +124,8 @@ QToolButton#headerTool { background: #e4eef7; color: #226276; border-color: #b2c
 QFrame#newsBar { background: #e3f1f8; border: 1px solid #9fc9dc; }
 QFrame#newsBar QLabel { color: #16384d; }
 QToolButton#tabAddButton { background: #e7f1fa; color: #17657d; border-color: #b2cede; }
+QLabel#tabDot { color: #d9730d; }
+QToolButton#popOut { background: rgba(231, 241, 250, 215); color: #17657d; border-color: #9fbfd3; }
 QToolButton#quickValue { background: #e4eef7; color: #23435c; border: 1px solid #b0c7db; }
 QToolButton#quickValue:hover { background: #d1e6f4; }
 QWidget#panelStrip { background: #dfeaf4; }

@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.17** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.18** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -49,6 +49,9 @@ Nothing is downloaded or installed without your confirmation, and a download tha
 - **Tabs in their own windows:** **⧉** next to **Learn** (or right-click a tab → **Open in its own window**) moves the tab into a window of its own, which can be any size and shape, on any screen. **Dock back**, or closing that window, puts it back as a tab.
 - **Side panels:** the **«** button at the edge of a side panel (the controls, the gate palette, the lesson list) folds it to a narrow strip with its name; **»**, or a click on the name, opens it again. QuantumScope remembers which panels are folded. The groups inside a panel (**Data**, **Preprocessing**, …) fold too: click a group's title, by its **▾**, to fold it to that title, and again to open it; these are remembered as well.
 - **Small screens:** when the window is shorter or narrower than an experiment needs, the area scrolls (scrollbar on the right) instead of the window growing past the edge of the screen. QuantumScope also opens no larger than the screen.
+- **A graph in its own window:** the **⧉** in the corner of a graph (and beside **Save image…** in a 3-D view) opens it in a window of its own, for a second screen, a projector or two graphs side by side. It keeps updating as you work. **Bring it back here**, where it was, or closing its window puts it back.
+- **Search:** the **Search…** box at the top finds an experiment, a Learn area or Settings by name or topic: type *SVM*, *Bell*, *QUBO* or *Grover*, then pick one or press Enter.
+- **Dots on tabs:** an orange dot on a tab (and on its area's tab) means something there is new while you were elsewhere: a long run has finished, or the classifiers' data changed in the Datasets tab (train again to use it). Hover over the dot to see what; it goes when you open the tab.
 - **📖 Learn** opens the study guide for the current area (chapter 8).
 - **⚑** opens **Report a problem** (chapter 10). **⚙** opens **Settings** (chapter 9). **ⓘ** shows **About QuantumScope**, including **Check for updates…** and **User guide**, which opens this document.
 - **Charts:** right-click any chart for **View All**, the axis options, **Save image…** (PNG or JPEG at twice the screen resolution), **Copy image** and **Save data (CSV)…**.

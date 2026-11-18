@@ -1,3 +1,12 @@
+## v0.9.18 — Graphs in their own windows, search and dots
+
+From the beta tester's reviews:
+
+- **A graph in its own window:** a **⧉** in the corner of every graph of the Quantum ML experiments and Quantum annealing (decision regions, kernel matrix and map, training curves, ROC curve, energy levels, …), and beside **Save image…** in the 3-D view, opens it in a window of its own: for a second screen, a projector, or two graphs side by side. It keeps updating as you work; where it was, **Bring it back here** (or closing its window) puts it back. Closing the experiment closes its graph windows.
+- **Search:** a **Search…** box at the top finds experiments, Learn areas and Settings by name or by topic (*SVM*, *Bell*, *QUBO*, *Grover*, *PCA*, …); Enter opens the first match.
+- **Dots on tabs:** an orange dot marks a tab, and its area's tab, with something new while you were elsewhere: a long run that has finished, or, for the classifiers using the Datasets tab's data, new data prepared there. Hovering shows what; opening the tab clears it.
+- **Fixed: the double-slit drawing stretched its words.** The drawing fills its place, and its labels, the source and the detections were stretched with it; they now keep their shape at any window size.
+
 ## v0.9.17 — Easier on small screens
 
 From the beta tester's second review:
