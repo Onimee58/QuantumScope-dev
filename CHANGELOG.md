@@ -1,3 +1,13 @@
+## v0.9.19 — See your data before you import it
+
+From the beta tester's review:
+
+- **Import CSV or .npz…** opens a CSV in a preview first: its rows and columns scroll both ways, and each column is described (number or text, missing cells).
+- **Choose the label column** from a list or by clicking a column's name. QuantumScope still suggests one (named label, target, class …, or the last column), and shows the classes it gives, with how many samples each. It warns when the choice looks like a measurement rather than a class (many different numbers), or an ID.
+- **Leave columns out:** untick any column not to learn from; columns that are only row numbers or IDs are left out already. Right-click a column's name for the same.
+- **The first row names the columns** can be ticked or unticked, for a header taken for data or the reverse.
+- A label column with empty cells, or with only one value, is now explained instead of imported as an extra class.
+
 ## v0.9.18 — Graphs in their own windows, search and dots
 
 From the beta tester's reviews:
