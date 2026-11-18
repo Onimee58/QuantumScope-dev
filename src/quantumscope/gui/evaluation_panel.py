@@ -75,11 +75,14 @@ class EvaluationPanel(QWidget):
         for side in ('left', 'bottom'):
             self.roc_plot.getAxis(side).enableAutoSIPrefix(False)
         layout.addWidget(self.roc_plot, 1)
+        from quantumscope.gui.pop_out import overlay              # v0.9.18: ⧉ opens it in its own window
+        overlay(self.roc_plot, 'ROC curve')
         self.confusion_plot = tidy(pg.PlotWidget(title='Confusion matrix'))     # many classes (v0.9.3)
         self.confusion_plot.setLabel('bottom', 'predicted class')
         self.confusion_plot.setLabel('left', 'true class')
         self.confusion_plot.setVisible(False)
         layout.addWidget(self.confusion_plot, 1)
+        overlay(self.confusion_plot, 'Confusion matrix')
         self.cv_button.clicked.connect(self.run_cross_validation)
         self.cv_cancel.clicked.connect(lambda: self.cv_run.cancel() if getattr(self, 'cv_run', None) else None)
         self.cv_button.setEnabled(False)

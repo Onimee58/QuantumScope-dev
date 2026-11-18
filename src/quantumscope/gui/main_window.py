@@ -8,12 +8,13 @@ import sys
 
 import numpy as np
 import pyqtgraph as pg
-from PySide6.QtCore import Qt, QSettings, QUrl, QStandardPaths, QTimer
+from PySide6.QtCore import Qt, QModelIndex, QSettings, QUrl, QStandardPaths, QTimer
 from PySide6.QtGui import QDesktopServices, QPixmap, QPainter, QPen, QColor, QIcon
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel,
     QMainWindow, QMessageBox, QPushButton, QScrollArea, QSpinBox, QDoubleSpinBox,
     QSplitter, QVBoxLayout, QWidget, QFileDialog, QDialog, QDialogButtonBox, QFrame, QInputDialog, QTabWidget, QSizePolicy, QToolButton, QMenu, QApplication,
+    QStyle, QTabBar,
 )
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from quantumscope import __version__
@@ -316,6 +317,7 @@ class MainWindow(QMainWindow):
         titles.addWidget(caption)
         row.addLayout(titles)
         row.addStretch()
+        row.addWidget(self._search_box())                   # v0.9.18: find an experiment by name or topic
         new_button = QToolButton(self)
         new_button.setObjectName("newExperiment")
         new_button.setText("+ New Experiment  ▾")
@@ -395,6 +397,9 @@ class MainWindow(QMainWindow):
         self.categories.currentChanged.connect(self._fit_pages)
         for tabs in self.workspaces.values():
             tabs.currentChanged.connect(self._fit_pages)
+        self.categories.currentChanged.connect(self._seen)                  # v0.9.18: dots go once seen
+        for tabs in self.workspaces.values():
+            tabs.currentChanged.connect(self._seen)
         self.setCentralWidget(shell)
         self._open_experiments = {}
         self._detached = {}                              # widget → its own window (v0.9.15)
@@ -406,6 +411,156 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Ready  ·  Choose an experiment or explore hydrogen orbitals")
         from quantumscope.gui.resource_monitor import ResourceMonitor    # memory and processor (v0.9.6)
         self.resource_monitor = ResourceMonitor(self)
+
+    # ---- dots on tabs, and search (v0.9.18) ----------------------------------------------------
+    SEARCH_WORDS = {
+        "Hydrogen Explorer": "atom orbital orbitals wavefunction quantum numbers n l m electron cloud radial",
+        "Hydrogen Dynamics 2D": "time evolution wave packet superposition of states",
+        "Hydrogen Dynamics 3D": "time evolution wave packet superposition of states",
+        "Double-Slit Experiment": "interference wave particle diffraction which path photon electron",
+        "Quantum Superposition (spin-½)": "spin stern gerlach bloch sphere measurement probability",
+        "Quantum Entanglement (electron spins)": "bell test chsh epr correlation nonlocality",
+        "Quantum Teleportation": "protocol bell pair classical bits",
+        "Gate Circuit Simulator": "gates circuit h cnot cx bell ghz grover qft measurement noise qasm pdf "
+                                  "ibm hardware qiskit statevector",
+        "QASM Converter": "openqasm qiskit import export",
+        "Error-correction explorer": "qec bit flip phase flip shor steane surface code syndrome",
+        "Quantum annealing": "qubo ising max-cut maxcut number partitioning feature selection d-wave adiabatic",
+        "Datasets": "csv upload data pca features mnist iris wine breast cancer split test",
+        "Quantum Kernel Classifier": "qsvm svm support vector machine kernel ridge grid search roc cross-validation",
+        "Variational Classifier": "vqc neural network training gradient descent adam bfgs loss",
+        "Quantum Calculator": "dirac notation bra ket matrix eigenvalue trace partial trace tensor product",
+    }
+
+    def _search_entries(self):
+        """(shown text, words to match, action) for everything the search box can open."""
+        menu = self._experiment_menu(self)
+        entries, area = [], ""
+        for action in menu.actions():
+            if action.isSeparator():
+                area = action.text().title().replace(" Ml", " ML")
+                continue
+            name = action.text()
+            entries.append((f"{name}  ·  {area}", f"{name} {area} {self.SEARCH_WORDS.get(name, '')}", action.trigger))
+        for category, title in (("hydrogen", "Hydrogen"), ("principles", "Quantum Principles"),
+                                ("circuits", "Quantum Circuits"), ("qml", "Quantum ML"), ("math", "Math")):
+            entries.append((f"Learn: {title}", f"learn lessons lectures labs course {title}",
+                            lambda c=category: self.open_learn(c)))
+        entries += [("Settings", "settings preferences theme dark light font size graphics updates", self._show_settings),
+                    ("Report a problem", "report problem bug feedback", self.report_problem),
+                    ("About QuantumScope", "about version check for updates", self.show_about)]
+        self._search_menu = menu                                # the actions must outlive this call
+        return entries
+
+    def _search_box(self):
+        from PySide6.QtGui import QStandardItem, QStandardItemModel
+        from PySide6.QtWidgets import QCompleter, QLineEdit
+        box = QLineEdit(self)
+        box.setObjectName("searchBox")
+        box.setPlaceholderText("Search…")
+        box.setClearButtonEnabled(True)
+        box.setToolTip("Find an experiment, a Learn area or a setting by name or topic (e.g. SVM, Bell, QUBO)")
+        box.setFixedWidth(220)
+        model = QStandardItemModel(box)
+        self._search_actions = []
+        for shown, words, action in self._search_entries():
+            item = QStandardItem(shown)
+            item.setData(f"{shown} {words}".lower(), Qt.ItemDataRole.UserRole)
+            item.setData(len(self._search_actions), Qt.ItemDataRole.UserRole + 1)
+            self._search_actions.append(action)
+            model.appendRow(item)
+        completer = QCompleter(model, box)
+        completer.setCompletionRole(Qt.ItemDataRole.UserRole)
+        completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        completer.setMaxVisibleItems(12)
+        completer.popup().setMinimumWidth(360)                 # room for the names
+        completer.setWidget(box)                               # not setCompleter: the box keeps what was typed
+
+        def typed(text):
+            text = text.strip().lower()
+            if text:
+                completer.setCompletionPrefix(text)
+                completer.complete()
+            else:
+                completer.popup().hide()
+
+        def chosen(index):
+            self._search_actions[index.data(Qt.ItemDataRole.UserRole + 1)]()
+            box.clear()
+            completer.popup().hide()
+
+        def enter():
+            index = completer.completionModel().index(0, 0)
+            if box.text().strip() and index.isValid():
+                chosen(index)
+        box.textEdited.connect(typed)
+        completer.activated[QModelIndex].connect(chosen)
+        box.returnPressed.connect(enter)
+        self.search_box, self.search = box, completer
+        return box
+
+    def _tab_dot_side(self, bar):
+        if not bar.tabsClosable():
+            return QTabBar.ButtonPosition.RightSide
+        closes = bar.style().styleHint(QStyle.StyleHint.SH_TabBar_CloseButtonPosition, None, bar)
+        return QTabBar.ButtonPosition.RightSide if closes == 0 else QTabBar.ButtonPosition.LeftSide
+
+    def _put_dot(self, bar, index, reason):
+        side = self._tab_dot_side(bar)
+        dot = bar.tabButton(index, side)
+        if dot is None or dot.objectName() != "tabDot":
+            dot = QLabel("●")
+            dot.setObjectName("tabDot")
+            bar.setTabButton(index, side, dot)
+        dot.setToolTip(reason)
+
+    def _take_dot(self, bar, index):
+        if index < 0:
+            return
+        side = self._tab_dot_side(bar)
+        dot = bar.tabButton(index, side)
+        if dot is not None and dot.objectName() == "tabDot":
+            bar.setTabButton(index, side, None)
+            dot.deleteLater()
+
+    def has_dot(self, widget):
+        """Whether the tab of the experiment holding `widget` has a dot (for tests)."""
+        for tabs in self.workspaces.values():
+            for i in range(tabs.count()):
+                page = tabs.widget(i)
+                if page is widget or page.isAncestorOf(widget):
+                    dot = tabs.tabBar().tabButton(i, self._tab_dot_side(tabs.tabBar()))
+                    return dot is not None and dot.objectName() == "tabDot"
+        return False
+
+    def flag(self, widget, reason):
+        """A dot on the tab of the experiment holding `widget` (and on its area's tab), until that tab
+        is looked at: for something ready or changed while you were elsewhere. Returns True if put."""
+        for tabs in self.workspaces.values():
+            for i in range(tabs.count()):
+                page = tabs.widget(i)
+                if not (page is widget or page.isAncestorOf(widget)):
+                    continue
+                area = self.categories.indexOf(tabs)
+                if self.categories.currentIndex() == area and tabs.currentIndex() == i:
+                    return False                               # in view already
+                self._put_dot(tabs.tabBar(), i, reason)
+                if self.categories.currentIndex() != area:
+                    self._put_dot(self.categories.tabBar(), area, f"{tabs.tabText(i).strip()}: {reason}")
+                return True
+        return False
+
+    def _seen(self, *_):
+        tabs = self.categories.currentWidget()
+        self._take_dot(self.categories.tabBar(), self.categories.currentIndex())
+        if tabs is not None and tabs in self.workspaces.values():
+            self._take_dot(tabs.tabBar(), tabs.currentIndex())
+
+    def _data_changed(self, experiment):
+        data = getattr(experiment, "data", None)
+        if data is not None and data.source.currentData() == "store":
+            self.flag(experiment, "The Datasets tab prepared new data: train again to use it")
 
     def _fit_pages(self, *_):
         """Only the tab in view sets how small the window may be (v0.9.17). A tab widget otherwise
@@ -463,6 +618,9 @@ class MainWindow(QMainWindow):
         self._experiment_labels[key]=f"{icon_name}  {label.strip()}"
         index=self._add_area_tab(category,widget,self._experiment_labels[key])
         self._open_experiments[key]=widget
+        if key in ("qml_kernel", "qml_variational"):          # v0.9.18: new data in the Datasets tab
+            from quantumscope.gui.qml_experiments import STORE
+            STORE.changed.connect(lambda w=widget: self._data_changed(w))
         tabs.setCurrentIndex(index)
         self.statusBar().showMessage(f"Opened {label.strip()}",3500)
 
@@ -493,6 +651,9 @@ class MainWindow(QMainWindow):
             return
         tabs.removeTab(index)
         widget.hide()
+        from quantumscope.gui import pop_out                       # its graphs' windows close with it
+        for window in pop_out.windows_for(widget):
+            window.close()
         if tabs.count()==0:
             self._show_placeholder(category)
 
@@ -1174,6 +1335,8 @@ class MainWindow(QMainWindow):
         workspace.enable_autosave(True)
 
     def closeEvent(self, event):
+        from quantumscope.gui import pop_out                       # graphs in their own windows (v0.9.18)
+        pop_out.close_all()
         for entry in list(getattr(self, "_detached", {}).values()):   # tabs in their own windows go too
             entry[0].close()
         workspace = getattr(self, "circuit_widget", None)
@@ -1219,6 +1382,9 @@ class DetachedWindow(QWidget):
         self.widget.setParent(None)
 
     def closeEvent(self, event):
+        from quantumscope.gui import pop_out                       # its graphs come home first
+        for window in pop_out.windows_for(self.widget):
+            window.close()
         dock, self._dock = self._dock, None
         super().closeEvent(event)
         if dock is not None:
