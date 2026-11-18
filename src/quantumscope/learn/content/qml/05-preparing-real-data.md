@@ -37,7 +37,7 @@ Every learned step (the column means for missing values, the PCA directions, the
 
 ## Your own data
 
-**Import CSV or .npz…** reads your own files: a CSV with a header (the label column is found by name, such as *label*, *target* or *class*, or is the last column), or a NumPy file with arrays named X and y. The checker then works on it like any built-in dataset.
+**Import CSV or .npz…** reads your own files. A CSV opens in a preview, where you choose which column is the label (QuantumScope suggests one named *label*, *target* or *class*, or the last column) and which columns to leave out: an ID or row number is not something to learn from, and it is left out for you. A NumPy file needs arrays named X and y. The checker then works on it like any built-in dataset.
 
 ## Worked example
 

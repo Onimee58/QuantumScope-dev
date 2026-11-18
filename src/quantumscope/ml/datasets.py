@@ -84,7 +84,7 @@ def load(name, **options):
     title, description, license_, citation = BUILTIN[name]
     csv_path = os.path.join(DATA, f'{name}.csv')
     if os.path.exists(csv_path):                                 # kept as published: text and missing values
-        data = _import_csv(csv_path)
+        data = table_dataset(read_table(csv_path))
         data.name, data.description, data.license, data.citation = title, description, license_, citation
         return data
     with np.load(os.path.join(DATA, f'{name}.npz'), allow_pickle=False) as z:
@@ -126,12 +126,15 @@ def synthetic(kind, samples=200, noise=0.1, seed=0):
 
 
 # ---- your own data ----------------------------------------------------------------------------------
-def import_file(path):
-    """A dataset from a .csv or .npz file."""
+def import_file(path, label=None, leave_out=(), header=None):
+    """A dataset from a .csv or .npz file. For a .csv: `label` is the label column (its index or
+    name; by default one named label, target, class … or else the last), `leave_out` the columns not
+    to use as features (indices or names), and `header` whether the first row names the columns
+    (by default: guessed)."""
     if path.lower().endswith('.npz'):
         return _import_npz(path)
     if path.lower().endswith(('.csv', '.txt')):
-        return _import_csv(path)
+        return table_dataset(read_table(path, header), label, leave_out)
     raise ValueError('Use a .csv or .npz file')
 
 
@@ -142,7 +145,56 @@ def _number(text):
         return None
 
 
-def _import_csv(path):
+@dataclass
+class Table:
+    """A .csv file as read, before a label column is chosen (v0.9.19)."""
+    path: str
+    names: list                        # column names (from the header, or column 1, 2, …)
+    rows: list                         # the cells, as text, every row as wide as the names
+    header: bool                       # the first row of the file named the columns
+
+    def column(self, i):
+        return [r[i].strip() for r in self.rows]
+
+    def index(self, column):
+        """A column's index, from its index or its name."""
+        if isinstance(column, (int, np.integer)):
+            if not 0 <= column < len(self.names):
+                raise ValueError(f'There is no column {column + 1}')
+            return int(column)
+        lowered = [n.lower() for n in self.names]
+        if str(column).lower() not in lowered:
+            raise ValueError(f'There is no column named {column!r}')
+        return lowered.index(str(column).lower())
+
+    def guess_label(self):
+        """A column named label, target, class … if there is one; else the last."""
+        return next((i for i, n in enumerate(self.names) if self.header and n.lower() in LABEL_NAMES),
+                    len(self.names) - 1)
+
+    def describe(self, i):
+        """(kind, number of different values, missing cells) of a column: kind is 'number' or 'text'."""
+        cells = self.column(i)
+        present = [c for c in cells if c.lower() not in MISSING]
+        kind = 'text' if any(_number(c) is None for c in present) else 'number'
+        return kind, len(set(present)), len(cells) - len(present)
+
+    def looks_like_an_id(self, i):
+        """Every row its own value, counting up (1, 2, 3 …) or named id: not a feature to learn from."""
+        kind, distinct, missing = self.describe(i)
+        if missing or distinct != len(self.rows) or len(self.rows) < 3:
+            return False
+        if self.header and self.names[i].strip().lower() in ('id', 'index', 'no', 'no.', 'row', '#', 'sample', 'sample id'):
+            return True
+        if kind != 'number':
+            return False
+        values = [_number(c) for c in self.column(i)]
+        return all(float(v).is_integer() for v in values) and np.all(np.diff(values) == 1)
+
+
+def read_table(path, header=None):
+    """Read a .csv (or .txt) file: separator , ; or tab, found automatically. header: whether the
+    first row names the columns (None: guessed, as a row with a word that is not a number)."""
     with open(path, newline='', encoding='utf-8-sig') as handle:
         sample = handle.read(4096)
         handle.seek(0)
@@ -153,18 +205,31 @@ def _import_csv(path):
         rows = [r for r in csv.reader(handle, dialect) if any(cell.strip() for cell in r)]
     if len(rows) < 2:
         raise ValueError('The file has fewer than two rows')
-    header = any(_number(c) is None and c.strip().lower() not in MISSING for c in rows[0])
+    if header is None:
+        header = any(_number(c) is None and c.strip().lower() not in MISSING for c in rows[0])
     names = [c.strip() or f'column {i + 1}' for i, c in enumerate(rows[0])] if header else \
         [f'column {i + 1}' for i in range(len(rows[0]))]
     body = rows[1:] if header else rows
     width = len(names)
     body = [r + [''] * (width - len(r)) if len(r) < width else r[:width] for r in body]
-    label_column = next((i for i, n in enumerate(names) if n.lower() in LABEL_NAMES), width - 1)
-    labels = [r[label_column].strip() for r in body]
-    keep = [i for i in range(width) if i != label_column]
+    return Table(path, names, body, bool(header))
+
+
+def table_dataset(table, label=None, leave_out=()):
+    """The dataset from a table: the label column's values become the classes, the other columns
+    (but those left out) the features; text values become category codes, missing cells NaN."""
+    names, body = table.names, table.rows
+    label_column = table.guess_label() if label is None else table.index(label)
+    dropped = {table.index(c) for c in leave_out}
+    labels = table.column(label_column)
+    if any(v.lower() in MISSING for v in labels):
+        raise ValueError(f'The label column "{names[label_column]}" has empty cells: every sample needs its class')
+    keep = [i for i in range(len(names)) if i != label_column and i not in dropped]
+    if not keep:
+        raise ValueError('Keep at least one column as a feature')
     columns, text_columns = [], {}
     for out_index, i in enumerate(keep):
-        cells = [r[i].strip() for r in body]
+        cells = table.column(i)
         values = [math.nan if c.lower() in MISSING else _number(c) for c in cells]
         if any(v is None for v in values):                     # text: categories become codes
             categories = sorted({c for c in cells if c.lower() not in MISSING})
@@ -172,12 +237,14 @@ def _import_csv(path):
             values = [math.nan if c.lower() in MISSING else codes[c] for c in cells]
             text_columns[out_index] = categories
         columns.append(values)
-    X = np.array(columns, float).T if columns else np.empty((len(body), 0))
+    X = np.array(columns, float).T
     classes = sorted(set(labels), key=lambda v: (_number(v) is None, _number(v) or 0, v))
+    if len(classes) < 2:
+        raise ValueError(f'The label column "{names[label_column]}" has only one value: a classifier needs two classes or more')
     y = np.array([classes.index(v) for v in labels], int)
-    return Dataset(os.path.basename(path), X, y, [names[i] for i in keep], classes,
-                   f'Imported from {os.path.basename(path)}.', text_columns=text_columns,
-                   label_name=names[label_column] if header else '')
+    name = os.path.basename(table.path)
+    return Dataset(name, X, y, [names[i] for i in keep], classes, f'Imported from {name}.',
+                   text_columns=text_columns, label_name=names[label_column] if table.header else '')
 
 
 def _import_npz(path):

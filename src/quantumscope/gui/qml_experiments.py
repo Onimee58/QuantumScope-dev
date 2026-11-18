@@ -226,8 +226,8 @@ class DatasetsExperiment(QWidget):
         self.source = _source_combo()
         sv.addRow('Dataset', self.source)
         self.import_button = QPushButton('Import CSV or .npz…')
-        self.import_button.setToolTip('Your own data: a label column (named label, target, class … or the last '
-                                      'column) and numeric or text features')
+        self.import_button.setToolTip('Your own data: a .csv opens in a preview, where you choose the label '
+                                      'column and the columns to use; a .npz needs arrays X and y')
         sv.addRow(self.import_button)
         self.qubits = QSpinBox()
         self.qubits.setRange(1, D.MAX_QUBITS)
@@ -330,13 +330,24 @@ class DatasetsExperiment(QWidget):
         self.source_key = self.source.currentData()          # a built-in or synthetic key
         self.use(D.load(self.source_key))
 
-    def import_file(self, path=None):
+    def import_file(self, path=None, ask=None):
+        """Import a .csv or .npz file. ask: show a .csv first, to choose its label column and the
+        columns to use (v0.9.19); by default, when the file was chosen here (not given)."""
+        if ask is None:
+            ask = not path
         if not path:
             path, _ = QFileDialog.getOpenFileName(self, 'Import data', '', 'Data (*.csv *.npz *.txt)')
             if not path:
                 return None
         try:
-            dataset = D.import_file(path)
+            if ask and path.lower().endswith(('.csv', '.txt')):
+                from quantumscope.gui.import_dialog import ImportDialog
+                dialog = ImportDialog(path, self)
+                if not dialog.exec():
+                    return None
+                dataset = dialog.dataset
+            else:
+                dataset = D.import_file(path)
         except (OSError, ValueError, UnicodeDecodeError) as exc:
             QMessageBox.warning(self, 'Import data', f'This file could not be read:\n{exc}')
             return None
