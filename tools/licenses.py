@@ -47,6 +47,16 @@ def repo_public_key():
     return re.search(r"PUBLIC_KEY = '([0-9a-f]{64})'", text).group(1)
 
 
+def shown(path):
+    """A path relative to the repository when it is inside it, else as it is (on Windows, another
+    drive has no relative path)."""
+    try:
+        relative = os.path.relpath(path, ROOT)
+    except ValueError:
+        return path
+    return path if relative.startswith('..') else relative
+
+
 def load_secret(keys):
     path = os.path.join(keys, SECRET)
     if not os.path.exists(path):
@@ -107,7 +117,7 @@ def setup(args):
     with open(KEY_FILE, 'w', encoding='utf-8') as f:
         f.write(re.sub(r"PUBLIC_KEY = '[0-9a-f]{64}'", f"PUBLIC_KEY = '{public}'", text))
     print(f'Private key: {path}  (keep it safe and private; back it up now)')
-    print(f'Public key written to {os.path.relpath(KEY_FILE, ROOT)}: commit this file.')
+    print(f'Public key written to {shown(KEY_FILE)}: commit this file.')
     owner = make_batch(args.out, secret, 'owner', 'QS-OWNER', 1, 1, holder=args.owner)
     beta = make_batch(args.out, secret, 'beta', 'QS-BETA', args.beta, 1)
     students = make_batch(args.out, secret, 'student', 'QS-AQC-S27', args.students, 1, course=COURSE,
