@@ -272,8 +272,8 @@ class TeleportationDialog(QWidget):
                                      'classically controlled corrections')
         form.addWidget(self.open_circuit)
         form.addStretch()
-        from quantumscope.gui.side_panel import CollapsiblePanel
-        root.addWidget(CollapsiblePanel(side, 'Controls', 'teleportation'))
+        from quantumscope.gui.side_panel import CollapsiblePanel, scrolling
+        root.addWidget(CollapsiblePanel(scrolling(side), 'Controls', 'teleportation'))
         right = QVBoxLayout()
         self.circuit = CircuitStrip()
         right.addWidget(self.circuit)

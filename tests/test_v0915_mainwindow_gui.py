@@ -39,7 +39,7 @@ def test_side_panels_fold_to_a_strip_and_back(window):
     settle()
     assert panel.width() == STRIP and panel.name.isVisible() and not panel.content.isVisible()
     assert splitter.sizes()[1] > before[1]                                # the circuit gets the room
-    assert panel.button.text() == '›'
+    assert panel.button.text() == '»'
     panel.name.mouseReleaseEvent(None)                                     # click the name: open again
     settle()
     assert not panel.collapsed and panel.content.isVisible() and splitter.sizes() == before

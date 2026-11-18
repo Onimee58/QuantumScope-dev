@@ -82,6 +82,11 @@ QTabWidget#categoryWorkspace QTabBar::tab { background: #162336; color: #b7cbe0;
     padding: 7px 16px; border-top-left-radius: 6px; border-top-right-radius: 6px; }
 QTabWidget#categoryWorkspace QTabBar::tab:selected { background: #234766; color: #ffffff; border-color: #3d7aa3; }
 QTabWidget#categoryWorkspace QTabBar::tab:hover:!selected { background: #1d3049; color: #e3eefa; }
+QWidget#panelStrip { background: #122033; border-radius: 6px; }
+QToolButton#panelToggle { background: #1c4a66; color: #e6fbff; border: 1px solid #3f8fb3; border-radius: 6px;
+    font-size: 17px; font-weight: 700; padding: 0 0 2px 0; }
+QToolButton#panelToggle:hover { background: #2a6688; border-color: #7fd3ee; }
+QScrollArea#workspaceScroll, QScrollArea#workspaceScroll > QWidget, QTabWidget#categoryWorkspace { background: transparent; }
 QComboBox QAbstractItemView { background: #17283b; color: #eef7ff; border: 1px solid #3b5975;
     selection-background-color: #1c6987; selection-color: #ffffff; outline: 0; }
 """
@@ -116,6 +121,9 @@ QFrame#newsBar QLabel { color: #16384d; }
 QToolButton#tabAddButton { background: #e7f1fa; color: #17657d; border-color: #b2cede; }
 QToolButton#quickValue { background: #e4eef7; color: #23435c; border: 1px solid #b0c7db; }
 QToolButton#quickValue:hover { background: #d1e6f4; }
+QWidget#panelStrip { background: #dfeaf4; }
+QToolButton#panelToggle { background: #1f7fa8; color: #ffffff; border-color: #1a6d91; }
+QToolButton#panelToggle:hover { background: #2690bd; border-color: #145a78; }
 
 QListWidget { background:#f4f8fc; color:#19334b; border:1px solid #aac4d8; }
 QListWidget::item { background:#e4eff8; color:#1b4058; border:1px solid #c2d5e4; }
@@ -343,7 +351,44 @@ def indicator_rules(resolved):
             f'QCheckBox::indicator:hover {{ border-color: {hover}; }}\n'
             f'QCheckBox::indicator:checked {{ background: {fill}; border-color: {fill}; image: url("{tick}"); }}\n'
             f'QCheckBox::indicator:disabled {{ border-color: {off}; background: transparent; }}\n'
-            f'QCheckBox::indicator:checked:disabled {{ background: {off}; border-color: {off}; }}\n')
+            f'QCheckBox::indicator:checked:disabled {{ background: {off}; border-color: {off}; }}\n'
+            + arrow_rules(resolved))
+
+
+def arrow_rules(resolved):
+    """Up/down buttons of number boxes, and the arrow of drop-down lists, drawn explicitly (v0.9.17):
+    the default ones were faint, nearly invisible on the dark theme, and small to click."""
+    from importlib.resources import files
+
+    def asset(name):
+        return str(files('quantumscope').joinpath(f'assets/{name}-{resolved}.svg')).replace('\\', '/')
+    up, down = asset('arrow-up'), asset('arrow-down')
+    if resolved == 'light':
+        button, edge, hover, pressed = '#e4eef7', '#a7bfd2', '#cde4f3', '#b5d6ea'
+    else:
+        button, edge, hover, pressed = '#22394f', '#38516b', '#2f5674', '#1a4a66'
+    rules = []
+    for box in ('QSpinBox', 'QDoubleSpinBox'):
+        rules += [
+            f'{box} {{ padding-right: 24px; }}',
+            f'{box}::up-button {{ subcontrol-origin: border; subcontrol-position: top right; width: 21px; '
+            f'background: {button}; border-left: 1px solid {edge}; border-bottom: 1px solid {edge}; '
+            f'border-top-right-radius: 6px; }}',
+            f'{box}::down-button {{ subcontrol-origin: border; subcontrol-position: bottom right; width: 21px; '
+            f'background: {button}; border-left: 1px solid {edge}; border-bottom-right-radius: 6px; }}',
+            f'{box}::up-button:hover, {box}::down-button:hover {{ background: {hover}; }}',
+            f'{box}::up-button:pressed, {box}::down-button:pressed {{ background: {pressed}; }}',
+            f'{box}::up-arrow {{ image: url("{up}"); width: 11px; height: 11px; }}',
+            f'{box}::down-arrow {{ image: url("{down}"); width: 11px; height: 11px; }}',
+            f'{box}::up-arrow:disabled, {box}::down-arrow:disabled {{ image: none; }}']
+    rules.append(f'QComboBox::down-arrow {{ image: url("{down}"); width: 11px; height: 11px; }}')
+    right = asset('arrow-right')
+    rules += [f'QGroupBox[fold="true"]::indicator {{ width: 12px; height: 12px; image: url("{down}"); '
+              'border: none; background: transparent; }',
+              f'QGroupBox[fold="true"]::indicator:unchecked {{ image: url("{right}"); }}',  # folding groups (v0.9.17)
+              'QGroupBox[fold="true"]:unchecked { border-color: transparent; background: transparent; '
+              'padding: 0px; margin-bottom: 0px; }']
+    return '\n'.join(rules) + '\n'
 
 
 def apply_theme(choice):

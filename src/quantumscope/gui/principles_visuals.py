@@ -412,7 +412,7 @@ class DetectorScreen(QWidget):
     def __init__(self, parent=None):
         from PySide6.QtGui import QImage
         super().__init__(parent)
-        self.setMinimumHeight(110)
+        self.setMinimumHeight(80)
         self._image = QImage(900, 160, QImage.Format.Format_ARGB32_Premultiplied)
         self._image.fill(Qt.GlobalColor.transparent)
         self.halfwidth = 40.0

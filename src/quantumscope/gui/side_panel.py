@@ -3,12 +3,16 @@
 A control panel dragged shut used to vanish without a trace. Wrapped in a CollapsiblePanel, it
 folds to a strip with its name written down the side and a button to open it again; the choice is
 remembered between sessions.
+
+v0.9.17: the groups inside a panel (Data, Preprocessing, …) fold too: a click on a group's title
+folds it to that title, and the choice is remembered.
 """
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QPainter
-from PySide6.QtWidgets import QHBoxLayout, QSplitter, QToolButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (QFrame, QGroupBox, QHBoxLayout, QScrollArea, QSplitter, QToolButton, QVBoxLayout,
+                               QWidget)
 
-STRIP = 24                                     # width of the folded panel
+STRIP = 28                                     # width of the folded panel (v0.9.17: 24 → 28)
 UNLIMITED = 16777215                           # Qt's QWIDGETSIZE_MAX
 
 
@@ -44,7 +48,7 @@ class CollapsiblePanel(QWidget):
     side: 'left' when the panel is at the left of its window (the strip is on its right edge)."""
     collapsedChanged = Signal(bool)
 
-    def __init__(self, content, title, key=None, side='left', parent=None):
+    def __init__(self, content, title, key=None, side='left', parent=None, fold_groups=True):
         super().__init__(parent)
         self.content, self.title, self.key, self.side = content, title, key, side
         self._sizes = None
@@ -52,13 +56,16 @@ class CollapsiblePanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(2)
         self.strip = QWidget()
+        self.strip.setObjectName('panelStrip')
+        self.strip.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.strip.setFixedWidth(STRIP)
         strip = QVBoxLayout(self.strip)
-        strip.setContentsMargins(0, 2, 0, 2)
+        strip.setContentsMargins(0, 3, 0, 3)
         strip.setSpacing(6)
-        self.button = QToolButton()
-        self.button.setAutoRaise(True)
-        self.button.setFixedSize(STRIP - 2, STRIP - 2)
+        self.button = QToolButton()                       # v0.9.17: a filled button, easy to see
+        self.button.setObjectName('panelToggle')
+        self.button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.button.setFixedSize(STRIP - 4, 34)
         self.button.clicked.connect(lambda: self.set_collapsed(not self.collapsed))
         strip.addWidget(self.button, 0, Qt.AlignmentFlag.AlignHCenter)
         self.name = VerticalTitle(title)
@@ -72,6 +79,9 @@ class CollapsiblePanel(QWidget):
             layout.addWidget(content, 1)
         self.collapsed = False
         self._show()
+        self.groups = [foldable(g, f'{key}/{g.title()}' if key else None)
+                       for g in (content.findChildren(QGroupBox) if fold_groups else ())
+                       if not g.isCheckable() and g.title()]
         if key and _remembered(key):
             self.set_collapsed(True)
 
@@ -104,7 +114,7 @@ class CollapsiblePanel(QWidget):
         c = self.collapsed
         self.content.setVisible(not c)
         self.name.setVisible(c)
-        opening, closing = ('›', '‹') if self.side == 'left' else ('‹', '›')
+        opening, closing = ('»', '«') if self.side == 'left' else ('«', '»')
         self.button.setText(opening if c else closing)
         self.button.setToolTip(f'Show {self.title}' if c else f'Hide {self.title}: it folds to this strip')
         if c:
@@ -114,30 +124,73 @@ class CollapsiblePanel(QWidget):
             self.setMaximumWidth(UNLIMITED)
 
 
-def _remembered(key):
+def scrolling(panel):
+    """A control panel that scrolls up and down when the window is too short for it (v0.9.17)."""
+    area = QScrollArea()
+    area.setWidget(panel)
+    area.setWidgetResizable(True)
+    area.setFrameShape(QFrame.Shape.NoFrame)
+    area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+    bar = area.verticalScrollBar().sizeHint().width() + 2
+    area.setMinimumWidth(panel.minimumSizeHint().width() + bar)
+    if panel.maximumWidth() < UNLIMITED:                            # a column of a set width stays so
+        area.setMaximumWidth(panel.maximumWidth() + bar)
+    return area
+
+
+def foldable(group, key=None):
+    """Let a group box fold to its title: a click on the title (with its ▾/▸) hides or shows what is
+    inside. The group's contents move into an inner widget, so rows hidden on purpose stay hidden.
+    Returns the group (group.fold is the inner widget)."""
+    if getattr(group, 'fold', None) is not None:
+        return group
+    inner = QWidget()
+    layout = group.layout()
+    if layout is not None:
+        inner.setLayout(layout)                               # takes the layout and its widgets along
+    outer = QVBoxLayout(group)
+    outer.setContentsMargins(0, 0, 0, 0)
+    outer.addWidget(inner)
+    group.fold = inner
+    group.setProperty('fold', True)
+    group.setCheckable(True)
+    group.setChecked(True)
+    group.setToolTip('Click the title to fold or unfold this group')
+
+    def show(opened):
+        inner.setVisible(opened)
+        if key:
+            _remember(f'groups/{key}', not opened, prefix='')
+    group.toggled.connect(show)
+    if key and _remembered(f'groups/{key}', prefix=''):
+        group.setChecked(False)
+    return group
+
+
+def _remembered(key, prefix='panels/'):
     try:
         from quantumscope.gui import preferences as prefs
-        return str(prefs._settings().value(f'panels/{key}', 'false')).lower() == 'true'
+        return str(prefs._settings().value(f'{prefix}{key}', 'false')).lower() == 'true'
     except Exception:                                     # settings are a convenience here
         return False
 
 
-def _remember(key, collapsed):
+def _remember(key, collapsed, prefix='panels/'):
     try:
         from quantumscope.gui import preferences as prefs
         store = prefs._settings()
-        store.setValue(f'panels/{key}', bool(collapsed))
+        store.setValue(f'{prefix}{key}', bool(collapsed))
         store.sync()
     except Exception:
         pass
 
 
-def wrap_in_splitter(splitter, index, title, key):
+def wrap_in_splitter(splitter, index, title, key, fold_groups=True):
     """Wrap the splitter's widget at `index` in a CollapsiblePanel (in place) and stop the splitter
     from collapsing it to nothing."""
     content = splitter.widget(index)
     sizes = splitter.sizes()
-    panel = CollapsiblePanel(content, title, key, side='left' if index == 0 else 'right')
+    panel = CollapsiblePanel(content, title, key, side='left' if index == 0 else 'right', fold_groups=fold_groups)
     splitter.insertWidget(index, panel)
     splitter.setCollapsible(index, False)
     splitter.setStretchFactor(index, 0)                   # spare width goes to the main view
