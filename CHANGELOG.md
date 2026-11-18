@@ -1,3 +1,13 @@
+## v0.9.17 — Easier on small screens
+
+From the beta tester's second review:
+
+- **Fixed: the bottom of the window went off the screen on Windows** (for example after training a classifier). An open experiment could make the window at least 770 pixels tall, more than a laptop's 768-pixel screen less the taskbar. Now the areas scroll when the window is shorter or narrower than an experiment needs, the charts of the Quantum ML experiments need less height, and QuantumScope opens no larger than the screen.
+- **Clear arrows on number boxes:** the up and down buttons are drawn in the theme's colours, larger and easy to see on both themes (they were faint, nearly invisible on the dark theme); the arrow of drop-down lists matches.
+- **The side panels' fold button is easy to find:** a filled **«** / **»** button on a shaded strip, instead of a faint ‹.
+- **Groups fold:** in the side panels of the experiments, a click on a group's title (**Data**, **Preprocessing**, **Kernel and classifier**, …) folds it to its title; which groups are folded is remembered.
+- **Long runs say when they have finished:** training, cross-validation, the grid search, anneals, circuit optimization and predictions on a file that take more than 5 seconds announce it in the status bar, with how long they took, and ask for attention in the taskbar or Dock when QuantumScope is behind another program.
+
 ## v0.9.16 — Run your circuit on real quantum hardware
 
 - **File → Run on IBM Quantum hardware…** in the Gate Circuit Simulator writes ready-to-paste Python for the current circuit, in four steps with Copy buttons: install Qiskit; save your IBM Quantum account once (or use environment variables, or write the key into the script); try the circuit on your computer first, ideally and with the simulated noise of a real IBM device (no account needed); and run it on the least busy device with enough qubits, or one you name. Results print with q0 first, as in QuantumScope, so they can be compared directly. **Save the hardware script…** saves the run as a .py file.

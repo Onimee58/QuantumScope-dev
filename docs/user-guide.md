@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 0.9.16** · Quantum Visualization Studio · MIT licensed
+Written for **QuantumScope 0.9.17** · Quantum Visualization Studio · MIT licensed
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -47,11 +47,12 @@ Nothing is downloaded or installed without your confirmation, and a download tha
 - **Areas:** the five tabs under the title, **Hydrogen**, **Quantum Principles**, **Quantum Circuits**, **Quantum ML** and **Math**, are the five areas of the app.
 - **Experiment tabs:** each area holds experiment tabs. Open more with **+** on the right of the tab bar, or with **+ New Experiment** at the top. Every tab can be closed with its **×**. A closed tab is only hidden, so opening it again brings it back exactly as you left it. An area with no open tabs shows a **Start** page with its experiments as buttons.
 - **Tabs in their own windows:** **⧉** next to **Learn** (or right-click a tab → **Open in its own window**) moves the tab into a window of its own, which can be any size and shape, on any screen. **Dock back**, or closing that window, puts it back as a tab.
-- **Side panels:** the **‹** at the edge of a side panel (the controls, the gate palette, the lesson list) folds it to a narrow strip with its name; **›**, or a click on the name, opens it again. QuantumScope remembers which panels are folded.
+- **Side panels:** the **«** button at the edge of a side panel (the controls, the gate palette, the lesson list) folds it to a narrow strip with its name; **»**, or a click on the name, opens it again. QuantumScope remembers which panels are folded. The groups inside a panel (**Data**, **Preprocessing**, …) fold too: click a group's title, by its **▾**, to fold it to that title, and again to open it; these are remembered as well.
+- **Small screens:** when the window is shorter or narrower than an experiment needs, the area scrolls (scrollbar on the right) instead of the window growing past the edge of the screen. QuantumScope also opens no larger than the screen.
 - **📖 Learn** opens the study guide for the current area (chapter 8).
 - **⚑** opens **Report a problem** (chapter 10). **⚙** opens **Settings** (chapter 9). **ⓘ** shows **About QuantumScope**, including **Check for updates…** and **User guide**, which opens this document.
 - **Charts:** right-click any chart for **View All**, the axis options, **Save image…** (PNG or JPEG at twice the screen resolution), **Copy image** and **Save data (CSV)…**.
-- **Long computations** (training, **Optimize**, **Best of N**, the landscape) run in the background with their progress shown, so the window never freezes; **Stop** or **Cancel** ends them early.
+- **Long computations** (training, **Optimize**, **Best of N**, the landscape) run in the background with their progress shown, so the window never freezes; **Stop** or **Cancel** ends them early. When one that took more than a few seconds ends (training, cross-validation, a grid search, an anneal, an optimization), the status bar at the bottom says so, with how long it took; if you were in another program meanwhile, QuantumScope's taskbar button (Windows, Linux) or Dock icon (macOS) asks for your attention.
 
 When QuantumScope starts, its logo appears for a moment while the 3-D libraries load.
 

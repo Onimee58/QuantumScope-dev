@@ -92,7 +92,7 @@ def _plot(title, x_label='', y_label=''):
     plot.setLabel('bottom', x_label)
     plot.setLabel('left', y_label)
     plot.showGrid(x=True, y=True, alpha=0.15)
-    plot.setMinimumHeight(220)
+    plot.setMinimumHeight(150)                                 # v0.9.17: 220 → 150, for short screens
     for side in ('left', 'bottom'):                            # plain numbers: no automatic "×0.001"
         plot.getAxis(side).enableAutoSIPrefix(False)
     return plot
@@ -954,7 +954,7 @@ class KernelExperiment(QWidget):
         self.cancel_button.setEnabled(True)
         self.result.setText('Starting…')
         from quantumscope.gui.background import Run
-        self.run = Run(work, on_progress=self.result.setText, owner=self,
+        self.run = Run(work, on_progress=self.result.setText, owner=self, task='Training the kernel classifier',
                        on_done=lambda r: self._trained(r, settings, plane),
                        on_error=self._failed).start()
         return self.run
@@ -1071,7 +1071,7 @@ class KernelExperiment(QWidget):
             report((1, 2))
             return E.cross_validate_kernel(Kx, p.y_train, lambda: K.classifier(s['method'], s['strength'], p.k),
                                            folds, p.k)
-        return Run(work, owner=self, on_progress=on_progress, on_done=on_done,
+        return Run(work, owner=self, task='Cross-validation', on_progress=on_progress, on_done=on_done,
                    on_error=lambda exc, details: on_done(None, exc)).start()
 
     def _start_search(self, grid, k, on_progress, on_done):
@@ -1087,7 +1087,7 @@ class KernelExperiment(QWidget):
         def work(report, cancelled):
             return E.search_kernel(p.X_train, p.y_train, grid, k=k, progress=lambda d, t: report((d, t)),
                                    cancelled=cancelled)
-        return Run(work, owner=self, on_progress=on_progress, on_done=on_done,
+        return Run(work, owner=self, task='The grid search', on_progress=on_progress, on_done=on_done,
                    on_error=lambda exc, details: on_done(None, exc)).start()
 
     def _use_best(self, settings):
@@ -1382,7 +1382,7 @@ class VariationalExperiment(QWidget):
         self.open_circuit.setEnabled(False)
         self.result.setText('Starting…')
         from quantumscope.gui.background import Run
-        self.run = Run(work, owner=self, on_progress=lambda v: self._step(v, plane),
+        self.run = Run(work, owner=self, task='Training the variational classifier', on_progress=lambda v: self._step(v, plane),
                        on_done=lambda r: self._trained(r, settings, plane), on_error=self._failed).start()
         return self.run
 
@@ -1422,7 +1422,7 @@ class VariationalExperiment(QWidget):
             folds = E.stratified_folds(p.y_train, k, seed=self.seed.value())
             return E.cross_validate_variational(p.X_train, p.y_train, make, folds, options,
                                                 progress=lambda d, t: report((d, t)), cancelled=cancelled)
-        return Run(work, owner=self, on_progress=on_progress, on_done=on_done,
+        return Run(work, owner=self, task='Cross-validation', on_progress=on_progress, on_done=on_done,
                    on_error=lambda exc, details: on_done(None, exc)).start()
 
     def _use_loaded(self, model):

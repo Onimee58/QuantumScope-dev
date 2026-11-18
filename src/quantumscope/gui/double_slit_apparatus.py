@@ -17,7 +17,7 @@ class DoubleSlitApparatus(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumSize(390, 220)
+        self.setMinimumSize(390, 170)                     # v0.9.17: 220 → 170, for short screens
         self.setToolTip('Illustrative wavefronts only; probability and detections come from the Fraunhofer model.')
         self._phase = 0.0
         self._samples = np.empty(0)

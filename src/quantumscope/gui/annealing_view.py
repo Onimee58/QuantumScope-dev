@@ -420,7 +420,7 @@ class AnnealingExperiment(QWidget):
             return problem, spectrum, result, reads, rows
         self.compute_button.setEnabled(False)
         self.result_label.setText('Computing the spectrum and the anneal…')
-        self.run = Run(work, owner=self, on_done=self._computed, on_error=self._failed).start()
+        self.run = Run(work, owner=self, task='The anneal', on_done=self._computed, on_error=self._failed).start()
         return self.run
 
     def _failed(self, exc, details):
@@ -467,7 +467,7 @@ class AnnealingExperiment(QWidget):
             return None if curve is None else (problem, spectrum, curve)
         self.curve_button.setEnabled(False)
         self.tabs.setCurrentIndex(2)
-        self.run = Run(work, owner=self, on_progress=lambda v: self.result_label.setText(
+        self.run = Run(work, owner=self, task='The success curve', on_progress=lambda v: self.result_label.setText(
             f'Annealing for T = {TIMES[v[0] - 1]:g} ({v[0]} of {v[1]})…'),
             on_done=self._curve_done, on_error=self._failed).start()
         return self.run

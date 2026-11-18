@@ -154,7 +154,7 @@ class ModelPanel(QGroupBox):
             self._refresh()
             self.dialog = PredictionDialog(model, result, self)
             self.dialog.show()
-        self.run = Run(work, owner=self, on_done=done, on_error=self._failed).start()
+        self.run = Run(work, owner=self, task='Predicting on the file', on_done=done, on_error=self._failed).start()
         return self.run
 
     def _failed(self, exc, details):
