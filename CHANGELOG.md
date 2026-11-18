@@ -1,3 +1,12 @@
+## v1.0.0 — Licensed, for the classroom
+
+The first release for the Applied Quantum Computing course (Spring 2027).
+
+- **QuantumScope opens with a license file.** The first time it starts, it asks for the license file (*QuantumScope-license-….qslicense*) given by your instructor: choose it, or drop it on the window. It is checked on the computer, without the internet, and kept, so it is asked for once. A license that has ended, or a file that is not a valid license, is explained, and QuantumScope does not open without one.
+- **Signed licenses:** each license is signed with the developer's private key, which never leaves the developer's computer; QuantumScope holds only the matching public key, so it can check licenses but cannot make them, and an edited license is refused. There are owner, beta tester and student licenses; student licenses for the Spring 2027 course are valid until 30 June 2027.
+- **About** shows the license in use, until when it is valid, and **Change license…**.
+- **QuantumScope is no longer open source:** the MIT licence is withdrawn; terms of use will be announced.
+
 ## v0.9.19 — See your data before you import it
 
 From the beta tester's review:

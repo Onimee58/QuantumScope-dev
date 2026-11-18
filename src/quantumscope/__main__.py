@@ -21,6 +21,10 @@ def _self_test():
         from PySide6.QtWidgets import QApplication
         app = QApplication.instance() or QApplication(sys.argv[:1])
         lines.append(f"Qt platform: {app.platformName()}")
+        from quantumscope.licensing.check import key_is_set   # v1.0.0: a release must be able to check licenses
+        if not key_is_set():
+            raise RuntimeError("Built without the license key: run tools/licenses.py setup and commit license_key.py")
+        lines.append("License key: present")
         from quantumscope.visualization.glplatform import opengl_environment
         opengl_environment(app)                       # before OpenGL is imported (v0.9.11 fix)
         if sys.platform.startswith("linux"):          # both Linux interfaces must be bundled
@@ -149,18 +153,10 @@ def main():
     from quantumscope.gui import preferences as prefs
     from quantumscope.gui.theme import apply_theme
     apply_theme(prefs.get("appearance/theme"))
-    window = MainWindow()
-    try:   # follow the operating system's light/dark switch when "Follow system" is chosen
-        app.styleHints().colorSchemeChanged.connect(window._follow_system_theme)
-    except AttributeError:
-        pass
-    from quantumscope.gui.report_dialog import install_crash_catcher
-    install_crash_catcher(window)                     # unexpected errors offer a report (v0.9.5)
-    window.show()
-    if splash is not None:
-        splash.close()
-    window.offer_recovery()
-    window.start_news()                               # asks once; then reads the news weekly, if allowed
+    from quantumscope.gui.license_dialog import open_main_window
+    window = open_main_window(app, splash, MainWindow)   # v1.0.0: only with a valid license
+    if window is None:
+        return 0
     return app.exec()
 
 
