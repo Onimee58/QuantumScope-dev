@@ -1,3 +1,10 @@
+## v1.1.1 — Safer training on large data
+
+- **Fixed: QuantumScope could close after training on data with many classes.** The confusion matrix wrote a number in every cell, and with hundreds of classes that made hundreds of thousands of labels, which used up the computer's memory. Now numbers appear in the cells only up to 20 classes and class names on the axes up to 40; beyond that the matrix shows each row's share by colour. The same in the classifiers' Evaluation tab.
+- **Hybrid QNN checks memory before training:** when the network and the data would need more memory than the computer has free, it says so, with what to change (fewer samples per class, a smaller batch, smaller layers), instead of risking being stopped by the system. Data are kept in half the memory as before.
+- **Hybrid QNN warns about data it can hardly learn from:** many classes with only a few samples each (often a sign that the wrong label column was chosen), or too few samples per class.
+- **When QuantumScope closes unexpectedly,** the next start offers to report it, with the technical trace of the crash when there is one.
+
 ## v1.1.0 — Hybrid QNN
 
 - **A new experiment in Quantum ML: Hybrid QNN.** Build a hybrid quantum–classical neural network layer by layer and train it: **Dense**, **Conv1D**, **Conv2D**, max and average pooling (1-D and 2-D), global average pooling, **Dropout**, **BatchNorm**, **Flatten**, activations (ReLU, leaky ReLU, tanh, sigmoid, GELU) and the **Quantum layer** (1–8 qubits, any number of quantum layers, ring, line or no entanglement), then an output layer with one unit per class. Start from a ready-made network, then add, remove, reorder and change layers; each layer's output shape and the classical and quantum parameters are shown as you build, and a layer that does not fit says what to change.

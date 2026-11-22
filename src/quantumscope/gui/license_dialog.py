@@ -114,5 +114,8 @@ def open_main_window(app, splash, window_class):
     if splash is not None:
         splash.close()
     window.offer_recovery()
+    if getattr(window, 'previous_session_crashed', False):   # v1.1.1: it closed unexpectedly last time
+        from quantumscope.gui.report_dialog import offer_crash_report
+        offer_crash_report(window)
     window.start_news()                               # asks once; then reads the news weekly, if allowed
     return window

@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 1.1.0** · Quantum Visualization Studio
+Written for **QuantumScope 1.1.1** · Quantum Visualization Studio
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -323,7 +323,7 @@ A hybrid quantum neural network: classical layers, a quantum layer, and an outpu
 - **The quantum layer** takes one number per qubit (so the layer before must give exactly that many: a **Dense** layer with that many units and tanh is usual), turns each into the angle of an RY rotation (**Angle scale** × the number), then applies **Quantum layers** of trainable RY and RZ rotations on every qubit followed by CNOTs (**Entanglement**: ring, line or none), and passes on ⟨Z⟩ of each qubit. Its gradients, also those passed back to the classical layers before it, are exact (the adjoint method). Up to 8 qubits.
 - **Training:** **Epochs**, **Batch size** and **Learning rate** (Adam), with cross-entropy loss. **Train** shows the training loss and the test accuracy epoch by epoch; **Stop** ends it.
 - **Also train the classical twin** trains the same network with each quantum layer replaced by a dense layer of the same width (tanh), on the same data. **Results** compares the two; with small data and few qubits the difference changes with the seed, so train with a few seeds before drawing a conclusion. **Network** lists every layer with its output shape and parameters, and **Confusion matrix** shows the hybrid network's errors on the test data.
-- Everything runs on your computer's processor, in NumPy: networks of a few thousand parameters on a few thousand small samples train in seconds to minutes.
+- Everything runs on your computer's processor, in NumPy: networks of a few thousand parameters on a few thousand small samples train in seconds to minutes. If a network and its data would need more memory than the computer has free, **Train** says so first, with what to change; and the line under **Data** warns about data it can hardly learn from, such as hundreds of classes with a few samples each.
 
 ## 7. Math
 

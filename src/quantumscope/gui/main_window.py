@@ -1337,6 +1337,7 @@ class MainWindow(QMainWindow):
         marker = self._session_marker()
         autosave = workspace.autosave_path()
         crashed = os.path.exists(marker)
+        self.previous_session_crashed = crashed               # v1.1.1: then a report is offered too
         if crashed and prefs.get("files/autosave") and os.path.exists(autosave):
             answer = QMessageBox.question(
                 self, "Recover circuit",

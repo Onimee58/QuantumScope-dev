@@ -7,7 +7,7 @@
 
   A cross-platform quantum visualization and circuit simulation studio built with Python and PySide6.
 
-  [![Version](https://img.shields.io/badge/version-v1.1.0-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
+  [![Version](https://img.shields.io/badge/version-v1.1.1-1878b9)](https://github.com/Onimee58/QuantumScope/releases)
   [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
   [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-555)](https://github.com/Onimee58/QuantumScope/releases)
 
@@ -57,6 +57,10 @@ Use it for self-study, classroom demonstrations, coursework or experimenting wit
 | **Disk space** | 1.5 GB free | 2 GB free | 2 GB free (SSD) |
 | **Screen** | 1280 × 720 | 1920 × 1080 | 1920 × 1080 or larger |
 | **What runs well** | 3-D orbitals up to 96 points per axis; circuits up to 10 qubits; Quantum ML up to a few hundred samples | Everything, including the comparison 3-D view and larger datasets | The finest 3-D grids (160 points per axis) with both viewers, and the largest models, smoothly |
+
+## What's new in v1.1.1?
+
+**Safer training on large data.** No more closing after training on data with many classes; Hybrid QNN checks memory before training and warns about data it can hardly learn from; an unexpected close is offered as a report at the next start.
 
 ## What's new in v1.1.0?
 
