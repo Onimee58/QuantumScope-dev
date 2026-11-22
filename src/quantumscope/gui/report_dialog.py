@@ -167,6 +167,50 @@ class ReportDialog(QDialog):
 
 
 # ---- the crash catcher -------------------------------------------------------------------------------
+CRASH = {'previous': '', 'handle': None}
+
+
+def crash_log_path():
+    from quantumscope.gui.preferences import data_folder
+    return os.path.join(data_folder(), 'last-crash.log')
+
+
+def enable_crash_log():
+    """Keep what the last session's crash left (if anything), then record this session's: a crash in
+    compiled code (not a Python error) writes its trace to last-crash.log (v1.1.1)."""
+    import faulthandler
+    path = crash_log_path()
+    try:
+        with open(path, encoding='utf-8', errors='replace') as f:
+            CRASH['previous'] = f.read(64 * 1024).strip()
+    except OSError:
+        CRASH['previous'] = ''
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        CRASH['handle'] = open(path, 'w', encoding='utf-8')
+        faulthandler.enable(CRASH['handle'])
+    except (OSError, RuntimeError):
+        pass
+
+
+def offer_crash_report(window):
+    """After a session that ended without closing normally: offer to report it."""
+    box = QMessageBox(window)
+    box.setIcon(QMessageBox.Icon.Warning)
+    box.setWindowTitle('QuantumScope closed unexpectedly')
+    box.setText('QuantumScope did not close normally last time.')
+    box.setInformativeText('If it closed by itself, reporting it helps us fix it: say what you were doing (for '
+                           'example, training on a large dataset). A computer that ran out of memory can also stop '
+                           'programs without warning.')
+    report_button = box.addButton('Report it…', QMessageBox.ButtonRole.AcceptRole)
+    box.addButton('Not now', QMessageBox.ButtonRole.RejectRole)
+    box.exec()
+    if box.clickedButton() is report_button:
+        trace = CRASH['previous'] or '(no trace was recorded: the system may have stopped QuantumScope, as it does '\
+                                     'when memory runs out)'
+        ReportDialog(window, {'summary': 'QuantumScope closed unexpectedly', 'traceback': trace}).exec()
+
+
 def install_crash_catcher(window):
     """An unexpected error no longer just prints to a hidden console: QuantumScope keeps running and
     offers to report it (once per distinct error, never while a report is already open)."""

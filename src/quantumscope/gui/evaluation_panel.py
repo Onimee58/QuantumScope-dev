@@ -188,7 +188,7 @@ class EvaluationPanel(QWidget):
         image.setRect(0, 0, k, k)
         plot.addItem(image)
         size = 9 if k > 6 else 11
-        for i in range(k):
+        for i in range(k if k <= 20 else 0):                  # v1.1.1: numbers only while readable
             for j in range(k):
                 if confusion[i, j]:
                     text = pg.TextItem(str(int(confusion[i, j])), anchor=(0.5, 0.5), color='#ffffff')
@@ -197,8 +197,8 @@ class EvaluationPanel(QWidget):
                     text.setFont(font)
                     text.setPos(j + 0.5, k - i - 0.5)
                     plot.addItem(text)
-        plot.getAxis('bottom').setTicks([[(j + 0.5, names[j]) for j in range(k)]])
-        plot.getAxis('left').setTicks([[(k - i - 0.5, names[i]) for i in range(k)]])
+        plot.getAxis('bottom').setTicks([[(j + 0.5, names[j]) for j in range(k)]] if k <= 40 else None)
+        plot.getAxis('left').setTicks([[(k - i - 0.5, names[i]) for i in range(k)]] if k <= 40 else None)
         plot.setTitle(f'Confusion matrix: {int(np.trace(confusion))} of {int(confusion.sum())} right')
         plot.setAspectLocked(False)
         plot.disableAutoRange()

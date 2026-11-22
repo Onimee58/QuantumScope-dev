@@ -752,7 +752,32 @@ def prepare(dataset, *, shape='auto', per_class=None, test_fraction=0.25, seed=0
             note = f'a sequence of {X.shape[1]} values, standardised'
         else:
             note = f'{X.shape[1]} features, standardised'
+    X = X.astype(np.float32)                                   # half the memory; the layers compute in float64
     return Data(X[train], y[train], X[test], y[test], list(dataset.classes), X.shape[1:], note)
+
+
+def memory_needed(net, data, batch):
+    """A generous estimate, in bytes, of what training `net` on `data` needs (v1.1.1): the data, every
+    layer's values for a batch (kept for the backward pass, with their gradients), and the parameters
+    with their gradients and Adam's two averages."""
+    rows = max(int(batch), 256)                                # predictions run 256 at a time
+    values = sum(int(np.prod(s)) for s in net.shapes) * rows * 8 * 4
+    quantum = sum(rows * 2 ** l.q * 16 * 6 for l in net.layers if l.quantum)
+    params = sum(l.size for l in net.all_layers) * 8 * 4
+    data_bytes = data.X_train.nbytes + data.X_test.nbytes
+    return data_bytes + values + quantum + params
+
+
+def data_warning(data):
+    """Words of caution about data a network can hardly learn from, or ''."""
+    k = len(data.classes)
+    per_class = len(data.y_train) / max(k, 1)
+    if k > 50 and per_class < 20:
+        return (f'{k} classes with about {per_class:.0f} training samples each: too few to learn from. Is the '
+                'label column the right one?')
+    if per_class < 5:
+        return f'About {per_class:.0f} training samples per class: too few to learn from; use more samples.'
+    return ''
 
 
 def confusion(y_true, y_pred, k):

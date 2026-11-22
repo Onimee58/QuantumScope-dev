@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog
 from quantumscope.ml import datasets as D
 from quantumscope.ml import hybrid as H
 
+MAX_LABELLED, MAX_TICKED = 20, 40          # v1.1.1: hundreds of classes once made thousands of labels
 INPUTS = (('auto', 'As it is (images as images)'), ('features', 'Features (a vector)'),
           ('sequence', 'A sequence (for Conv1D)'))
 CHOICES = {'activation': H.ACTIVATIONS, 'padding': ('valid', 'same'), 'entanglement': ('ring', 'line', 'none')}
@@ -259,8 +260,10 @@ class HybridExperiment(QWidget):
             self.data_label.setText(f'Cannot use this data: {exc}')
             return
         d = self.data
+        warning = H.data_warning(d)
         self.data_label.setText(f'{len(d.y_train)} training and {len(d.y_test)} test samples · {len(d.classes)} '
-                                f'classes · {d.note} · each sample {H._shape(d.input_shape)}')
+                                f'classes · {d.note} · each sample {H._shape(d.input_shape)}'
+                                + (f'<br><span style="color:#e8a33d">{warning}</span>' if warning else ''))
         self._check()
 
     # ---- the network -----------------------------------------------------------------------------
@@ -396,6 +399,8 @@ class HybridExperiment(QWidget):
             return None
         d, specs, seed = self.data, [dict(s) for s in self.specs], self.seed.value()
         epochs, batch, lr = self.epochs.value(), self.batch.value(), self.rate.value()
+        if not self._enough_memory(specs, batch):
+            return None
         models = [('hybrid', specs)] + ([('twin', H.twin_specs(specs))] if self.twin.isChecked() else [])
         for line in self.lines.values():
             line.setData([], [])
@@ -419,6 +424,26 @@ class HybridExperiment(QWidget):
         self.run = Run(work, owner=self, task='Training the hybrid QNN', on_progress=self._progress,
                        on_done=self._trained, on_error=self._failed).start()
         return self.run
+
+    def _enough_memory(self, specs, batch):
+        """Training that would need more memory than the computer has free could make the system stop
+        QuantumScope without warning (v1.1.1): say so first, with what to change."""
+        try:
+            import psutil
+            free = psutil.virtual_memory().available
+        except Exception:                                      # no measurement: train as asked
+            return True
+        net = H.Network(self.data.input_shape, specs, len(self.data.classes), seed=0)
+        need = H.memory_needed(net, self.data, batch) * (2 if self.twin.isChecked() else 1)
+        if need < 0.6 * free:
+            return True
+        answer = QMessageBox.warning(
+            self, 'Not enough memory',
+            f'Training this network on this data needs about {need / 2 ** 30:.1f} GB of memory, and this computer '
+            f'has {free / 2 ** 30:.1f} GB free. QuantumScope could be stopped by the system.\n\nUse fewer samples '
+            'per class, a smaller batch, smaller layers (or more pooling before Flatten), or close other programs.',
+            QMessageBox.StandardButton.Cancel | QMessageBox.StandardButton.Ignore, QMessageBox.StandardButton.Cancel)
+        return answer == QMessageBox.StandardButton.Ignore
 
     def _progress(self, value):
         which, epoch, loss, val = value
@@ -474,13 +499,16 @@ class HybridExperiment(QWidget):
         image.setLookupTable(pg.colormap.get('viridis').getLookupTable(nPts=256))
         image.setLevels((0, 1))
         plot.addItem(image)
-        for i in range(k):
-            for j in range(k):
-                text = pg.TextItem(str(m[i, j]), color='w' if share[i, j] < 0.6 else 'k', anchor=(0.5, 0.5))
-                text.setPos(j + 0.5, i + 0.5)
-                plot.addItem(text)
+        if k <= MAX_LABELLED:                                   # numbers in the cells only while readable
+            for i in range(k):
+                for j in range(k):
+                    text = pg.TextItem(str(m[i, j]), color='w' if share[i, j] < 0.6 else 'k', anchor=(0.5, 0.5))
+                    text.setPos(j + 0.5, i + 0.5)
+                    plot.addItem(text)
         plot.getViewBox().invertY(True)
-        ticks = [(i + 0.5, str(c)[:10]) for i, c in enumerate(d.classes)]
-        plot.getAxis('bottom').setTicks([ticks])
-        plot.getAxis('left').setTicks([ticks])
+        ticks = [(i + 0.5, str(c)[:10]) for i, c in enumerate(d.classes)] if k <= MAX_TICKED else None
+        plot.getAxis('bottom').setTicks([ticks] if ticks else None)
+        plot.getAxis('left').setTicks([ticks] if ticks else None)
+        plot.setTitle('Confusion matrix (test data, hybrid)' + ('' if k <= MAX_LABELLED else
+                                                                 f': {k} classes, share of each row by colour'))
         plot.setAspectLocked(True)

@@ -159,3 +159,16 @@ def test_images_keep_their_shape():
     assert seq.input_shape == (13, 1)
     assert H.confusion(np.array([0, 1, 1]), np.array([0, 1, 0]), 2).tolist() == [[1, 0], [1, 1]]
     assert math.isclose(H.LAYERS['quantum'][1]['scale'], math.pi)
+
+
+def test_memory_estimate_and_data_warnings():
+    from quantumscope.ml import datasets as D
+    data = H.prepare(D.load('digits'), per_class=30)
+    assert data.X_train.dtype == np.float32                              # v1.1.1: half the memory
+    net = H.Network(data.input_shape, H.preset('cnn', data.input_shape), 10)
+    small = H.memory_needed(net, data, 32)
+    assert data.X_train.nbytes < small < 50 * 2 ** 20
+    assert H.memory_needed(net, data, 1024) > small
+    assert H.data_warning(data) == ''
+    few = H.prepare(D.load('digits'), per_class=3)
+    assert 'too few' in H.data_warning(few)

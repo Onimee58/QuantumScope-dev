@@ -153,6 +153,8 @@ def main():
     from quantumscope.gui import preferences as prefs
     from quantumscope.gui.theme import apply_theme
     apply_theme(prefs.get("appearance/theme"))
+    from quantumscope.gui.report_dialog import enable_crash_log
+    enable_crash_log()                                   # v1.1.1: a crash in compiled code leaves a trace
     from quantumscope.gui.license_dialog import open_main_window
     window = open_main_window(app, splash, MainWindow)   # v1.0.0: only with a valid license
     if window is None:
