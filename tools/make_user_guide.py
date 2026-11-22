@@ -246,6 +246,12 @@ def screenshots():
     variational.train().wait()
     settle(app, 0.4)
     save(w, 'qml-variational.png', scale=0.75)
+    w._launch_qml_hybrid()                                      # v1.1.0: a small CNN with a quantum layer
+    hybrid = w._open_experiments['qml_hybrid']
+    hybrid.epochs.setValue(12)
+    hybrid.train().wait()
+    settle(app, 0.4)
+    save(w, 'qml-hybrid.png', scale=0.75)
     w._launch_circuits()
     w.circuit_widget.load_library('vqls', {'problem': 'harder', 'layers': 2})
     w.circuit_widget.optimize_parameters().waited()
