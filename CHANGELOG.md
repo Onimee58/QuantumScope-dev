@@ -1,3 +1,12 @@
+## v1.1.0 — Hybrid QNN
+
+- **A new experiment in Quantum ML: Hybrid QNN.** Build a hybrid quantum–classical neural network layer by layer and train it: **Dense**, **Conv1D**, **Conv2D**, max and average pooling (1-D and 2-D), global average pooling, **Dropout**, **BatchNorm**, **Flatten**, activations (ReLU, leaky ReLU, tanh, sigmoid, GELU) and the **Quantum layer** (1–8 qubits, any number of quantum layers, ring, line or no entanglement), then an output layer with one unit per class. Start from a ready-made network, then add, remove, reorder and change layers; each layer's output shape and the classical and quantum parameters are shown as you build, and a layer that does not fit says what to change.
+- **Any dataset:** the built-in ones (images keep their shape) or your own CSV or .npz; features can also be read as a sequence, for 1-D convolutions.
+- **The classical twin:** the same network with each quantum layer replaced by a dense layer of the same width, trained on the same data, for an honest comparison.
+- **Training** with Adam and cross-entropy in the background, with live curves, a results summary, the network's layers and parameters, and a confusion matrix.
+- Everything is computed in NumPy on your computer, with exact gradients through the quantum layer (the adjoint method), each layer's gradients checked against numerical differentiation in the tests. No new library is needed, so the installers keep their size.
+- The user guide has a Hybrid QNN section.
+
 ## v1.0.1 — Your own file, chosen in the list
 
 - **Datasets tab: your own data is a choice in the Dataset list.** Choose **Your own file (CSV or .npz)…** to pick a file (the first time, the file dialog opens straight away); **Choose the file…** works only with that choice, and picks another file. After an import, the list says which file is loaded (*Your file: plants.csv*) instead of the built-in dataset chosen before, and choosing that entry again brings the file back without asking.

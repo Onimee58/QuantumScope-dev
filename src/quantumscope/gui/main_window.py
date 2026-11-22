@@ -205,6 +205,7 @@ class MainWindow(QMainWindow):
             menu.addAction("Datasets", self._launch_qml_datasets)
             menu.addAction("Quantum Kernel Classifier", self._launch_qml_kernel)
             menu.addAction("Variational Classifier", self._launch_qml_variational)
+            menu.addAction("Hybrid QNN", self._launch_qml_hybrid)
         if category in (None,"math"):
             menu.addSection("MATH")
             menu.addAction("Quantum Calculator", self._launch_calculator)
@@ -241,7 +242,7 @@ class MainWindow(QMainWindow):
          "entanglement": self._launch_entanglement, "teleportation": self._launch_teleportation,
          "qec": self._launch_qec_explorer, "annealing": self._launch_annealing, "qml_datasets": self._launch_qml_datasets,
          "qml_kernel": self._launch_qml_kernel, "qml_variational": self._launch_qml_variational,
-         "calculator": self._launch_calculator}[view]()
+         "qml_hybrid": self._launch_qml_hybrid, "calculator": self._launch_calculator}[view]()
 
     def apply_preferences(self):
         if hasattr(self, "circuit_widget"):
@@ -446,6 +447,8 @@ class MainWindow(QMainWindow):
         "Datasets": "csv upload data pca features mnist iris wine breast cancer split test",
         "Quantum Kernel Classifier": "qsvm svm support vector machine kernel ridge grid search roc cross-validation",
         "Variational Classifier": "vqc neural network training gradient descent adam bfgs loss",
+        "Hybrid QNN": "hybrid quantum neural network qnn cnn convolution pooling dropout batch normalisation dense "
+                      "layers deep learning classical twin",
         "Quantum Calculator": "dirac notation bra ket matrix eigenvalue trace partial trace tensor product",
     }
 
@@ -611,7 +614,7 @@ class MainWindow(QMainWindow):
     EXPERIMENT_AREAS={"dynamics_2d":"hydrogen","dynamics_3d":"hydrogen","qec_explorer":"circuits","annealing":"circuits",
                       "double_slit":"principles","superposition":"principles","entanglement":"principles",
                       "teleportation":"principles","qml_datasets":"qml","qml_kernel":"qml",
-                      "qml_variational":"qml","calculator":"math"}
+                      "qml_variational":"qml","qml_hybrid":"qml","calculator":"math"}
 
     def _open_experiment(self, key, label, constructor):
         """One persistent experiment tab in its own area. A closed tab was only hidden, so it
@@ -791,6 +794,10 @@ class MainWindow(QMainWindow):
     def _launch_qml_kernel(self):
         from quantumscope.gui.qml_experiments import KernelExperiment
         self._open_experiment("qml_kernel", "Quantum Kernel Classifier", KernelExperiment)
+
+    def _launch_qml_hybrid(self):
+        from quantumscope.gui.hybrid_view import HybridExperiment
+        self._open_experiment("qml_hybrid", "Hybrid QNN", HybridExperiment)
 
     def _launch_qml_variational(self):
         from quantumscope.gui.qml_experiments import VariationalExperiment
