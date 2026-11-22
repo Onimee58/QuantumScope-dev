@@ -41,7 +41,7 @@ def test_the_guide_names_controls_that_exist():
                     'Fire particles', 'Measure once', 'Measure many', 'Send one pair', 'Run Bell test',
                     'Teleport many', 'Open in the circuit simulator', 'Export PDF…', 'My course folder…',
                     'Restore defaults', 'Render state', 'Enable second 3D viewer', 'Simplify circuit…',
-                    'Import CSV or .npz…', 'Apply suggestions', 'Qubits (= features)', 'Samples per class',
+                    'Your own file (CSV or .npz)…', 'Apply suggestions', 'Qubits (= features)', 'Samples per class',
                     'PCA components', 'Shots per entry', 'Trainable layers', 'Open in circuit simulator',
                     'Show the solution', 'Your own system', 'Save model…', 'Load model…', 'Predict on a file…',
                     'Export CSV…', 'Save rotating GIF…', 'Separating axes', 'Kernel map', 'Cross-validate',
