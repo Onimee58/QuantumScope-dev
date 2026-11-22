@@ -37,7 +37,7 @@ Every learned step (the column means for missing values, the PCA directions, the
 
 ## Your own data
 
-**Import CSV or .npz…** reads your own files. A CSV opens in a preview, where you choose which column is the label (QuantumScope suggests one named *label*, *target* or *class*, or the last column) and which columns to leave out: an ID or row number is not something to learn from, and it is left out for you. A NumPy file needs arrays named X and y. The checker then works on it like any built-in dataset.
+**Your own file (CSV or .npz)…**, at the top of the Dataset list, reads your own files. A CSV opens in a preview, where you choose which column is the label (QuantumScope suggests one named *label*, *target* or *class*, or the last column) and which columns to leave out: an ID or row number is not something to learn from, and it is left out for you. A NumPy file needs arrays named X and y. The checker then works on it like any built-in dataset.
 
 ## Worked example
 
@@ -55,7 +55,7 @@ A test flower is scaled with the *same* 4.3 and 7.9, even if it measures 8.1 cm 
 
 ## In the app
 
-Open the **Datasets** experiment, pick MNIST, and read the checker's list. Press **Apply suggestions** to fill in **PCA components**, **Samples per class** and **Scale each feature to [0, π]**, then **Prepare**. The prepared data can be sent to either classifier. Try **Import CSV or .npz…** with your own file to see which problems it reports.
+Open the **Datasets** experiment, pick MNIST, and read the checker's list. Press **Apply suggestions** to fill in **PCA components**, **Samples per class** and **Scale each feature to [0, π]**, then **Prepare**. The prepared data can be sent to either classifier. Try **Your own file (CSV or .npz)…** at the top of the Dataset list to see which problems it reports.
 
 [Try it: check and prepare MNIST in the Datasets experiment](qs:open/qml_datasets)
 

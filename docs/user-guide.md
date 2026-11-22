@@ -1,6 +1,6 @@
 # QuantumScope User Guide
 
-Written for **QuantumScope 1.0.0** · Quantum Visualization Studio
+Written for **QuantumScope 1.0.1** · Quantum Visualization Studio
 
 QuantumScope is an interactive studio for learning quantum physics and quantum computing: hydrogen orbitals, the experiments behind quantum mechanics, quantum circuits, quantum machine learning and a quantum calculator, with built-in lessons that connect them. This guide shows how to use every part of it. To learn the physics itself, open **📖 Learn** inside the app.
 
@@ -255,7 +255,7 @@ The **Quantum ML** area turns data into quantum states and learns from them. Its
 
 ![Datasets: MNIST checked, prepared to four features, with example images of the two classes](images/qml-datasets.png)
 
-- **Dataset** picks a built-in dataset (Iris, Wine, Breast Cancer Wisconsin, Digits 8×8, a 2,000-image MNIST subset, a 2,000-image Fashion-MNIST subset, Palmer Penguins, Seeds and Glass Identification) or a synthetic one (moons, circles, XOR, blobs). **Import CSV or .npz…** reads your own data. A CSV opens in a preview first: scroll through its rows and columns, choose the **Label column** (from the list, or by clicking a column's name; QuantumScope suggests one named label, target, class … or the last), and untick the columns not to learn from (row numbers and IDs are left out already). It warns when the chosen label looks like a measurement rather than a class, and **The first row names the columns** fixes a header that was taken for data, or the reverse. A NumPy file needs arrays named X and y.
+- **Dataset** picks a built-in dataset (Iris, Wine, Breast Cancer Wisconsin, Digits 8×8, a 2,000-image MNIST subset, a 2,000-image Fashion-MNIST subset, Palmer Penguins, Seeds and Glass Identification) or a synthetic one (moons, circles, XOR, blobs). To use your own data, choose **Your own file (CSV or .npz)…** at the top of the **Dataset** list (or **Choose the file…** for another file); the list then shows the file's name. A CSV opens in a preview first: scroll through its rows and columns, choose the **Label column** (from the list, or by clicking a column's name; QuantumScope suggests one named label, target, class … or the last), and untick the columns not to learn from (row numbers and IDs are left out already). It warns when the chosen label looks like a measurement rather than a class, and **The first row names the columns** fixes a header that was taken for data, or the reverse. A NumPy file needs arrays named X and y.
 - **Qubits (= features)** is how many features the prepared data will have: each classifier encodes one feature per qubit.
 - **The checker** gives a verdict (ready, usable after preprocessing, or cannot be used) and lists what stands in the way, each with a suggested fix: too many features, too many samples, more than two classes, classes too small to learn from, text columns, missing values, or features on different scales.
 - **Preprocessing** shows every step and lets you change it: **Classes** (two to separate, or **All classes**), **Missing values**, **Text columns**, **Samples per class**, **PCA components**, scaling to [0, π] and the **Test share**. **Apply suggestions** restores the checker's recipe, and **Prepare** prepares the data and shares it with both classifiers.

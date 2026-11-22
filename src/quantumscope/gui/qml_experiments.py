@@ -75,6 +75,9 @@ def _scrolling(panel, layout):
     return area
 
 
+OWN_FILE = 'Your own file (CSV or .npz)…'
+
+
 def _source_combo():
     box = QComboBox()
     for key, (title, *_rest) in D.BUILTIN.items():
@@ -224,11 +227,16 @@ class DatasetsExperiment(QWidget):
         source = QGroupBox('Data')
         sv = QFormLayout(source)
         self.source = _source_combo()
+        self.source.insertItem(0, OWN_FILE, 'imported')     # v1.0.1: your own data is a choice in the list
+        self.source.insertSeparator(1)
+        self.source.setCurrentIndex(2)
         sv.addRow('Dataset', self.source)
-        self.import_button = QPushButton('Import CSV or .npz…')
+        self.import_button = QPushButton('Choose the file…')
         self.import_button.setToolTip('Your own data: a .csv opens in a preview, where you choose the label '
-                                      'column and the columns to use; a .npz needs arrays X and y')
+                                      'column and the columns to use; a .npz needs arrays X and y. Choose '
+                                      '"Your own file" in the list above to use it.')
         sv.addRow(self.import_button)
+        self.imported, self._shown_source = None, 2
         self.qubits = QSpinBox()
         self.qubits.setRange(1, D.MAX_QUBITS)
         self.qubits.setValue(4)
@@ -327,8 +335,36 @@ class DatasetsExperiment(QWidget):
         self._load_source()
 
     def _load_source(self, *_):
-        self.source_key = self.source.currentData()          # a built-in or synthetic key
-        self.use(D.load(self.source_key))
+        key = self.source.currentData()
+        self.import_button.setEnabled(key == 'imported')
+        if key == 'imported':                               # your own file: the one chosen, or choose one
+            if self.imported is not None:
+                self.source_key = 'imported'
+                self.use(self.imported)
+                self._shown_source = self.source.currentIndex()
+            elif self.import_file() is None:                  # cancelled: back to what is loaded
+                self._show_source(self._shown_source)
+            return
+        self.source_key = key                                 # a built-in or synthetic key
+        self.use(D.load(key))
+        self._shown_source = self.source.currentIndex()
+
+    def _show_source(self, index):
+        """Select an entry of the list without loading it again."""
+        self.source.blockSignals(True)
+        self.source.setCurrentIndex(index)
+        self.source.blockSignals(False)
+        self.import_button.setEnabled(self.source.currentData() == 'imported')
+
+    def _show_imported(self, dataset):
+        """The list says which file is loaded (v1.0.1): 'Your file: plants.csv'."""
+        self.imported = dataset
+        index = self.source.findData('imported')
+        self.source.setItemText(index, f'Your file: {dataset.name}' if dataset.name else OWN_FILE)
+        self.source.setItemData(index, 'Your own data. Choose the file… to use another one',
+                                Qt.ItemDataRole.ToolTipRole)
+        self._show_source(index)
+        self._shown_source = index
 
     def import_file(self, path=None, ask=None):
         """Import a .csv or .npz file. ask: show a .csv first, to choose its label column and the
@@ -352,6 +388,7 @@ class DatasetsExperiment(QWidget):
             QMessageBox.warning(self, 'Import data', f'This file could not be read:\n{exc}')
             return None
         self.source_key = 'imported'
+        self._show_imported(dataset)
         self.use(dataset)
         return dataset
 
@@ -456,6 +493,8 @@ class DatasetsExperiment(QWidget):
                 self.source_key = task.source
             else:
                 self.source_key = 'imported' if task.source in ('datasets', 'store') else task.source
+                if self.source_key == 'imported':
+                    self._show_imported(task.dataset)
             self.use(task.dataset)
         r = task.recipe
         self.qubits.blockSignals(True)

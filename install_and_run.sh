@@ -10,12 +10,28 @@ if [[ ! -f pyproject.toml ]]; then
   exit 1
 fi
 
-if ! command -v python3 >/dev/null 2>&1; then
+# v1.0.1: a Python from conda/Anaconda brings its own graphics libraries, which can stop Qt's OpenGL
+# ("Could not initialize GLX"). When a conda environment is active, use the system's Python instead.
+PYTHON=python3
+is_conda_python() {
+  "$1" -c 'import sys, os; p = sys.base_prefix.lower(); sys.exit(0 if ("conda" in p or os.path.isdir(os.path.join(sys.base_prefix, "conda-meta"))) else 1)' 2>/dev/null
+}
+if command -v python3 >/dev/null 2>&1 && is_conda_python python3; then
+  if [[ -x /usr/bin/python3 ]] && /usr/bin/python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)'; then
+    PYTHON=/usr/bin/python3
+    echo "Note: a conda environment is active; using the system Python ($PYTHON) for QuantumScope."
+  else
+    echo "Warning: only a conda Python was found. If QuantumScope fails with 'Could not initialize GLX'," >&2
+    echo "         run 'conda deactivate', install python3 (3.11 or newer) with your package manager, and try again." >&2
+  fi
+fi
+
+if ! command -v "$PYTHON" >/dev/null 2>&1; then
   echo "Error: python3 is not installed." >&2
   exit 1
 fi
 
-if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)' ; then
+if ! "$PYTHON" -c 'import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)' ; then
   echo "Error: Python 3.11 or newer is required." >&2
   exit 1
 fi
@@ -29,9 +45,13 @@ else
   echo "       Install Python venv, OpenGL, EGL and X11/Qt runtime libraries with your package manager."
 fi
 
+if [[ -x .venv/bin/python && "$PYTHON" != python3 ]] && is_conda_python .venv/bin/python; then
+  echo "[2/4] The existing .venv was made from a conda Python: making it again from $PYTHON..."
+  rm -rf .venv
+fi
 if [[ ! -x .venv/bin/python ]]; then
   echo "[2/4] Creating local Python environment..."
-  python3 -m venv .venv
+  "$PYTHON" -m venv .venv
 else
   echo "[2/4] Reusing existing .venv"
 fi

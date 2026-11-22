@@ -1,3 +1,8 @@
+## v1.0.1 — Your own file, chosen in the list
+
+- **Datasets tab: your own data is a choice in the Dataset list.** Choose **Your own file (CSV or .npz)…** to pick a file (the first time, the file dialog opens straight away); **Choose the file…** works only with that choice, and picks another file. After an import, the list says which file is loaded (*Your file: plants.csv*) instead of the built-in dataset chosen before, and choosing that entry again brings the file back without asking.
+- **Running from source on Linux:** install_and_run.sh uses the system's Python when a conda environment is active, and makes the .venv again if it was made from a conda Python, whose graphics libraries can stop QuantumScope with "Could not initialize GLX".
+
 ## v1.0.0 — Licensed, for the classroom
 
 The first release for the Applied Quantum Computing course (Spring 2027).
